@@ -1,5 +1,5 @@
 {
-  "projectName": "tradebase",
+  "projectName": "jottrade",
   "mode": "file-router",
   "typescript": true,
   "tailwind": true,
