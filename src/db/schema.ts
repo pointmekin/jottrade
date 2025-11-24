@@ -5,3 +5,5 @@ export const todos = pgTable('todos', {
   title: text('title').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 })
+
+export * from "../../auth-schema"
