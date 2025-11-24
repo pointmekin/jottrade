@@ -2,6 +2,7 @@ import {
   HeadContent,
   Scripts,
   createRootRouteWithContext,
+  useLocation,
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
@@ -44,13 +45,17 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  const location = useLocation()
+  const hideHeaderRoutes = ['/sign-in', '/sign-up', '/dashboard']
+  const shouldHideHeader = hideHeaderRoutes.some(route => location.pathname.startsWith(route))
+
   return (
     <html lang="en">
       <head>
         <HeadContent />
       </head>
       <body>
-        <Header />
+        {!shouldHideHeader && <Header />}
         {children}
         <TanStackDevtools
           config={{
