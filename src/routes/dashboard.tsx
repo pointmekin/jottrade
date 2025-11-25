@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { createFileRoute, useRouter, Link } from '@tanstack/react-router'
 import { authClient } from '../lib/auth-client'
 import { LogOut, LayoutDashboard, Settings, User, Bell, Search, Menu } from 'lucide-react'
 import { useState } from 'react'
@@ -67,10 +67,10 @@ function Dashboard() {
               <LayoutDashboard className="h-5 w-5" />
               <span className="font-medium">Dashboard</span>
             </a>
-            <a href="#" className="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-700/50 hover:text-slate-100 rounded-xl transition-colors">
+            <Link to="/profile" className="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-700/50 hover:text-slate-100 rounded-xl transition-colors">
               <User className="h-5 w-5" />
               <span className="font-medium">Profile</span>
-            </a>
+            </Link>
             <a href="#" className="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-700/50 hover:text-slate-100 rounded-xl transition-colors">
               <Settings className="h-5 w-5" />
               <span className="font-medium">Settings</span>
@@ -78,15 +78,19 @@ function Dashboard() {
           </nav>
 
           <div className="p-4 border-t border-slate-700/50">
-            <div className="flex items-center gap-3 px-4 py-3 mb-2">
-              <div className="w-10 h-10 rounded-full bg-linear-to-tr from-cyan-500 to-blue-500 flex items-center justify-center text-white font-bold">
-                {session.data.user.name?.charAt(0) || 'U'}
+            <Link to="/profile" className="flex items-center gap-3 px-4 py-3 mb-2 hover:bg-slate-700/30 rounded-xl transition-colors cursor-pointer">
+              <div className="w-10 h-10 rounded-full bg-linear-to-tr from-cyan-500 to-blue-500 flex items-center justify-center text-white font-bold overflow-hidden">
+                {session.data.user.image ? (
+                  <img src={session.data.user.image} alt={session.data.user.name || 'User'} className="w-full h-full object-cover" />
+                ) : (
+                  session.data.user.name?.charAt(0) || 'U'
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white truncate">{session.data.user.name}</p>
                 <p className="text-xs text-slate-400 truncate">{session.data.user.email}</p>
               </div>
-            </div>
+            </Link>
             <button
               onClick={handleSignOut}
               className="w-full flex items-center gap-3 px-4 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors text-sm"
