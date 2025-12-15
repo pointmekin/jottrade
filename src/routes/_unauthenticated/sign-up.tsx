@@ -1,20 +1,42 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link, useRouter, redirect } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 
 import { Loader2, Mail, Lock, User, ArrowRight } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/_unauthenticated/sign-up")({
+  beforeLoad: async () => {
+    // Attempt check (mostly for client-side nav)
+    try {
+      const { data } = await authClient.getSession();
+      if (data) {
+        throw redirect({
+          to: "/journal",
+        });
+      }
+    } catch (e) {
+      if (e instanceof Response) throw e; // Pass redirects
+      // Ignore other errors (like fetch failure on server)
+    }
+  },
   component: SignUp,
 });
 
 function SignUp() {
+  const { data: session, isPending } = authClient.useSession();
+  const router = useRouter();
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const router = useRouter();
+
+  useEffect(() => {
+    if (session && !isPending) {
+        router.navigate({ to: "/journal" });
+    }
+  }, [session, isPending, router]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +64,14 @@ function SignUp() {
       setLoading(false);
     }
   };
+
+  if (isPending || session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-900 via-slate-800 to-slate-900">
+        <Loader2 className="h-8 w-8 text-cyan-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
