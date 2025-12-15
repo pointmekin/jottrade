@@ -89,7 +89,18 @@ const columns: ColumnDef<Trade>[] = [
           if (!val) return <span className="text-zinc-500">-</span>;
           const num = parseFloat(val);
           const color = num >= 0 ? "text-green-500" : "text-red-500";
-          return <span className={color}>{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num)}</span>
+          return <span className={`font-medium ${color}`}>{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num)}</span>
+      }
+  },
+  {
+      id: "roi",
+      header: "ROI",
+      cell: ({ row }) => {
+          const val = row.original.returnPercent;
+          if (!val) return <span className="text-zinc-500">-</span>;
+          const num = parseFloat(val);
+          const color = num >= 0 ? "text-green-500" : "text-red-500";
+          return <span className={`font-medium ${color}`}>{num.toFixed(2)}%</span>
       }
   }
 ];
