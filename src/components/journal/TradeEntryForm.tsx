@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -22,10 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea"; 
-// Note: Textarea might not be in shadcn default add list safely, fall back to Input or generic HTML if missing
-// But usually good to have. I'll stick to Input for 'notes' for now if Textarea not added, or try to import it.
-// Checking installed components... Textarea not explicit, using basic HTML or Input.
 import { SheetClose, SheetFooter } from "@/components/ui/sheet";
 
 const formSchema = z.object({
@@ -35,6 +30,9 @@ const formSchema = z.object({
   entryPrice: z.string().min(1, "Price is required"),
   quantity: z.string().min(1, "Quantity is required"),
   notes: z.string().optional(),
+  exitPrice: z.string().optional(),
+  exitDate: z.string().optional(),
+  fees: z.string().optional(),
 });
 
 interface TradeEntryFormProps {
@@ -53,13 +51,14 @@ export function TradeEntryForm({ onSuccess }: TradeEntryFormProps) {
       entryPrice: "",
       quantity: "",
       notes: "",
+      exitPrice: "",
+      exitDate: "",
+      fees: "",
     },
   });
 
-  const mutation = useMutation({
-    mutationFn: async (values: z.infer<typeof formSchema>) => {
-      await createTrade({ data: values });
-    },
+  const { mutate: logTrade, isPending } = useMutation({
+    mutationFn: (values: z.infer<typeof formSchema>) => createTrade({ data: values }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trades"] });
       form.reset();
@@ -71,13 +70,9 @@ export function TradeEntryForm({ onSuccess }: TradeEntryFormProps) {
     }
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    mutation.mutate(values);
-  }
-
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+      <form onSubmit={form.handleSubmit((values) => logTrade(values))} className="space-y-4 py-4">
         <FormField
           control={form.control}
           name="symbol"
@@ -152,12 +147,58 @@ export function TradeEntryForm({ onSuccess }: TradeEntryFormProps) {
                 <FormItem>
                 <FormLabel>Quantity</FormLabel>
                 <FormControl>
-                    <Input type="number" step="0.01" placeholder="10" {...field} />
+                    <Input type="number" step="0.0001" placeholder="10" {...field} />
                 </FormControl>
                 <FormMessage />
                 </FormItem>
             )}
             />
+        </div>
+
+        <div className="pt-2 border-t border-zinc-800">
+             <p className="text-sm font-medium text-zinc-400 mb-2">Outcome (Optional)</p>
+             <div className="grid grid-cols-2 gap-4">
+                <FormField
+                control={form.control}
+                name="exitPrice"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Exit Price</FormLabel>
+                    <FormControl>
+                        <Input type="number" step="0.0001" placeholder="155.00" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+
+                <FormField
+                control={form.control}
+                name="exitDate"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Exit Date</FormLabel>
+                    <FormControl>
+                        <Input type="datetime-local" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+            </div>
+             <FormField
+                control={form.control}
+                name="fees"
+                render={({ field }) => (
+                    <FormItem className="mt-4">
+                    <FormLabel>Fees</FormLabel>
+                    <FormControl>
+                        <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
         </div>
 
         <FormField
@@ -179,9 +220,9 @@ export function TradeEntryForm({ onSuccess }: TradeEntryFormProps) {
           <SheetClose asChild>
             <Button variant="outline" type="button">Cancel</Button>
           </SheetClose>
-          <Button type="submit" disabled={mutation.isPending}>
-            {mutation.isPending ? "Saving..." : "Save Trade"}
-          </Button>
+          <Button type="submit" className="w-full" disabled={isPending}>
+          {isPending ? "Logging..." : "Log Trade"}
+        </Button>
         </SheetFooter>
       </form>
     </Form>
