@@ -9,14 +9,15 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SignUpRouteImport } from './routes/sign-up'
-import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as JournalRouteImport } from './routes/journal'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-query'
 import { Route as DemoNeonRouteImport } from './routes/demo/neon'
+import { Route as UnauthenticatedSignUpRouteImport } from './routes/_unauthenticated/sign-up'
+import { Route as UnauthenticatedSignInRouteImport } from './routes/_unauthenticated/sign-in'
+import { Route as AuthenticatedJournalRouteImport } from './routes/_authenticated/journal'
 import { Route as DemoStartServerFuncsRouteImport } from './routes/demo/start.server-funcs'
 import { Route as DemoStartApiRequestRouteImport } from './routes/demo/start.api-request'
 import { Route as DemoApiTqTodosRouteImport } from './routes/demo/api.tq-todos'
@@ -27,29 +28,18 @@ import { Route as DemoStartSsrSpaModeRouteImport } from './routes/demo/start.ssr
 import { Route as DemoStartSsrFullSsrRouteImport } from './routes/demo/start.ssr.full-ssr'
 import { Route as DemoStartSsrDataOnlyRouteImport } from './routes/demo/start.ssr.data-only'
 
-const SignUpRoute = SignUpRouteImport.update({
-  id: '/sign-up',
-  path: '/sign-up',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SignInRoute = SignInRouteImport.update({
-  id: '/sign-in',
-  path: '/sign-in',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
-const JournalRoute = JournalRouteImport.update({
-  id: '/journal',
-  path: '/journal',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -66,6 +56,21 @@ const DemoNeonRoute = DemoNeonRouteImport.update({
   id: '/demo/neon',
   path: '/demo/neon',
   getParentRoute: () => rootRouteImport,
+} as any)
+const UnauthenticatedSignUpRoute = UnauthenticatedSignUpRouteImport.update({
+  id: '/_unauthenticated/sign-up',
+  path: '/sign-up',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UnauthenticatedSignInRoute = UnauthenticatedSignInRouteImport.update({
+  id: '/_unauthenticated/sign-in',
+  path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedJournalRoute = AuthenticatedJournalRouteImport.update({
+  id: '/journal',
+  path: '/journal',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const DemoStartServerFuncsRoute = DemoStartServerFuncsRouteImport.update({
   id: '/demo/start/server-funcs',
@@ -116,10 +121,10 @@ const DemoStartSsrDataOnlyRoute = DemoStartSsrDataOnlyRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
-  '/journal': typeof JournalRoute
   '/profile': typeof ProfileRoute
-  '/sign-in': typeof SignInRoute
-  '/sign-up': typeof SignUpRoute
+  '/journal': typeof AuthenticatedJournalRoute
+  '/sign-in': typeof UnauthenticatedSignInRoute
+  '/sign-up': typeof UnauthenticatedSignUpRoute
   '/demo/neon': typeof DemoNeonRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -135,10 +140,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
-  '/journal': typeof JournalRoute
   '/profile': typeof ProfileRoute
-  '/sign-in': typeof SignInRoute
-  '/sign-up': typeof SignUpRoute
+  '/journal': typeof AuthenticatedJournalRoute
+  '/sign-in': typeof UnauthenticatedSignInRoute
+  '/sign-up': typeof UnauthenticatedSignUpRoute
   '/demo/neon': typeof DemoNeonRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -154,11 +159,12 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
-  '/journal': typeof JournalRoute
   '/profile': typeof ProfileRoute
-  '/sign-in': typeof SignInRoute
-  '/sign-up': typeof SignUpRoute
+  '/_authenticated/journal': typeof AuthenticatedJournalRoute
+  '/_unauthenticated/sign-in': typeof UnauthenticatedSignInRoute
+  '/_unauthenticated/sign-up': typeof UnauthenticatedSignUpRoute
   '/demo/neon': typeof DemoNeonRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -176,8 +182,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
-    | '/journal'
     | '/profile'
+    | '/journal'
     | '/sign-in'
     | '/sign-up'
     | '/demo/neon'
@@ -195,8 +201,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
-    | '/journal'
     | '/profile'
+    | '/journal'
     | '/sign-in'
     | '/sign-up'
     | '/demo/neon'
@@ -213,11 +219,12 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
     | '/dashboard'
-    | '/journal'
     | '/profile'
-    | '/sign-in'
-    | '/sign-up'
+    | '/_authenticated/journal'
+    | '/_unauthenticated/sign-in'
+    | '/_unauthenticated/sign-up'
     | '/demo/neon'
     | '/demo/tanstack-query'
     | '/api/auth/$'
@@ -233,11 +240,11 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   DashboardRoute: typeof DashboardRoute
-  JournalRoute: typeof JournalRoute
   ProfileRoute: typeof ProfileRoute
-  SignInRoute: typeof SignInRoute
-  SignUpRoute: typeof SignUpRoute
+  UnauthenticatedSignInRoute: typeof UnauthenticatedSignInRoute
+  UnauthenticatedSignUpRoute: typeof UnauthenticatedSignUpRoute
   DemoNeonRoute: typeof DemoNeonRoute
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -253,20 +260,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/sign-up': {
-      id: '/sign-up'
-      path: '/sign-up'
-      fullPath: '/sign-up'
-      preLoaderRoute: typeof SignUpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sign-in': {
-      id: '/sign-in'
-      path: '/sign-in'
-      fullPath: '/sign-in'
-      preLoaderRoute: typeof SignInRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/profile': {
       id: '/profile'
       path: '/profile'
@@ -274,18 +267,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/journal': {
-      id: '/journal'
-      path: '/journal'
-      fullPath: '/journal'
-      preLoaderRoute: typeof JournalRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -308,6 +301,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/demo/neon'
       preLoaderRoute: typeof DemoNeonRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_unauthenticated/sign-up': {
+      id: '/_unauthenticated/sign-up'
+      path: '/sign-up'
+      fullPath: '/sign-up'
+      preLoaderRoute: typeof UnauthenticatedSignUpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_unauthenticated/sign-in': {
+      id: '/_unauthenticated/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof UnauthenticatedSignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/journal': {
+      id: '/_authenticated/journal'
+      path: '/journal'
+      fullPath: '/journal'
+      preLoaderRoute: typeof AuthenticatedJournalRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/demo/start/server-funcs': {
       id: '/demo/start/server-funcs'
@@ -375,13 +389,24 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedJournalRoute: typeof AuthenticatedJournalRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedJournalRoute: AuthenticatedJournalRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   DashboardRoute: DashboardRoute,
-  JournalRoute: JournalRoute,
   ProfileRoute: ProfileRoute,
-  SignInRoute: SignInRoute,
-  SignUpRoute: SignUpRoute,
+  UnauthenticatedSignInRoute: UnauthenticatedSignInRoute,
+  UnauthenticatedSignUpRoute: UnauthenticatedSignUpRoute,
   DemoNeonRoute: DemoNeonRoute,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

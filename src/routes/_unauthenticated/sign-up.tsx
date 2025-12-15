@@ -1,43 +1,47 @@
-import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
-import { useState } from 'react'
-import { authClient } from '../lib/auth-client'
-import { Loader2, Mail, Lock, User, ArrowRight } from 'lucide-react'
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { useState } from "react";
 
-export const Route = createFileRoute('/sign-up')({
+import { Loader2, Mail, Lock, User, ArrowRight } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
+
+export const Route = createFileRoute("/_unauthenticated/sign-up")({
   component: SignUp,
-})
+});
 
 function SignUp() {
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const router = useRouter()
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const router = useRouter();
 
   const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+    e.preventDefault();
+    setLoading(true);
+    setError("");
     try {
-      await authClient.signUp.email({
-        email,
-        password,
-        name,
-      }, {
-        onSuccess: () => {
-             router.navigate({ to: '/dashboard' })
+      await authClient.signUp.email(
+        {
+          email,
+          password,
+          name,
         },
-        onError: (ctx) => {
-             setError(ctx.error.message)
-             setLoading(false)
+        {
+          onSuccess: () => {
+            router.navigate({ to: "/dashboard" });
+          },
+          onError: (ctx) => {
+            setError(ctx.error.message);
+            setLoading(false);
+          },
         }
-      })
+      );
     } catch (err: any) {
-      setError(err.message || 'An error occurred')
-      setLoading(false)
+      setError(err.message || "An error occurred");
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
@@ -51,7 +55,9 @@ function SignUp() {
       <div className="w-full max-w-md p-8 relative z-10">
         <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">Create Account</h1>
+            <h1 className="text-3xl font-bold text-white mb-2">
+              Create Account
+            </h1>
             <p className="text-slate-400">Join us to start your journey</p>
           </div>
 
@@ -97,14 +103,18 @@ function SignUp() {
                 <div className="w-full border-t border-slate-700"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-slate-800 text-slate-400">Or continue with email</span>
+                <span className="px-2 bg-slate-800 text-slate-400">
+                  Or continue with email
+                </span>
               </div>
             </div>
           </div>
 
           <form onSubmit={handleSignUp} className="space-y-5 mt-6">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300 ml-1">Full Name</label>
+              <label className="text-sm font-medium text-slate-300 ml-1">
+                Full Name
+              </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 group-focus-within:text-cyan-400 transition-colors">
                   <User className="h-5 w-5" />
@@ -121,7 +131,9 @@ function SignUp() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300 ml-1">Email</label>
+              <label className="text-sm font-medium text-slate-300 ml-1">
+                Email
+              </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 group-focus-within:text-cyan-400 transition-colors">
                   <Mail className="h-5 w-5" />
@@ -138,7 +150,9 @@ function SignUp() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300 ml-1">Password</label>
+              <label className="text-sm font-medium text-slate-300 ml-1">
+                Password
+              </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 group-focus-within:text-cyan-400 transition-colors">
                   <Lock className="h-5 w-5" />
@@ -172,8 +186,11 @@ function SignUp() {
 
           <div className="mt-8 text-center">
             <p className="text-slate-400 text-sm">
-              Already have an account?{' '}
-              <Link to="/sign-in" className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors">
+              Already have an account?{" "}
+              <Link
+                to="/sign-in"
+                className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
+              >
                 Sign in
               </Link>
             </p>
@@ -181,5 +198,5 @@ function SignUp() {
         </div>
       </div>
     </div>
-  )
+  );
 }
