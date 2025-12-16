@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-export function ImportZone() {
+export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
   const [parsedData, setParsedData] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -27,6 +27,18 @@ export function ImportZone() {
     // Basic validation
     if (!row.ticket || !row.symbol) return null;
 
+    const profit = parseFloat(row.profit_usd || 0);
+    const commission = parseFloat(row.commission_usd || 0);
+    const swap = parseFloat(row.swap_usd || 0);
+    
+    // MT4/5: Profit is usually Gross. Net = Profit + Commission + Swap
+    // Commission and swap are usually negative values in the CSV loop, but let's just add them algebraically.
+    const netPnl = profit + commission + swap;
+    
+    // Fees: usually we want to see the total cost. 
+    // If commission is -5 and swap is -1, fees are 6.
+    const fees = Math.abs(commission) + Math.abs(swap);
+
     return {
       symbol: row.symbol,
       side: row.type, // 'buy' or 'sell'
@@ -35,7 +47,8 @@ export function ImportZone() {
       quantity: row.lots,
       exitDate: row.closing_time_utc,
       exitPrice: row.closing_price,
-      fees: (Math.abs(parseFloat(row.commission_usd || 0)) + Math.abs(parseFloat(row.swap_usd || 0))).toFixed(2),
+      fees: fees.toFixed(2),
+      netPnl: netPnl.toFixed(2),
       notes: `Ticket: ${row.ticket} | Reason: ${row.close_reason || 'N/A'}`,
     };
   };
@@ -89,6 +102,7 @@ export function ImportZone() {
           setPreviewOpen(false);
           // Toast success? 
           alert(`Success! Imported ${res.count} trades.`);
+          if (onSuccess) onSuccess();
       },
       onError: (err) => {
           setError("Import failed: " + err.message);
@@ -117,7 +131,7 @@ export function ImportZone() {
                             <TableHead>Symbol</TableHead>
                             <TableHead>Type</TableHead>
                             <TableHead>Lots</TableHead>
-                            <TableHead>P&L (Est)</TableHead>
+                            <TableHead>Net P&L</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -127,7 +141,9 @@ export function ImportZone() {
                                 <TableCell>{row.symbol}</TableCell>
                                 <TableCell>{row.side}</TableCell>
                                 <TableCell>{row.quantity}</TableCell>
-                                <TableCell>-</TableCell>
+                                <TableCell className={parseFloat(row.netPnl) >= 0 ? "text-green-500" : "text-red-500"}>
+                                    {row.netPnl}
+                                </TableCell>
                             </TableRow>
                         ))}
                         {parsedData.length > 50 && (

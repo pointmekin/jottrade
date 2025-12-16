@@ -18,6 +18,7 @@ const importTradeSchema = z.object({
   exitPrice: z.string().or(z.number()).optional(),
   
   fees: z.string().or(z.number()).optional(),
+  netPnl: z.string().or(z.number()).optional(),
   
   notes: z.string().optional(), // We will put ticket ID here
 });
@@ -46,24 +47,46 @@ export const importTrades = createServerFn({ method: "POST" })
         
         const entryPriceStr = String(item.entryPrice);
         const exitPriceStr = item.exitPrice ? String(item.exitPrice) : null;
+        
+        // Restore these variables required for fallback calculation and insertion
         const quantityStr = String(item.quantity);
         const feesStr = item.fees ? String(item.fees) : "0";
 
-        let netPnl = undefined;
+        let netPnl = item.netPnl ? String(item.netPnl) : undefined;
         let returnPercent = undefined;
         let status = "OPEN";
 
         if (exitPriceStr && entryPriceStr) {
-            const pnl = calculatePnL(
-                side,
-                entryPriceStr,
-                exitPriceStr,
-                quantityStr,
-                feesStr
-            );
-            netPnl = pnl.netPnl;
-            returnPercent = pnl.returnPercent;
             status = "CLOSED";
+            
+            // ROI Logic: Price Change %
+            // Since we don't know the margin/leverage, calculating ROI on Equity is impossible without that data.
+            // Converting to "Price Return" is the standard fallback.
+            const en = parseFloat(entryPriceStr);
+            const ex = parseFloat(exitPriceStr);
+            
+            if (!isNaN(en) && !isNaN(ex) && en !== 0) {
+                 // (Exit - Entry) / Entry
+                 let diffPct = ((ex - en) / en) * 100;
+                 // If SHORT, Entry > Exit is good. (Entry - Exit) / Entry = -((Exit - Entry)/Entry)
+                 // So if Short, flip the sign.
+                 if (side === "SHORT") diffPct = -diffPct;
+                 returnPercent = diffPct.toFixed(2);
+            }
+
+            if (!netPnl) {
+                // Only calculate manual PnL if NOT provided by CSV. 
+                // This fallback assumes stock-like math (Qty * PriceDiff).
+                const pnl = calculatePnL(
+                    side,
+                    entryPriceStr,
+                    exitPriceStr,
+                    quantityStr,
+                    feesStr
+                );
+                netPnl = pnl.netPnl;
+                if (!returnPercent) returnPercent = pnl.returnPercent; 
+            }
         }
 
         valuesToInsert.push({

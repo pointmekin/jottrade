@@ -64,9 +64,19 @@ const columns: ColumnDef<Trade>[] = [
   },
   {
     accessorKey: "entryPrice",
-    header: "Entry Price",
+    header: "Entry",
     cell: ({ row }) => {
         const val = parseFloat(row.getValue("entryPrice") || "0");
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+    }
+  },
+  {
+    accessorKey: "exitPrice",
+    header: "Exit",
+    cell: ({ row }) => {
+        const valStr = row.getValue("exitPrice");
+        if (!valStr) return "-";
+        const val = parseFloat(valStr as string);
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
     }
   },
@@ -75,11 +85,32 @@ const columns: ColumnDef<Trade>[] = [
     header: "Qty",
   },
   {
+    accessorKey: "exitDate",
+    header: "Exit Date",
+    cell: ({ row }) => {
+        const val = row.getValue("exitDate");
+        if (!val) return <span className="text-zinc-600">-</span>;
+        try {
+            return format(new Date(val as Date), "MMM dd, HH:mm");
+        } catch (e) {
+            return "-";
+        }
+    },
+  },
+  {
     accessorKey: "status",
     header: "Status",
      cell: ({ row }) => (
         <span className="text-zinc-400 text-xs uppercase">{row.getValue("status")}</span>
      )
+  },
+  {
+    accessorKey: "fees",
+    header: "Fees",
+    cell: ({ row }) => {
+        const val = parseFloat(row.getValue("fees") || "0");
+        return <span className="text-zinc-500">{val > 0 ? val.toFixed(2) : "-"}</span>
+    }
   },
   {
       id: "pnl",
