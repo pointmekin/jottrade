@@ -35,10 +35,10 @@ import { Plus, Upload } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/journal")({
   component: JournalPage,
-  loader: async ({ context }) => {
-    // Preload? Or just let query handle it.
-    // We can pre-fetch if we want SSR, but for now client fetch is fine.
-  },
+  // loader: async ({ context }) => {
+  //   // Preload? Or just let query handle it.
+  //   // We can pre-fetch if we want SSR, but for now client fetch is fine.
+  // },
 });
 
 function JournalPage() {
@@ -47,7 +47,7 @@ function JournalPage() {
 
   const { data: trades, isLoading } = useQuery({
     queryKey: ["trades"],
-    queryFn: () => getTrades({ data: {} }), // fetch all
+    queryFn: () => getTrades({ data: undefined }), // fetch all
   });
 
   return (
