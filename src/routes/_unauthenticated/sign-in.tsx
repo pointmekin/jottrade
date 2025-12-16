@@ -1,24 +1,10 @@
-import { createFileRoute, Link, useRouter, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 
 import { Loader2, Mail, Lock, ArrowRight } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/_unauthenticated/sign-in")({
-  beforeLoad: async () => {
-    // Attempt check (mostly for client-side nav)
-    try {
-      const { data } = await authClient.getSession();
-      if (data) {
-        throw redirect({
-          to: "/journal",
-        });
-      }
-    } catch (e) {
-      if (e instanceof Response) throw e; // Pass redirects
-      // Ignore other errors (like fetch failure on server)
-    }
-  },
   component: SignIn,
 });
 
