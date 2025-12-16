@@ -54,7 +54,7 @@ const items = [
 const footerItems = [
   {
     title: "Settings",
-    url: "#",
+    url: "/settings",
     icon: Settings,
   },
 ];
@@ -105,16 +105,17 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         ))}
-        <div className="h-20">
+        <Separator />
+        <div className="h-16">
           {session.isPending ||
             (!session.data && (
-              <div className="p-4 border-t border-slate-700/50  h-16">
+              <div className="p-4  h-16">
                 <Spinner />
               </div>
             ))}
           {!session.isPending && session.data && (
             <>
-              <div className="p-4 border-t border-slate-700/50 h-16">
+              <div className="h-16">
                 <SidebarMenu className="w-full">
                   <SidebarMenuItem className="w-full">
                     <DropdownMenu>
