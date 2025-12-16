@@ -77,7 +77,7 @@ function JournalPage() {
                   export formats.
                 </DialogDescription>
               </DialogHeader>
-              <ImportZone />
+              <ImportZone onSuccess={() => setImportOpen(false)} />
             </DialogContent>
           </Dialog>
 
