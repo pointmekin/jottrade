@@ -8,6 +8,7 @@ import {
   WinLossPie,
 } from "@/components/dashboard/DashboardCharts";
 import { Spinner } from "@/components/ui/spinner";
+import { SetupCalculator } from "@/components/tools/SetupCalculator";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
@@ -187,6 +188,11 @@ function Dashboard() {
                     <h3 className="text-3xl font-bold text-foreground">
                       {stats.totalTrades}
                     </h3>
+                  </div>
+
+                  {/* Setup Calculator */}
+                  <div className="pt-4">
+                     <SetupCalculator initialBalance={stats.totalBalance || 10000} />
                   </div>
                 </div>
               </div>
