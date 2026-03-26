@@ -120,7 +120,7 @@ function JournalPage() {
           <Spinner /> <div>Loading trades...</div>
         </div>
       ) : (
-        <JournalTable data={trades || []} onRowClick={handleRowClick} />
+        <JournalTable data={trades?.trades ?? []} onRowClick={handleRowClick} />
       )}
 
       <TradeDetailSheet
