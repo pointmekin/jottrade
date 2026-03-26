@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { z } from "zod";
 
 import { getTrades } from "@/server/getTrades";
 import { JournalTable } from "@/components/journal/JournalTable";
@@ -8,6 +9,7 @@ import type { Trade } from "@/components/journal/JournalTable";
 import { TradeDetailSheet } from "@/components/journal/TradeDetailSheet";
 import { TradeEntryForm } from "@/components/journal/TradeEntryForm";
 import { ImportZone } from "@/components/journal/ImportZone";
+import { FilterBar, type JournalFilters } from "@/components/journal/FilterBar";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,41 +28,76 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Plus, Upload, ChevronLeft, ChevronRight } from "lucide-react";
 
-import { Plus, Upload } from "lucide-react";
-
-// Use a loader to ensure authentication?
-// Best practice in Tanstack Start is to use `beforeLoad`.
-// But since we are using BetterAuth client-side mostly for UI state, and server functions check auth,
-// we'll handle the data fetching error if unauthorized by redirecting or showing error.
-// Ideally, `__root.tsx` handles global auth protection or we do it here.
+const journalSearchSchema = z.object({
+  symbol: z.string().optional(),
+  side: z.enum(["LONG", "SHORT"]).optional(),
+  status: z.enum(["OPEN", "CLOSED", "PENDING"]).optional(),
+  setupId: z.string().optional(),
+  confidence: z.string().optional(),
+  mistake: z.string().optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  page: z.number().default(1),
+});
 
 export const Route = createFileRoute("/_authenticated/journal")({
+  validateSearch: journalSearchSchema,
   component: JournalPage,
-  // loader: async ({ context }) => {
-  //   // Preload? Or just let query handle it.
-  //   // We can pre-fetch if we want SSR, but for now client fetch is fine.
-  // },
 });
 
 function JournalPage() {
+  const navigate = useNavigate({ from: "/journal" });
+  const search = useSearch({ from: "/_authenticated/journal" });
   const [sheetOpen, setSheetOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+
+  const filters: JournalFilters = search;
+
+  const handleFiltersChange = (newFilters: JournalFilters) => {
+    navigate({ search: newFilters as any });
+  };
+
+  const queryParams = {
+    symbol: filters.symbol,
+    side: filters.side,
+    status: filters.status,
+    setupId:
+      filters.setupId === "none"
+        ? ("none" as const)
+        : filters.setupId
+          ? Number(filters.setupId)
+          : undefined,
+    confidence: filters.confidence?.split(",").filter(Boolean) as
+      | ("HIGH" | "MEDIUM" | "LOW")[]
+      | undefined,
+    mistake: filters.mistake?.split(",").filter(Boolean),
+    dateFrom: filters.dateFrom,
+    dateTo: filters.dateTo,
+    page: filters.page ?? 1,
+  };
+
+  const { data: result, isLoading } = useQuery({
+    queryKey: ["trades", queryParams],
+    queryFn: () => getTrades({ data: queryParams } as any),
+  });
+
+  const tradeList = (result as any)?.trades ?? [];
+  const total = (result as any)?.total ?? 0;
+  const page = (result as any)?.page ?? 1;
+  const pageSize = (result as any)?.pageSize ?? 50;
+  const totalPages = Math.ceil(total / pageSize);
 
   const handleRowClick = (trade: Trade) => {
     setSelectedTrade(trade);
     setDetailOpen(true);
   };
 
-  const { data: trades, isLoading } = useQuery({
-    queryKey: ["trades"],
-    queryFn: () => getTrades({ data: undefined }), // fetch all
-  });
-
   return (
-    <div className="p-8 space-y-8 w-full">
+    <div className="p-8 space-y-6 w-full">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-white mb-2">
@@ -112,15 +149,47 @@ function JournalPage() {
         </div>
       </div>
 
-      {/* Metrics Cards would go here */}
+      <FilterBar filters={filters} onFiltersChange={handleFiltersChange} />
 
-      {/* Main Table */}
       {isLoading ? (
         <div className="flex items-center justify-center space-x-2">
           <Spinner /> <div>Loading trades...</div>
         </div>
       ) : (
-        <JournalTable data={trades?.trades ?? []} onRowClick={handleRowClick} />
+        <>
+          <JournalTable data={tradeList} onRowClick={handleRowClick} />
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-sm text-zinc-500">
+                {total} trades · Page {page} of {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-zinc-700"
+                  disabled={page <= 1}
+                  onClick={() =>
+                    navigate({ search: { ...search, page: page - 1 } })
+                  }
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-zinc-700"
+                  disabled={page >= totalPages}
+                  onClick={() =>
+                    navigate({ search: { ...search, page: page + 1 } })
+                  }
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <TradeDetailSheet
