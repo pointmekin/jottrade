@@ -17,7 +17,7 @@ function StrategiesPage() {
   const [selected, setSelected] = useState<Strategy | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const { data: strategyList = [] } = useQuery({
+  const { data: strategyList = [], isLoading } = useQuery({
     queryKey: ['strategies'],
     queryFn: () => getStrategies({ data: undefined }),
   });
@@ -25,6 +25,9 @@ function StrategiesPage() {
   const handleSelect = (s: Strategy) => { setSelected(s); setCreating(false); };
   const handleNew = () => { setSelected(null); setCreating(true); };
   const handleSaved = (s: Strategy) => { setSelected(s); setCreating(false); };
+  const handleDeleted = (id: number) => {
+    if (selected?.id === id) { setSelected(null); setCreating(false); }
+  };
 
   const showForm = creating || !!selected;
 
@@ -41,11 +44,16 @@ function StrategiesPage() {
       <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6">
         {/* Left panel */}
         <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
-          <StrategyList
-            strategies={strategyList as Strategy[]}
-            selectedId={selected?.id ?? null}
-            onSelect={handleSelect}
-          />
+          {isLoading ? (
+            <div className="flex items-center justify-center h-48 text-zinc-500 text-sm">Loading...</div>
+          ) : (
+            <StrategyList
+              strategies={strategyList as Strategy[]}
+              selectedId={selected?.id ?? null}
+              onSelect={handleSelect}
+              onDeleted={handleDeleted}
+            />
+          )}
         </div>
 
         {/* Right panel */}
