@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   Calendar,
   ChevronUp,
   Home,
@@ -48,6 +49,11 @@ const items = [
     title: "Calendar",
     url: "/calendar",
     icon: Calendar,
+  },
+  {
+    title: "Strategies",
+    url: "/strategies",
+    icon: BookOpen,
   },
 ];
 
