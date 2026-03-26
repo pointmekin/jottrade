@@ -60,6 +60,9 @@ describe('computeAvgRR', () => {
   it('returns 0 with no losses', () => {
     expect(computeAvgRR([t('2025-01-01T00:00:00Z', '2025-01-01T00:00:00Z', 100)])).toBe(0);
   });
+  it('returns 0 with no wins', () => {
+    expect(computeAvgRR([t('2025-01-01T00:00:00Z', '2025-01-01T00:00:00Z', -100)])).toBe(0);
+  });
   it('computes ratio correctly', () => {
     const trades = [
       t('2025-01-01T00:00:00Z', '2025-01-01T00:00:00Z', 200),

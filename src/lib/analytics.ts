@@ -4,7 +4,10 @@ export type ClosedTrade = {
   netPnl: number;
 };
 
-/** Groups closed trades by exit date (YYYY-MM-DD). Returns date → sum of netPnl. */
+/**
+ * Groups closed trades by exit date (YYYY-MM-DD UTC). Returns date → sum of netPnl.
+ * Note: uses UTC date from exitDate — trades stored with UTC timestamps will group correctly.
+ */
 export function groupByDay(trades: ClosedTrade[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const trade of trades) {
@@ -15,8 +18,9 @@ export function groupByDay(trades: ClosedTrade[]): Map<string, number> {
 }
 
 /**
- * Annualized Sharpe ratio from a daily P&L map.
- * Excludes zero-trade days. Risk-free rate = 0. Annualization = sqrt(252).
+ * Annualized Sharpe ratio from a series of P&L values.
+ * Risk-free rate = 0. Annualization = sqrt(252).
+ * Uses sample stddev (n-1). Returns 0 if fewer than 2 values or stddev is 0.
  */
 export function computeSharpe(dailyPnl: Map<string, number>): number {
   const values = Array.from(dailyPnl.values());
@@ -31,6 +35,7 @@ export function computeSharpe(dailyPnl: Map<string, number>): number {
 
 /**
  * Largest peak-to-trough drawdown from trades sorted by exitDate asc.
+ * IMPORTANT: trades must be pre-sorted by exitDate ascending.
  * Returns { dollars, percent }.
  */
 export function computeMaxDrawdown(
