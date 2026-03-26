@@ -138,9 +138,10 @@ const columns: ColumnDef<Trade>[] = [
 
 interface JournalTableProps {
   data: Trade[];
+  onRowClick?: (trade: Trade) => void;
 }
 
-export function JournalTable({ data }: JournalTableProps) {
+export function JournalTable({ data, onRowClick }: JournalTableProps) {
   const [sorting, setSorting] = useState<SortingState>([
       { id: "entryDate", desc: true } // Default sort
   ]);
@@ -184,7 +185,8 @@ export function JournalTable({ data }: JournalTableProps) {
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
-                className="border-zinc-800 hover:bg-zinc-900/50"
+                className="border-zinc-800 hover:bg-zinc-900/50 cursor-pointer"
+                onClick={() => onRowClick?.(row.original)}
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id} className="text-zinc-200">
