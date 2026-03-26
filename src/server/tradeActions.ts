@@ -28,6 +28,10 @@ const tradeSchema = z.object({
 // For update, we might need ID
 const updateTradeSchema = tradeSchema.partial().extend({
     id: z.number(),
+    confidence: z.enum(['HIGH', 'MEDIUM', 'LOW']).optional(),
+    mistake: z.string().optional(),
+    setupId: z.number().nullable().optional(),
+    // notes already in tradeSchema
 });
 
 const deleteTradeSchema = z.object({
@@ -135,29 +139,24 @@ export const updateTrade = createServerFn({ method: "POST" })
          if (validatedData.exitPrice && !validatedData.status) status = "CLOSED";
     }
 
-    // Drizzle doesn't like undefined in values?
-    // It ignores them usually if not provided in .set(), but we are constructing an object.
-    // Better to build the object.
-    
-    // ... Actually existingTrade contains all cols.
-    
-    await db.update(trades)
-        .set({
-            symbol: validatedData.symbol,
-            side: validatedData.side, // if undefined, it won't update? No, partial Zod allows undefined.
-            entryDate: validatedData.entryDate,
-            entryPrice: validatedData.entryPrice,
-            quantity: validatedData.quantity,
-            notes: validatedData.notes,
-            portfolioId: validatedData.portfolioId,
-            exitDate: validatedData.exitDate,
-            exitPrice: validatedData.exitPrice,
-            fees: validatedData.fees,
-            status,
-            netPnl,
-            returnPercent,
-        })
-        .where(eq(trades.id, validatedData.id));
+    // Build set object conditionally — Drizzle does NOT skip undefined in .set(), it sets to NULL.
+    const setValues: Record<string, any> = { status, netPnl, returnPercent };
+    if (validatedData.symbol !== undefined) setValues.symbol = validatedData.symbol;
+    if (validatedData.side !== undefined) setValues.side = validatedData.side;
+    if (validatedData.entryDate !== undefined) setValues.entryDate = validatedData.entryDate;
+    if (validatedData.entryPrice !== undefined) setValues.entryPrice = validatedData.entryPrice;
+    if (validatedData.quantity !== undefined) setValues.quantity = validatedData.quantity;
+    if (validatedData.exitDate !== undefined) setValues.exitDate = validatedData.exitDate;
+    if (validatedData.exitPrice !== undefined) setValues.exitPrice = validatedData.exitPrice;
+    if (validatedData.fees !== undefined) setValues.fees = validatedData.fees;
+    if (validatedData.portfolioId !== undefined) setValues.portfolioId = validatedData.portfolioId;
+    if (validatedData.notes !== undefined) setValues.notes = validatedData.notes;
+    // Psychology fields
+    if (validatedData.confidence !== undefined) setValues.confidence = validatedData.confidence;
+    if (validatedData.mistake !== undefined) setValues.mistake = validatedData.mistake;
+    if ('setupId' in validatedData) setValues.setupId = validatedData.setupId; // allow null
+
+    await db.update(trades).set(setValues).where(eq(trades.id, validatedData.id));
 
     return { success: true };
   });
