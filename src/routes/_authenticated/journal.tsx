@@ -4,6 +4,8 @@ import { useState } from "react";
 
 import { getTrades } from "@/server/getTrades";
 import { JournalTable } from "@/components/journal/JournalTable";
+import type { Trade } from "@/components/journal/JournalTable";
+import { TradeDetailSheet } from "@/components/journal/TradeDetailSheet";
 import { TradeEntryForm } from "@/components/journal/TradeEntryForm";
 import { ImportZone } from "@/components/journal/ImportZone";
 import { Spinner } from "@/components/ui/spinner";
@@ -44,6 +46,13 @@ export const Route = createFileRoute("/_authenticated/journal")({
 function JournalPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  const handleRowClick = (trade: Trade) => {
+    setSelectedTrade(trade);
+    setDetailOpen(true);
+  };
 
   const { data: trades, isLoading } = useQuery({
     queryKey: ["trades"],
@@ -111,8 +120,14 @@ function JournalPage() {
           <Spinner /> <div>Loading trades...</div>
         </div>
       ) : (
-        <JournalTable data={trades || []} />
+        <JournalTable data={trades || []} onRowClick={handleRowClick} />
       )}
+
+      <TradeDetailSheet
+        trade={selectedTrade}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
     </div>
   );
 }
