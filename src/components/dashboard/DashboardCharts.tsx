@@ -28,30 +28,30 @@ export function EquityCurveChart({ data }: EquityCurveProps) {
             bottom: 5,
           }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-          <XAxis 
-            dataKey="date" 
-            stroke="#9ca3af" 
-            tick={{ fill: '#9ca3af' }}
-            tickLine={{ stroke: '#9ca3af' }}
+          <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+          <XAxis
+            dataKey="date"
+            stroke="#52525b"
+            tick={{ fill: '#71717a' }}
+            tickLine={{ stroke: '#52525b' }}
           />
-          <YAxis 
-            stroke="#9ca3af" 
-            tick={{ fill: '#9ca3af' }}
-            tickLine={{ stroke: '#9ca3af' }}
+          <YAxis
+            stroke="#52525b"
+            tick={{ fill: '#71717a' }}
+            tickLine={{ stroke: '#52525b' }}
             domain={['auto', 'auto']}
           />
-          <Tooltip 
-            contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6' }}
-            itemStyle={{ color: '#22d3ee' }}
+          <Tooltip
+            contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#f4f4f5' }}
+            itemStyle={{ color: '#818cf8' }}
           />
           <Line
             type="monotone"
             dataKey="balance"
-            stroke="#22d3ee"
+            stroke="#818cf8"
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 8 }}
+            activeDot={{ r: 6, fill: '#818cf8' }}
           />
         </LineChart>
       </ResponsiveContainer>
@@ -89,8 +89,8 @@ export function WinLossPie({ winRate }: WinLossPieProps) {
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip 
-                     contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6' }}
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#f4f4f5' }}
                   />
                 </PieChart>
              </ResponsiveContainer>
