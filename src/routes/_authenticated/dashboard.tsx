@@ -3,10 +3,13 @@ import { authClient } from "../../lib/auth-client";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getAnalytics } from "@/server/getAnalytics";
+import { getAdvancedAnalytics } from "@/server/getAdvancedAnalytics";
 import {
   EquityCurveChart,
   WinLossPie,
 } from "@/components/dashboard/DashboardCharts";
+import { RiskMetrics } from "@/components/dashboard/RiskMetrics";
+import { PerformanceCharts } from "@/components/dashboard/PerformanceCharts";
 import { Spinner } from "@/components/ui/spinner";
 import { SetupCalculator } from "@/components/tools/SetupCalculator";
 
@@ -22,6 +25,12 @@ function Dashboard() {
   const { data: analytics, isLoading } = useQuery({
     queryKey: ["analytics"],
     queryFn: () => getAnalytics({ data: undefined }),
+  });
+
+  const { data: advanced } = useQuery({
+    queryKey: ["advanced-analytics"],
+    queryFn: () => getAdvancedAnalytics({ data: undefined }),
+    staleTime: 5 * 60 * 1000,
   });
   if (session.isPending || isLoading) {
     return (
@@ -196,6 +205,24 @@ function Dashboard() {
                   </div>
                 </div>
               </div>
+
+              {advanced && (
+                <div className="space-y-6">
+                  <h2 className="text-xl font-semibold text-white">Risk & Performance</h2>
+                  <RiskMetrics
+                    sharpe={(advanced as any).riskMetrics.sharpe}
+                    maxDrawdown={(advanced as any).riskMetrics.maxDrawdown}
+                    avgRR={(advanced as any).riskMetrics.avgRR}
+                    avgHoldTimeHours={(advanced as any).riskMetrics.avgHoldTimeHours}
+                  />
+                  <PerformanceCharts
+                    byStrategy={(advanced as any).byStrategy}
+                    bySymbol={(advanced as any).bySymbol}
+                    byDayOfWeek={(advanced as any).byDayOfWeek}
+                    byHour={(advanced as any).byHour}
+                  />
+                </div>
+              )}
             </div>
           )}
         </main>
