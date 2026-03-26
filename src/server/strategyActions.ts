@@ -42,8 +42,10 @@ export const updateStrategy = createServerFn({ method: 'POST' })
     const session = await auth.api.getSession({ headers: getRequestHeaders() });
     if (!session) throw new Error('Unauthorized');
     const data = updateStrategySchema.parse(ctx.data);
+    const setValues: Record<string, unknown> = { name: data.name };
+    if (data.description !== undefined) setValues.description = data.description;
     const [strategy] = await db.update(strategies)
-      .set({ name: data.name, description: data.description })
+      .set(setValues)
       .where(and(eq(strategies.id, data.id), eq(strategies.userId, session.user.id)))
       .returning();
     if (!strategy) throw new Error('Strategy not found');

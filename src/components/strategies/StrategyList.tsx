@@ -14,13 +14,17 @@ interface StrategyListProps {
   strategies: Strategy[];
   selectedId: number | null;
   onSelect: (s: Strategy) => void;
+  onDeleted?: (id: number) => void;
 }
 
-export function StrategyList({ strategies, selectedId, onSelect }: StrategyListProps) {
+export function StrategyList({ strategies, selectedId, onSelect, onDeleted }: StrategyListProps) {
   const qc = useQueryClient();
   const deleteMut = useMutation({
     mutationFn: (id: number) => deleteStrategy({ data: { id } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['strategies'] }),
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: ['strategies'] });
+      onDeleted?.(id);
+    },
   });
 
   if (!strategies.length) {
