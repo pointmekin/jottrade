@@ -1,6 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { authClient } from "../../lib/auth-client";
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getAnalytics } from "@/server/getAnalytics";
 import { getAdvancedAnalytics } from "@/server/getAdvancedAnalytics";
@@ -20,7 +19,6 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 function Dashboard() {
 	const session = authClient.useSession();
 	const router = useRouter();
-	const [sidebarOpen, setSidebarOpen] = useState(false);
 
 	const { data: analytics, isLoading } = useQuery({
 		queryKey: ["analytics"],
@@ -221,13 +219,6 @@ function Dashboard() {
 					)}
 				</div>
 			</main>
-
-			{sidebarOpen && (
-				<div
-					className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm"
-					onClick={() => setSidebarOpen(false)}
-				/>
-			)}
 		</div>
 	);
 }
