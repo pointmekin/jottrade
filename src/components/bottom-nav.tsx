@@ -38,7 +38,7 @@ export function BottomNav() {
 	return (
 		<>
 			<nav
-				className="fixed bottom-0 left-0 right-0 z-50 flex lg:hidden border-t border-zinc-800/60 bg-sidebar"
+				className="fixed bottom-0 left-0 right-0 z-50 flex lg:hidden border-t border-border bg-sidebar"
 				style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
 			>
 				{navItems.map((item) => (
@@ -49,7 +49,7 @@ export function BottomNav() {
 							"flex flex-1 flex-col items-center justify-center gap-1 py-2 transition-colors",
 							isActive(item.url)
 								? "text-sidebar-primary"
-								: "text-zinc-400 hover:text-zinc-200",
+								: "text-muted-foreground hover:text-foreground",
 						)}
 					>
 						<item.icon className="h-5 w-5" />
@@ -62,9 +62,9 @@ export function BottomNav() {
 					type="button"
 					onClick={() => setSheetOpen(true)}
 					aria-label="Open account menu"
-					className="flex flex-1 flex-col items-center justify-center gap-1 py-2 text-zinc-400 hover:text-zinc-200 transition-colors"
+					className="flex flex-1 flex-col items-center justify-center gap-1 py-2 text-muted-foreground hover:text-foreground transition-colors"
 				>
-					<div className="h-5 w-5 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center text-white overflow-hidden flex-shrink-0">
+					<div className="h-5 w-5 rounded-full bg-gradient-to-tr from-blue-500 to-violet-500 flex items-center justify-center text-white overflow-hidden flex-shrink-0">
 						{userImage ? (
 							<img
 								src={userImage}
@@ -83,11 +83,11 @@ export function BottomNav() {
 			<Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
 				<SheetContent
 					side="bottom"
-					className="bg-sidebar text-sidebar-foreground border-zinc-800/60"
+					className="bg-sidebar text-sidebar-foreground border-border"
 				>
 					<SheetHeader className="pb-2">
 						<div className="flex items-center gap-3">
-							<div className="h-10 w-10 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center text-white overflow-hidden flex-shrink-0">
+							<div className="h-10 w-10 rounded-full bg-gradient-to-tr from-blue-500 to-violet-500 flex items-center justify-center text-white overflow-hidden flex-shrink-0">
 								{userImage ? (
 									<img
 										src={userImage}
@@ -102,14 +102,14 @@ export function BottomNav() {
 								<SheetTitle className="text-sm font-medium truncate">
 									{session.data?.user.name}
 								</SheetTitle>
-								<p className="text-xs text-zinc-500 truncate mt-0.5">
+								<p className="text-xs text-muted-foreground truncate mt-0.5">
 									{session.data?.user.email}
 								</p>
 							</div>
 						</div>
 					</SheetHeader>
 
-					<Separator className="bg-zinc-800/60" />
+					<Separator />
 
 					<div className="flex flex-col gap-1 p-2">
 						<Link
@@ -121,7 +121,7 @@ export function BottomNav() {
 						</Link>
 					</div>
 
-					<Separator className="bg-zinc-800/60" />
+					<Separator />
 
 					<div className="p-2">
 						<button
