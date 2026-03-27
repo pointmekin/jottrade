@@ -1,4 +1,3 @@
-import React from "react";
 import {
   BarChart2,
   CalendarDays,
@@ -13,17 +12,10 @@ export type NavItem = {
   icon: React.ComponentType<{ className?: string }>;
 };
 
-// Create function components that wrap lucide icons
-const DashboardIcon: React.ComponentType<{ className?: string }> = (props) => React.createElement(BarChart2, props);
-const JournalIcon: React.ComponentType<{ className?: string }> = (props) => React.createElement(ScrollText, props);
-const CalendarIcon: React.ComponentType<{ className?: string }> = (props) => React.createElement(CalendarDays, props);
-const StrategiesIcon: React.ComponentType<{ className?: string }> = (props) => React.createElement(Target, props);
-const SettingsIcon: React.ComponentType<{ className?: string }> = (props) => React.createElement(Settings, props);
-
 export const navItems: NavItem[] = [
-  { title: "Dashboard", url: "/dashboard", icon: DashboardIcon },
-  { title: "Journal",   url: "/journal",   icon: JournalIcon },
-  { title: "Calendar",  url: "/calendar",  icon: CalendarIcon },
-  { title: "Strategies",url: "/strategies",icon: StrategiesIcon },
-  { title: "Settings",  url: "/settings",  icon: SettingsIcon },
+  { title: "Dashboard", url: "/dashboard", icon: BarChart2 },
+  { title: "Journal",   url: "/journal",   icon: ScrollText },
+  { title: "Calendar",  url: "/calendar",  icon: CalendarDays },
+  { title: "Strategies",url: "/strategies",icon: Target },
+  { title: "Settings",  url: "/settings",  icon: Settings },
 ];
