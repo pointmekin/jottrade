@@ -1,5 +1,5 @@
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
-import { ChevronUp, LogOut, TrendingUp } from "lucide-react";
+import { ChevronUp, LogOut, PanelLeft, PanelLeftClose, TrendingUp } from "lucide-react";
 
 import {
 	DropdownMenu,
@@ -16,6 +16,7 @@ import {
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
+	useSidebar,
 } from "@/components/ui/sidebar";
 import { navItems } from "@/lib/nav-items";
 import { authClient } from "../lib/auth-client";
@@ -30,6 +31,7 @@ export function AppSidebar() {
 	const session = authClient.useSession();
 	const router = useRouter();
 	const location = useLocation();
+	const { state, toggleSidebar } = useSidebar();
 
 	const handleSignOut = async () => {
 		await authClient.signOut({
@@ -42,16 +44,43 @@ export function AppSidebar() {
 	const isActive = (url: string) =>
 		location.pathname === url || location.pathname.startsWith(`${url}/`);
 
+	const isCollapsed = state === "collapsed";
+
 	return (
-		<Sidebar>
-			{/* Brand */}
-			<div className="flex items-center gap-2.5 px-4 py-[18px] border-b border-zinc-800/60">
-				<div className="h-7 w-7 rounded-md bg-indigo-500/90 flex items-center justify-center flex-shrink-0 shadow-sm shadow-indigo-500/30">
-					<TrendingUp className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
-				</div>
-				<span className="font-semibold text-sm tracking-tight text-white">
-					JotTrade
-				</span>
+		<Sidebar collapsible="icon">
+			{/* Brand + Toggle */}
+			<div
+				className={
+					isCollapsed
+						? "flex items-center justify-center py-[18px] border-b border-border"
+						: "flex items-center gap-2.5 px-3 py-[18px] border-b border-border"
+				}
+			>
+				{!isCollapsed && (
+					<>
+						<div className="h-7 w-7 rounded-md bg-primary flex items-center justify-center flex-shrink-0 shadow-sm shadow-primary/30">
+							<TrendingUp
+								className="h-3.5 w-3.5 text-primary-foreground"
+								strokeWidth={2.5}
+							/>
+						</div>
+						<span className="font-semibold text-sm tracking-tight text-foreground flex-1">
+							JotTrade
+						</span>
+					</>
+				)}
+				<button
+					type="button"
+					onClick={toggleSidebar}
+					aria-label="Toggle sidebar"
+					className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors flex-shrink-0"
+				>
+					{isCollapsed ? (
+						<PanelLeft className="h-4 w-4" />
+					) : (
+						<PanelLeftClose className="h-4 w-4" />
+					)}
+				</button>
 			</div>
 
 			<SidebarContent>
@@ -60,7 +89,11 @@ export function AppSidebar() {
 						<SidebarMenu>
 							{mainItems.map((item) => (
 								<SidebarMenuItem key={item.title}>
-									<SidebarMenuButton asChild isActive={isActive(item.url)}>
+									<SidebarMenuButton
+										asChild
+										isActive={isActive(item.url)}
+										tooltip={item.title}
+									>
 										<Link to={item.url}>
 											<item.icon />
 											<span>{item.title}</span>
@@ -76,7 +109,11 @@ export function AppSidebar() {
 			<SidebarFooter>
 				{footerNavItems.map((item) => (
 					<SidebarMenuItem key={item.title}>
-						<SidebarMenuButton asChild isActive={isActive(item.url)}>
+						<SidebarMenuButton
+							asChild
+							isActive={isActive(item.url)}
+							tooltip={item.title}
+						>
 							<Link to={item.url}>
 								<item.icon />
 								<span>{item.title}</span>
@@ -85,9 +122,9 @@ export function AppSidebar() {
 					</SidebarMenuItem>
 				))}
 
-				<Separator className="my-1 bg-zinc-800/60" />
+				<Separator className="my-1" />
 
-				<div className="min-h-[64px] flex items-center">
+				<div className="min-h-[40px] flex items-center">
 					{session.isPending && (
 						<div className="flex items-center justify-center w-full py-4">
 							<Spinner />
@@ -98,13 +135,16 @@ export function AppSidebar() {
 							<SidebarMenuItem className="w-full">
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild className="w-full min-w-0">
-										<SidebarMenuButton className="h-14 gap-3">
-											<div className="h-8 w-8 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center font-semibold text-white text-xs flex-shrink-0 shadow-sm">
+										<SidebarMenuButton
+											tooltip={session.data.user.name || "Account"}
+											className={isCollapsed ? "h-8 p-0 justify-center" : "h-14 gap-3"}
+										>
+											<div className="h-6 w-6 rounded-full bg-gradient-to-tr from-blue-500 to-violet-500 flex items-center justify-center font-semibold text-white text-[10px] flex-shrink-0 shadow-sm">
 												{session.data.user.image ? (
 													<img
 														src={session.data.user.image}
 														alt={session.data.user.name || "User"}
-														className="w-8 h-8 rounded-full object-cover"
+														className="w-6 h-6 rounded-full object-cover"
 													/>
 												) : (
 													(
@@ -112,15 +152,19 @@ export function AppSidebar() {
 													).toUpperCase()
 												)}
 											</div>
-											<div className="flex-1 min-w-0">
-												<p className="text-sm font-medium truncate leading-tight">
-													{session.data.user.name}
-												</p>
-												<p className="text-xs text-zinc-500 truncate leading-tight mt-0.5">
-													{session.data.user.email}
-												</p>
-											</div>
-											<ChevronUp className="ml-auto h-4 w-4 text-zinc-500 flex-shrink-0" />
+											{!isCollapsed && (
+												<>
+													<div className="flex-1 min-w-0">
+														<p className="text-sm font-medium truncate leading-tight">
+															{session.data.user.name}
+														</p>
+														<p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
+															{session.data.user.email}
+														</p>
+													</div>
+													<ChevronUp className="ml-auto h-4 w-4 text-muted-foreground flex-shrink-0" />
+												</>
+											)}
 										</SidebarMenuButton>
 									</DropdownMenuTrigger>
 									<DropdownMenuContent

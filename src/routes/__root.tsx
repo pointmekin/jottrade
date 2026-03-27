@@ -10,7 +10,7 @@ import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { AppSidebar } from "@/components/app-sidebar";
 import { BottomNav } from "@/components/bottom-nav";
 import { ThemeProvider } from "@/components/theme-provider";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import appCss from "../styles.css?url";
@@ -81,11 +81,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 							<div className="hidden lg:block">
 								<AppSidebar />
 							</div>
-							{/* Sidebar collapse trigger — desktop only */}
-							<div className="hidden lg:flex">
-								<SidebarTrigger />
-							</div>
-							{/* Mobile bottom nav — hidden at lg and above */}
+	{/* Mobile bottom nav — hidden at lg and above */}
 							<BottomNav />
 						</>
 					)}
