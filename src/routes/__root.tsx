@@ -88,7 +88,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 					<ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
 						{/* pb-16 reserves space above the fixed bottom nav on mobile */}
 						<div
-							className={cn("w-full", !shouldHideSidebar && "pb-16 lg:pb-0")}
+							className={cn("w-full transform-gpu", !shouldHideSidebar && "pb-16 lg:pb-0")}
 						>
 							{children}
 						</div>
