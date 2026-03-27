@@ -60,6 +60,7 @@ export function BottomNav() {
         <button
           type="button"
           onClick={() => setSheetOpen(true)}
+          aria-label="Open account menu"
           className="flex flex-1 flex-col items-center justify-center gap-1 py-2 text-zinc-400 hover:text-zinc-200 transition-colors"
         >
           <div className="h-5 w-5 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center text-white overflow-hidden flex-shrink-0">
@@ -79,7 +80,7 @@ export function BottomNav() {
 
       {/* Account sheet */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="bottom" className="bg-sidebar text-sidebar-foreground border-zinc-800/60 pb-safe">
+        <SheetContent side="bottom" className="bg-sidebar text-sidebar-foreground border-zinc-800/60">
           <SheetHeader className="pb-2">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center text-white overflow-hidden flex-shrink-0">
