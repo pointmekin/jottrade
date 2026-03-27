@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 
 import type { QueryClient } from "@tanstack/react-query";
 import { AppSidebar } from "@/components/app-sidebar";
+import { BottomNav } from "@/components/bottom-nav";
 import { ThemeProvider } from "@/components/theme-provider";
 
 interface MyRouterContext {
@@ -22,23 +23,11 @@ interface MyRouterContext {
 export const Route = createRootRouteWithContext<MyRouterContext>()({
   head: () => ({
     meta: [
-      {
-        charSet: "utf-8",
-      },
-      {
-        name: "viewport",
-        content: "width=device-width, initial-scale=1",
-      },
-      {
-        title: "JotTrade",
-      },
+      { charSet: "utf-8" },
+      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { title: "JotTrade" },
     ],
-    links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
-    ],
+    links: [{ rel: "stylesheet", href: appCss }],
   }),
 
   shellComponent: RootDocument,
@@ -47,7 +36,6 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 function RootDocument({ children }: { children: React.ReactNode }) {
   const location = useLocation();
 
-  // For specifying routes where the header should be hidden
   const hideSidebarRoutes = ["/sign-in", "/sign-up"];
   const shouldHideSidebar = hideSidebarRoutes.some((route) =>
     location.pathname.startsWith(route)
@@ -57,11 +45,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
-        {/* This script:
-            Runs immediately when the page loads, before React hydrates.
-            Reads the user's theme preference from localStorage.
-            Applies the correct dark or light class to the document.documentElement (<html> tag) instantly.
-            This ensures that by the time the browser paints the page, the correct theme is already applied, preventing the white flash. */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -87,28 +70,30 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         />
       </head>
       <body className="bg-background">
-        {/* Tanstack Demo Header */}
-        {/* {!shouldHideHeader && <Header />} */}
         <SidebarProvider>
           {!shouldHideSidebar && (
             <>
-              <AppSidebar />
-              <SidebarTrigger />
+              {/* Desktop sidebar — hidden below lg */}
+              <div className="hidden lg:block">
+                <AppSidebar />
+              </div>
+              {/* Sidebar collapse trigger — desktop only */}
+              <div className="hidden lg:flex">
+                <SidebarTrigger />
+              </div>
+              {/* Mobile bottom nav — hidden at lg and above */}
+              <BottomNav />
             </>
           )}
           <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-            <div className="w-full">{children}</div>
+            {/* pb-16 reserves space above the fixed bottom nav on mobile */}
+            <div className="w-full pb-16 lg:pb-0">{children}</div>
           </ThemeProvider>
         </SidebarProvider>
         <TanStackDevtools
-          config={{
-            position: "bottom-right",
-          }}
+          config={{ position: "bottom-right" }}
           plugins={[
-            {
-              name: "Tanstack Router",
-              render: <TanStackRouterDevtoolsPanel />,
-            },
+            { name: "Tanstack Router", render: <TanStackRouterDevtoolsPanel /> },
             TanStackQueryDevtools,
           ]}
         />
