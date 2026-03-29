@@ -1,17 +1,15 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDropzone } from "react-dropzone";
 import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-} from "@/components/ui/sheet";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+	Drawer,
+	DrawerContent,
+	DrawerHeader,
+	DrawerTitle,
+} from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,14 +21,15 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Trash2, Upload, X } from "lucide-react";
+import { Upload, X } from "lucide-react";
 import { updateTrade } from "@/server/tradeActions";
 import {
+	deleteTradeImage,
 	getSignedUploadUrl,
 	saveTradeImage,
-	deleteTradeImage,
 } from "@/server/imageActions";
 import { getStrategies } from "@/server/strategyActions";
+import { cn } from "@/lib/utils";
 import type { Trade } from "./JournalTable";
 
 const MISTAKE_OPTIONS = [
@@ -50,7 +49,7 @@ const overviewSchema = z.object({
 	fees: z.string().optional(),
 	confidence: z.enum(["HIGH", "MEDIUM", "LOW"]).optional(),
 	mistake: z.string().optional(),
-	setupId: z.string().optional(), // stringified number or "none"
+	setupId: z.string().optional(),
 });
 type OverviewValues = z.infer<typeof overviewSchema>;
 
@@ -60,6 +59,18 @@ interface TradeDetailSheetProps {
 	onOpenChange: (open: boolean) => void;
 }
 
+function useIsDesktop() {
+	const [isDesktop, setIsDesktop] = useState(false);
+	useEffect(() => {
+		const mql = window.matchMedia("(min-width: 768px)");
+		setIsDesktop(mql.matches);
+		const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+		mql.addEventListener("change", handler);
+		return () => mql.removeEventListener("change", handler);
+	}, []);
+	return isDesktop;
+}
+
 export function TradeDetailSheet({
 	trade,
 	open,
@@ -67,6 +78,7 @@ export function TradeDetailSheet({
 }: TradeDetailSheetProps) {
 	const qc = useQueryClient();
 	const [uploading, setUploading] = useState(false);
+	const isDesktop = useIsDesktop();
 
 	const { data: strategies = [] } = useQuery({
 		queryKey: ["strategies"],
@@ -133,7 +145,9 @@ export function TradeDetailSheet({
 						body: file,
 						headers: { "Content-Type": file.type },
 					});
-					await saveTradeImage({ data: { tradeId: trade.id, url: publicUrl } });
+					await saveTradeImage({
+						data: { tradeId: trade.id, url: publicUrl },
+					});
 				}
 				qc.invalidateQueries({ queryKey: ["trades"] });
 			} finally {
@@ -152,190 +166,246 @@ export function TradeDetailSheet({
 
 	const screenshots: string[] = (trade as any)?.screenshots ?? [];
 	const netPnl = trade?.netPnl ? parseFloat(trade.netPnl) : null;
+	const isLong = trade?.side === "LONG";
 
 	if (!trade) return null;
 
 	return (
-		<Sheet open={open} onOpenChange={onOpenChange}>
-			<SheetContent
-				side="right"
-				className="w-full sm:max-w-lg bg-zinc-950 border-l-zinc-800 text-white overflow-y-auto"
+		<Drawer
+			open={open}
+			onOpenChange={onOpenChange}
+			direction={isDesktop ? "right" : "bottom"}
+		>
+			<DrawerContent
+				className={cn(
+					"bg-zinc-950 border-zinc-800/60 text-white",
+					isDesktop
+						? "inset-y-0 right-0 left-auto h-screen w-[480px] max-w-[90vw] mt-0 rounded-none border-l flex-col"
+						: "inset-x-0 bottom-0 top-auto max-h-[92vh] rounded-t-2xl border-t flex-col",
+				)}
 			>
-				<SheetHeader className="pb-4 border-b border-zinc-800">
-					<div className="flex items-center gap-2 flex-wrap">
-						<SheetTitle className="text-white text-xl">
-							{trade.symbol}
-						</SheetTitle>
-						<Badge
-							className={
-								trade.side === "LONG"
-									? "bg-green-500/15 text-green-400"
-									: "bg-red-500/15 text-red-400"
-							}
-						>
-							{trade.side}
-						</Badge>
-						<Badge
-							variant="outline"
-							className="border-zinc-700 text-zinc-400 text-xs uppercase"
-						>
-							{trade.status}
-						</Badge>
-						{netPnl !== null && (
+				{/* Direction accent bar */}
+				<div
+					className={cn(
+						"h-px w-full flex-shrink-0",
+						isLong
+							? "bg-gradient-to-r from-transparent via-emerald-500 to-transparent"
+							: "bg-gradient-to-r from-transparent via-red-500 to-transparent",
+					)}
+				/>
+
+				{/* Mobile drag handle */}
+				{!isDesktop && (
+					<div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+						<div className="h-1 w-10 rounded-full bg-zinc-700" />
+					</div>
+				)}
+
+				{/* Header */}
+				<DrawerHeader className="px-5 pt-4 pb-3 border-b border-zinc-800/60 flex-shrink-0">
+					<div className="flex items-start justify-between gap-3">
+						<div className="flex items-center gap-2.5 flex-wrap">
+							<DrawerTitle className="text-white text-xl font-bold tracking-tight">
+								{trade.symbol}
+							</DrawerTitle>
 							<span
-								className={`text-sm font-medium ml-auto ${netPnl >= 0 ? "text-green-400" : "text-red-400"}`}
+								className={cn(
+									"inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded",
+									isLong
+										? "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20"
+										: "bg-red-500/10 text-red-400 ring-1 ring-red-500/20",
+								)}
 							>
-								{netPnl >= 0 ? "+" : ""}
-								{netPnl.toFixed(2)}
+								{isLong ? "▲" : "▼"} {trade.side}
 							</span>
+							<span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 ring-1 ring-zinc-700/50 uppercase tracking-wide">
+								{trade.status}
+							</span>
+						</div>
+						{netPnl !== null && (
+							<div
+								className={cn(
+									"text-right flex-shrink-0",
+									netPnl >= 0 ? "text-emerald-400" : "text-red-400",
+								)}
+							>
+								<p className="text-lg font-bold font-mono tabular-nums leading-none">
+									{netPnl >= 0 ? "+" : ""}
+									{netPnl.toFixed(2)}
+								</p>
+								<p className="text-xs text-zinc-600 mt-0.5">net P&L</p>
+							</div>
 						)}
 					</div>
-				</SheetHeader>
+				</DrawerHeader>
 
-				<Tabs defaultValue="overview" className="mt-4">
-					<TabsList className="bg-zinc-900 border border-zinc-800">
-						<TabsTrigger value="overview">Overview</TabsTrigger>
-						<TabsTrigger value="notes">Notes</TabsTrigger>
-						<TabsTrigger value="images">
-							Images {screenshots.length > 0 && `(${screenshots.length})`}
-						</TabsTrigger>
-					</TabsList>
+				{/* Scrollable content */}
+				<div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
+					{/* Overview */}
+					<form
+						onSubmit={handleSubmit((v) => saveMut.mutate(v))}
+						className="space-y-4"
+					>
+						<div className="grid grid-cols-2 gap-3">
+							<FieldGroup label="Entry Price">
+								<Input
+									{...register("entryPrice")}
+									className="bg-zinc-900 border-zinc-800 text-white font-mono text-sm focus-visible:border-zinc-600 focus-visible:ring-0 focus-visible:ring-offset-0 transition-colors"
+								/>
+							</FieldGroup>
+							<FieldGroup label="Exit Price">
+								<Input
+									{...register("exitPrice")}
+									className="bg-zinc-900 border-zinc-800 text-white font-mono text-sm focus-visible:border-zinc-600 focus-visible:ring-0 focus-visible:ring-offset-0 transition-colors"
+								/>
+							</FieldGroup>
+							<FieldGroup label="Quantity">
+								<Input
+									{...register("quantity")}
+									className="bg-zinc-900 border-zinc-800 text-white font-mono text-sm focus-visible:border-zinc-600 focus-visible:ring-0 focus-visible:ring-offset-0 transition-colors"
+								/>
+							</FieldGroup>
+							<FieldGroup label="Fees">
+								<Input
+									{...register("fees")}
+									className="bg-zinc-900 border-zinc-800 text-white font-mono text-sm focus-visible:border-zinc-600 focus-visible:ring-0 focus-visible:ring-offset-0 transition-colors"
+								/>
+							</FieldGroup>
+						</div>
 
-					{/* Overview Tab */}
-					<TabsContent value="overview">
-						<form
-							onSubmit={handleSubmit((v) => saveMut.mutate(v))}
-							className="space-y-4 mt-4"
-						>
-							<div className="grid grid-cols-2 gap-3">
-								<div className="space-y-1">
-									<Label className="text-zinc-400 text-xs">Entry Price</Label>
-									<Input
-										{...register("entryPrice")}
-										className="bg-zinc-900 border-zinc-700 text-white"
-									/>
-								</div>
-								<div className="space-y-1">
-									<Label className="text-zinc-400 text-xs">Exit Price</Label>
-									<Input
-										{...register("exitPrice")}
-										className="bg-zinc-900 border-zinc-700 text-white"
-									/>
-								</div>
-								<div className="space-y-1">
-									<Label className="text-zinc-400 text-xs">Quantity</Label>
-									<Input
-										{...register("quantity")}
-										className="bg-zinc-900 border-zinc-700 text-white"
-									/>
-								</div>
-								<div className="space-y-1">
-									<Label className="text-zinc-400 text-xs">Fees</Label>
-									<Input
-										{...register("fees")}
-										className="bg-zinc-900 border-zinc-700 text-white"
-									/>
-								</div>
-							</div>
-
-							<div className="space-y-1">
-								<Label className="text-zinc-400 text-xs">Confidence</Label>
-								<Select
-									value={watch("confidence") ?? ""}
-									onValueChange={(v) => setValue("confidence", v as any)}
-								>
-									<SelectTrigger className="bg-zinc-900 border-zinc-700 text-white">
-										<SelectValue placeholder="Select confidence" />
-									</SelectTrigger>
-									<SelectContent className="bg-zinc-900 border-zinc-700">
-										{["HIGH", "MEDIUM", "LOW"].map((c) => (
-											<SelectItem key={c} value={c}>
-												{c}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-
-							<div className="space-y-1">
-								<Label className="text-zinc-400 text-xs">Mistake</Label>
-								<Select
-									value={watch("mistake") ?? ""}
-									onValueChange={(v) => setValue("mistake", v)}
-								>
-									<SelectTrigger className="bg-zinc-900 border-zinc-700 text-white">
-										<SelectValue placeholder="Any mistake?" />
-									</SelectTrigger>
-									<SelectContent className="bg-zinc-900 border-zinc-700">
-										<SelectItem value="__none__">None</SelectItem>
-										{MISTAKE_OPTIONS.map((m) => (
-											<SelectItem key={m} value={m}>
-												{m}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-
-							<div className="space-y-1">
-								<Label className="text-zinc-400 text-xs">Strategy</Label>
-								<Select
-									value={watch("setupId") ?? "none"}
-									onValueChange={(v) => setValue("setupId", v)}
-								>
-									<SelectTrigger className="bg-zinc-900 border-zinc-700 text-white">
-										<SelectValue placeholder="Select strategy" />
-									</SelectTrigger>
-									<SelectContent className="bg-zinc-900 border-zinc-700">
-										<SelectItem value="none">None</SelectItem>
-										{(strategies as any[]).map((s: any) => (
-											<SelectItem key={s.id} value={String(s.id)}>
-												{s.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-
-							<Button
-								type="submit"
-								disabled={saveMut.isPending}
-								className="w-full"
+						<FieldGroup label="Confidence">
+							<Select
+								value={watch("confidence") ?? ""}
+								onValueChange={(v) => setValue("confidence", v as any)}
 							>
-								{saveMut.isPending ? "Saving…" : "Save Changes"}
-							</Button>
-						</form>
-					</TabsContent>
+								<SelectTrigger className="bg-zinc-900 border-zinc-800 text-white focus:ring-0 focus:ring-offset-0 focus:border-zinc-600">
+									<SelectValue placeholder="Select confidence" />
+								</SelectTrigger>
+								<SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+									{["HIGH", "MEDIUM", "LOW"].map((c) => (
+										<SelectItem
+											key={c}
+											value={c}
+											className="focus:bg-zinc-800 focus:text-white"
+										>
+											{c}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</FieldGroup>
 
-					{/* Notes Tab */}
-					<TabsContent value="notes" className="mt-4 space-y-3">
+						<FieldGroup label="Mistake">
+							<Select
+								value={watch("mistake") ?? ""}
+								onValueChange={(v) => setValue("mistake", v)}
+							>
+								<SelectTrigger className="bg-zinc-900 border-zinc-800 text-white focus:ring-0 focus:ring-offset-0 focus:border-zinc-600">
+									<SelectValue placeholder="Any mistake?" />
+								</SelectTrigger>
+								<SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+									<SelectItem
+										value="__none__"
+										className="focus:bg-zinc-800 focus:text-white"
+									>
+										None
+									</SelectItem>
+									{MISTAKE_OPTIONS.map((m) => (
+										<SelectItem
+											key={m}
+											value={m}
+											className="focus:bg-zinc-800 focus:text-white"
+										>
+											{m}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</FieldGroup>
+
+						<FieldGroup label="Strategy">
+							<Select
+								value={watch("setupId") ?? "none"}
+								onValueChange={(v) => setValue("setupId", v)}
+							>
+								<SelectTrigger className="bg-zinc-900 border-zinc-800 text-white focus:ring-0 focus:ring-offset-0 focus:border-zinc-600">
+									<SelectValue placeholder="Select strategy" />
+								</SelectTrigger>
+								<SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+									<SelectItem
+										value="none"
+										className="focus:bg-zinc-800 focus:text-white"
+									>
+										None
+									</SelectItem>
+									{(strategies as any[]).map((s: any) => (
+										<SelectItem
+											key={s.id}
+											value={String(s.id)}
+											className="focus:bg-zinc-800 focus:text-white"
+										>
+											{s.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</FieldGroup>
+
+						<Button
+							type="submit"
+							disabled={saveMut.isPending}
+							className={cn(
+								"w-full font-medium transition-all",
+								isLong
+									? "bg-emerald-600 hover:bg-emerald-500 text-white"
+									: "bg-red-600 hover:bg-red-500 text-white",
+							)}
+						>
+							{saveMut.isPending ? "Saving…" : "Save Changes"}
+						</Button>
+					</form>
+
+					{/* Divider */}
+					<div className="h-px bg-zinc-800/60" />
+
+					{/* Notes */}
+					<div className="space-y-2">
+						<p className="text-zinc-500 text-[10px] uppercase tracking-widest font-semibold">Notes</p>
 						<Textarea
 							defaultValue={(trade as any)?.notes ?? ""}
-							className="bg-zinc-900 border-zinc-700 text-white min-h-48 resize-none"
+							className="bg-zinc-900 border-zinc-800 text-white min-h-32 resize-none text-sm leading-relaxed focus-visible:border-zinc-600 focus-visible:ring-0 focus-visible:ring-offset-0 transition-colors placeholder:text-zinc-600"
 							placeholder="Add your trade notes here…"
 							onBlur={(e) => noteMut.mutate(e.target.value)}
 						/>
-						<p className="text-xs text-zinc-600">Changes saved on blur.</p>
-					</TabsContent>
+						<p className="text-xs text-zinc-700">Auto-saved on blur.</p>
+					</div>
 
-					{/* Images Tab */}
-					<TabsContent value="images" className="mt-4 space-y-4">
+					{/* Divider */}
+					<div className="h-px bg-zinc-800/60" />
+
+					{/* Images */}
+					<div className="space-y-3 pb-6">
+						<p className="text-zinc-500 text-[10px] uppercase tracking-widest font-semibold">Images</p>
 						<div
 							{...getRootProps()}
-							className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
-                ${isDragActive ? "border-blue-500 bg-blue-500/5" : "border-zinc-700 hover:border-zinc-500"}`}
+							className={cn(
+								"border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all duration-200",
+								isDragActive
+									? "border-zinc-500 bg-zinc-800/50 scale-[0.99]"
+									: "border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/50",
+							)}
 						>
 							<input {...getInputProps()} />
-							<Upload className="h-6 w-6 mx-auto mb-2 text-zinc-500" />
-							<p className="text-sm text-zinc-400">
+							<Upload className="h-5 w-5 mx-auto mb-2.5 text-zinc-600" />
+							<p className="text-sm text-zinc-400 font-medium">
 								{uploading
 									? "Uploading…"
 									: isDragActive
 										? "Drop images here"
 										: "Drag & drop or click to upload"}
 							</p>
-							<p className="text-xs text-zinc-600 mt-1">
-								Max 10MB · JPEG, PNG, WebP, GIF · Up to 10 images
+							<p className="text-xs text-zinc-700 mt-1">
+								Max 10MB · JPEG, PNG, WebP, GIF · Up to 10 files
 							</p>
 						</div>
 
@@ -344,16 +414,18 @@ export function TradeDetailSheet({
 								{screenshots.map((url) => (
 									<div
 										key={url}
-										className="relative group rounded-lg overflow-hidden bg-zinc-900"
+										className="relative group rounded-lg overflow-hidden bg-zinc-900 ring-1 ring-zinc-800"
 									>
 										<img
 											src={url}
 											alt="Trade screenshot"
-											className="w-full h-32 object-cover"
+											className="w-full h-32 object-cover transition-transform duration-300 group-hover:scale-105"
 										/>
+										<div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-200" />
 										<button
+											type="button"
 											onClick={() => deleteImgMut.mutate(url)}
-											className="absolute top-1 right-1 p-1 rounded bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity"
+											className="absolute top-1.5 right-1.5 p-1 rounded-md bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-black/90"
 										>
 											<X className="h-3 w-3 text-white" />
 										</button>
@@ -361,9 +433,26 @@ export function TradeDetailSheet({
 								))}
 							</div>
 						)}
-					</TabsContent>
-				</Tabs>
-			</SheetContent>
-		</Sheet>
+					</div>
+				</div>
+			</DrawerContent>
+		</Drawer>
+	);
+}
+
+function FieldGroup({
+	label,
+	children,
+}: {
+	label: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<div className="space-y-1.5">
+			<Label className="text-zinc-500 text-[10px] uppercase tracking-widest font-semibold">
+				{label}
+			</Label>
+			{children}
+		</div>
 	);
 }
