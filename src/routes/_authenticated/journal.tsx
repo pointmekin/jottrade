@@ -4,7 +4,7 @@ import {
 	useSearch,
 } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 
 import { getTrades } from "@/server/getTrades";
@@ -14,6 +14,7 @@ import { TradeDetailSheet } from "@/components/journal/TradeDetailSheet";
 import { TradeEntryForm } from "@/components/journal/TradeEntryForm";
 import { ImportZone } from "@/components/journal/ImportZone";
 import { FilterBar, type JournalFilters } from "@/components/journal/FilterBar";
+import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,13 +26,12 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetHeader,
-	SheetTitle,
-	SheetTrigger,
-} from "@/components/ui/sheet";
+	Drawer,
+	DrawerContent,
+	DrawerHeader,
+	DrawerTitle,
+	DrawerDescription,
+} from "@/components/ui/drawer";
 import { Plus, Upload, ChevronLeft, ChevronRight } from "lucide-react";
 
 const journalSearchSchema = z.object({
@@ -46,6 +46,18 @@ const journalSearchSchema = z.object({
 	page: z.number().default(1),
 });
 
+function useIsDesktop() {
+	const [isDesktop, setIsDesktop] = useState(false);
+	useEffect(() => {
+		const mql = window.matchMedia("(min-width: 768px)");
+		setIsDesktop(mql.matches);
+		const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+		mql.addEventListener("change", handler);
+		return () => mql.removeEventListener("change", handler);
+	}, []);
+	return isDesktop;
+}
+
 export const Route = createFileRoute("/_authenticated/journal")({
 	validateSearch: journalSearchSchema,
 	component: JournalPage,
@@ -54,6 +66,7 @@ export const Route = createFileRoute("/_authenticated/journal")({
 function JournalPage() {
 	const navigate = useNavigate({ from: "/journal" });
 	const search = useSearch({ from: "/_authenticated/journal" });
+	const isDesktop = useIsDesktop();
 	const [sheetOpen, setSheetOpen] = useState(false);
 	const [importOpen, setImportOpen] = useState(false);
 	const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
@@ -131,27 +144,41 @@ function JournalPage() {
 						</DialogContent>
 					</Dialog>
 
-					<Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-						<SheetTrigger asChild>
-							<Button>
-								<Plus className="h-4 w-4 mr-2" />
-								Log Trade
-							</Button>
-						</SheetTrigger>
-						<SheetContent className="overflow-y-auto sm:max-w-md bg-card">
-							<SheetHeader>
-								<SheetTitle className="text-foreground">
+					<Button onClick={() => setSheetOpen(true)}>
+						<Plus className="h-4 w-4 mr-2" />
+						Log Trade
+					</Button>
+					<Drawer open={sheetOpen} onOpenChange={setSheetOpen} direction={isDesktop ? "right" : "bottom"}>
+						<DrawerContent
+							className={cn(
+								"bg-zinc-950 border-zinc-800/60 text-white",
+								isDesktop
+									? "inset-y-0 right-0 left-auto h-screen w-[440px] max-w-[90vw] mt-0 rounded-none border-l flex-col"
+									: "inset-x-0 bottom-0 top-auto max-h-[92vh] rounded-t-2xl border-t flex-col",
+							)}
+						>
+							<div className="h-px w-full flex-shrink-0 bg-gradient-to-r from-transparent via-zinc-600 to-transparent" />
+							{!isDesktop && (
+								<div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+									<div className="h-1 w-10 rounded-full bg-zinc-700" />
+								</div>
+							)}
+							<DrawerHeader className="px-5 pt-5 pb-4 border-b border-zinc-800/60 flex-shrink-0">
+								<DrawerTitle className="text-white text-lg font-bold tracking-tight">
 									Log New Trade
-								</SheetTitle>
-								<SheetDescription className="text-muted-foreground">
+								</DrawerTitle>
+								<DrawerDescription className="text-zinc-500 text-sm mt-1">
 									Enter the details of your trade execution.
-								</SheetDescription>
-							</SheetHeader>
-							<div className="mt-8">
-								<TradeEntryForm onSuccess={() => setSheetOpen(false)} />
+								</DrawerDescription>
+							</DrawerHeader>
+							<div className="flex-1 overflow-y-auto px-5 py-5">
+								<TradeEntryForm
+									onSuccess={() => setSheetOpen(false)}
+									onCancel={() => setSheetOpen(false)}
+								/>
 							</div>
-						</SheetContent>
-					</Sheet>
+						</DrawerContent>
+					</Drawer>
 				</div>
 			</div>
 

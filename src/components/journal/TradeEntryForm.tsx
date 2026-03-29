@@ -3,17 +3,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createTrade } from "@/server/tradeActions";
-
 import { Button } from "@/components/ui/button";
 import {
 	Form,
 	FormControl,
 	FormField,
 	FormItem,
-	FormLabel,
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
 	Select,
 	SelectContent,
@@ -21,7 +20,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { SheetClose, SheetFooter } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
 	symbol: z
@@ -42,9 +42,16 @@ const formSchema = z.object({
 
 interface TradeEntryFormProps {
 	onSuccess?: () => void;
+	onCancel?: () => void;
 }
 
-export function TradeEntryForm({ onSuccess }: TradeEntryFormProps) {
+const inputCls =
+	"bg-zinc-900 border-zinc-800 text-white font-mono text-sm focus-visible:border-zinc-600 focus-visible:ring-0 focus-visible:ring-offset-0 transition-colors placeholder:text-zinc-700";
+
+const labelCls =
+	"text-zinc-500 text-[10px] uppercase tracking-widest font-semibold";
+
+export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 	const queryClient = useQueryClient();
 
 	const form = useForm<z.infer<typeof formSchema>>({
@@ -52,7 +59,7 @@ export function TradeEntryForm({ onSuccess }: TradeEntryFormProps) {
 		defaultValues: {
 			symbol: "",
 			side: "LONG",
-			entryDate: new Date().toISOString().slice(0, 16), // datetime-local format
+			entryDate: new Date().toISOString().slice(0, 16),
 			entryPrice: "",
 			quantity: "",
 			notes: "",
@@ -62,6 +69,9 @@ export function TradeEntryForm({ onSuccess }: TradeEntryFormProps) {
 		},
 	});
 
+	const side = form.watch("side");
+	const isLong = side === "LONG";
+
 	const { mutate: logTrade, isPending } = useMutation({
 		mutationFn: (values: z.infer<typeof formSchema>) =>
 			createTrade({ data: values }),
@@ -70,54 +80,66 @@ export function TradeEntryForm({ onSuccess }: TradeEntryFormProps) {
 			form.reset();
 			onSuccess?.();
 		},
-		onError: (error) => {
-			console.error("Failed to create trade", error);
-			// Add toast here potentially
-		},
 	});
 
 	return (
 		<Form {...form}>
 			<form
 				onSubmit={form.handleSubmit((values) => logTrade(values))}
-				className="space-y-4 py-4"
+				className="space-y-4"
 			>
+				{/* Symbol */}
 				<FormField
 					control={form.control}
 					name="symbol"
 					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Symbol</FormLabel>
+						<FormItem className="space-y-1.5">
+							<Label className={labelCls}>Symbol</Label>
 							<FormControl>
-								<Input placeholder="AAPL" {...field} />
+								<Input
+									placeholder="AAPL"
+									className={cn(inputCls, "uppercase")}
+									{...field}
+								/>
 							</FormControl>
-							<FormMessage />
+							<FormMessage className="text-red-400 text-xs" />
 						</FormItem>
 					)}
 				/>
 
-				<div className="grid grid-cols-2 gap-4">
+				{/* Side + Entry Date */}
+				<div className="grid grid-cols-2 gap-3">
 					<FormField
 						control={form.control}
 						name="side"
 						render={({ field }) => (
-							<FormItem>
-								<FormLabel>Side</FormLabel>
+							<FormItem className="space-y-1.5">
+								<Label className={labelCls}>Side</Label>
 								<Select
 									onValueChange={field.onChange}
 									defaultValue={field.value}
 								>
 									<FormControl>
-										<SelectTrigger>
-											<SelectValue placeholder="Select side" />
+										<SelectTrigger className="bg-zinc-900 border-zinc-800 text-white focus:ring-0 focus:ring-offset-0 focus:border-zinc-600 text-sm">
+											<SelectValue />
 										</SelectTrigger>
 									</FormControl>
-									<SelectContent>
-										<SelectItem value="LONG">Long</SelectItem>
-										<SelectItem value="SHORT">Short</SelectItem>
+									<SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+										<SelectItem
+											value="LONG"
+											className="focus:bg-zinc-800 focus:text-white text-emerald-400"
+										>
+											▲ Long
+										</SelectItem>
+										<SelectItem
+											value="SHORT"
+											className="focus:bg-zinc-800 focus:text-white text-red-400"
+										>
+											▼ Short
+										</SelectItem>
 									</SelectContent>
 								</Select>
-								<FormMessage />
+								<FormMessage className="text-red-400 text-xs" />
 							</FormItem>
 						)}
 					/>
@@ -126,33 +148,39 @@ export function TradeEntryForm({ onSuccess }: TradeEntryFormProps) {
 						control={form.control}
 						name="entryDate"
 						render={({ field }) => (
-							<FormItem>
-								<FormLabel>Entry Date</FormLabel>
+							<FormItem className="space-y-1.5">
+								<Label className={labelCls}>Entry Date</Label>
 								<FormControl>
-									<Input type="datetime-local" {...field} />
+									<Input
+										type="datetime-local"
+										className={cn(inputCls, "appearance-none")}
+										{...field}
+									/>
 								</FormControl>
-								<FormMessage />
+								<FormMessage className="text-red-400 text-xs" />
 							</FormItem>
 						)}
 					/>
 				</div>
 
-				<div className="grid grid-cols-2 gap-4">
+				{/* Entry Price + Quantity */}
+				<div className="grid grid-cols-2 gap-3">
 					<FormField
 						control={form.control}
 						name="entryPrice"
 						render={({ field }) => (
-							<FormItem>
-								<FormLabel>Entry Price</FormLabel>
+							<FormItem className="space-y-1.5">
+								<Label className={labelCls}>Entry Price</Label>
 								<FormControl>
 									<Input
 										type="number"
 										step="0.0001"
 										placeholder="150.00"
+										className={inputCls}
 										{...field}
 									/>
 								</FormControl>
-								<FormMessage />
+								<FormMessage className="text-red-400 text-xs" />
 							</FormItem>
 						)}
 					/>
@@ -161,105 +189,134 @@ export function TradeEntryForm({ onSuccess }: TradeEntryFormProps) {
 						control={form.control}
 						name="quantity"
 						render={({ field }) => (
-							<FormItem>
-								<FormLabel>Quantity</FormLabel>
+							<FormItem className="space-y-1.5">
+								<Label className={labelCls}>Quantity</Label>
 								<FormControl>
 									<Input
 										type="number"
 										step="0.0001"
 										placeholder="10"
+										className={inputCls}
 										{...field}
 									/>
 								</FormControl>
-								<FormMessage />
+								<FormMessage className="text-red-400 text-xs" />
 							</FormItem>
 						)}
 					/>
 				</div>
 
-				<div className="pt-2 border-t border-zinc-800">
-					<p className="text-sm font-medium text-zinc-400 mb-2">
-						Outcome (Optional)
-					</p>
-					<div className="grid grid-cols-2 gap-4">
-						<FormField
-							control={form.control}
-							name="exitPrice"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Exit Price</FormLabel>
-									<FormControl>
-										<Input
-											type="number"
-											step="0.0001"
-											placeholder="155.00"
-											{...field}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
+				{/* Optional divider */}
+				<div className="flex items-center gap-3 pt-1">
+					<div className="h-px flex-1 bg-zinc-800" />
+					<span className="text-[10px] uppercase tracking-widest text-zinc-600 font-semibold">
+						Optional
+					</span>
+					<div className="h-px flex-1 bg-zinc-800" />
+				</div>
 
-						<FormField
-							control={form.control}
-							name="exitDate"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Exit Date</FormLabel>
-									<FormControl>
-										<Input type="datetime-local" {...field} />
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-					</div>
+				{/* Exit Price + Exit Date */}
+				<div className="grid grid-cols-2 gap-3">
 					<FormField
 						control={form.control}
-						name="fees"
+						name="exitPrice"
 						render={({ field }) => (
-							<FormItem className="mt-4">
-								<FormLabel>Fees</FormLabel>
+							<FormItem className="space-y-1.5">
+								<Label className={labelCls}>Exit Price</Label>
 								<FormControl>
 									<Input
 										type="number"
-										step="0.01"
-										placeholder="0.00"
+										step="0.0001"
+										placeholder="155.00"
+										className={inputCls}
 										{...field}
 									/>
 								</FormControl>
-								<FormMessage />
+							</FormItem>
+						)}
+					/>
+
+					<FormField
+						control={form.control}
+						name="exitDate"
+						render={({ field }) => (
+							<FormItem className="space-y-1.5">
+								<Label className={labelCls}>Exit Date</Label>
+								<FormControl>
+									<Input
+										type="datetime-local"
+										className={cn(inputCls, "appearance-none")}
+										{...field}
+									/>
+								</FormControl>
 							</FormItem>
 						)}
 					/>
 				</div>
 
+				{/* Fees */}
 				<FormField
 					control={form.control}
-					name="notes"
+					name="fees"
 					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Notes</FormLabel>
+						<FormItem className="space-y-1.5">
+							<Label className={labelCls}>Fees</Label>
 							<FormControl>
-								{/* Fallback to Input just in case Textarea isn't ready, can swap later */}
-								<Input placeholder="Setup context, emotions..." {...field} />
+								<Input
+									type="number"
+									step="0.01"
+									placeholder="0.00"
+									className={inputCls}
+									{...field}
+								/>
 							</FormControl>
-							<FormMessage />
 						</FormItem>
 					)}
 				/>
 
-				<SheetFooter className="pt-4">
-					<SheetClose asChild>
-						<Button variant="outline" type="button">
+				{/* Notes */}
+				<FormField
+					control={form.control}
+					name="notes"
+					render={({ field }) => (
+						<FormItem className="space-y-1.5">
+							<Label className={labelCls}>Notes</Label>
+							<FormControl>
+								<Textarea
+									placeholder="Setup context, emotions, plan…"
+									className="bg-zinc-900 border-zinc-800 text-white text-sm resize-none min-h-20 focus-visible:border-zinc-600 focus-visible:ring-0 focus-visible:ring-offset-0 transition-colors placeholder:text-zinc-700"
+									{...field}
+								/>
+							</FormControl>
+						</FormItem>
+					)}
+				/>
+
+				{/* Actions */}
+				<div className="flex gap-2 pt-2">
+					{onCancel && (
+						<Button
+							type="button"
+							variant="outline"
+							className="flex-1 border-zinc-800 text-zinc-400 hover:bg-zinc-900 hover:text-white"
+							onClick={onCancel}
+						>
 							Cancel
 						</Button>
-					</SheetClose>
-					<Button type="submit" className="w-full" disabled={isPending}>
-						{isPending ? "Logging..." : "Log Trade"}
+					)}
+					<Button
+						type="submit"
+						disabled={isPending}
+						className={cn(
+							"flex-1 font-medium transition-all",
+							isLong
+								? "bg-emerald-600 hover:bg-emerald-500 text-white"
+								: "bg-red-600 hover:bg-red-500 text-white",
+						)}
+					>
+						{isPending ? "Logging…" : `Log ${isLong ? "Long" : "Short"}`}
 					</Button>
-				</SheetFooter>
+				</div>
 			</form>
 		</Form>
 	);
