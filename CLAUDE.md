@@ -107,7 +107,7 @@ Google OAuth also requires `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in the 
 
 ### Issue tracker
 
-Issues live in GitHub Issues for `pointmekin/tradebase`, managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues live in GitHub Issues for `pointmekin/jottrade`, managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
