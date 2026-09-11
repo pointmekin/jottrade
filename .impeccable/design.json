@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-12T00:00:00+07:00",
+  "title": "Design System: JotTrade",
+  "extensions": {
+    "colorMeta": {
+      "canvas-light": { "role": "neutral", "displayName": "Paper Canvas", "canonical": "oklch(1 0 0)", "tonalRamp": ["oklch(0.15 0 0)", "oklch(0.27 0 0)", "oklch(0.39 0 0)", "oklch(0.51 0 0)", "oklch(0.63 0 0)", "oklch(0.75 0 0)", "oklch(0.87 0 0)", "oklch(1 0 0)"] },
+      "ink-light": { "role": "neutral", "displayName": "Near-black Ink", "canonical": "oklch(0.141 0.005 285.823)", "tonalRamp": ["oklch(0.14 0.005 285.823)", "oklch(0.26 0.005 285.823)", "oklch(0.38 0.005 285.823)", "oklch(0.50 0.005 285.823)", "oklch(0.62 0.005 285.823)", "oklch(0.74 0.005 285.823)", "oklch(0.86 0.005 285.823)", "oklch(0.95 0.005 285.823)"] },
+      "canvas-dark": { "role": "neutral", "displayName": "Night Canvas", "canonical": "oklch(0.108 0.004 285.823)", "tonalRamp": ["oklch(0.11 0.004 285.823)", "oklch(0.23 0.004 285.823)", "oklch(0.35 0.004 285.823)", "oklch(0.47 0.004 285.823)", "oklch(0.59 0.004 285.823)", "oklch(0.71 0.004 285.823)", "oklch(0.83 0.004 285.823)", "oklch(0.95 0.004 285.823)"] },
+      "surface-dark": { "role": "neutral", "displayName": "Zinc Surface", "canonical": "oklch(0.21 0.006 285.885)", "tonalRamp": ["oklch(0.15 0.006 285.885)", "oklch(0.27 0.006 285.885)", "oklch(0.39 0.006 285.885)", "oklch(0.51 0.006 285.885)", "oklch(0.63 0.006 285.885)", "oklch(0.75 0.006 285.885)", "oklch(0.87 0.006 285.885)", "oklch(0.95 0.006 285.885)"] },
+      "ink-dark": { "role": "neutral", "displayName": "Bright Ink", "canonical": "oklch(0.985 0 0)", "tonalRamp": ["oklch(0.15 0 0)", "oklch(0.27 0 0)", "oklch(0.39 0 0)", "oklch(0.51 0 0)", "oklch(0.63 0 0)", "oklch(0.75 0 0)", "oklch(0.87 0 0)", "oklch(0.985 0 0)"] },
+      "structural-muted": { "role": "neutral", "displayName": "Quiet Structure", "canonical": "oklch(0.274 0.006 286.033)", "tonalRamp": ["oklch(0.15 0.006 286.033)", "oklch(0.27 0.006 286.033)", "oklch(0.39 0.006 286.033)", "oklch(0.51 0.006 286.033)", "oklch(0.63 0.006 286.033)", "oklch(0.75 0.006 286.033)", "oklch(0.87 0.006 286.033)", "oklch(0.95 0.006 286.033)"] },
+      "structural-border": { "role": "neutral", "displayName": "Hairline Border", "canonical": "oklch(1 0 0 / 10%)", "tonalRamp": ["oklch(0.15 0 0 / 10%)", "oklch(0.27 0 0 / 10%)", "oklch(0.39 0 0 / 10%)", "oklch(0.51 0 0 / 10%)", "oklch(0.63 0 0 / 10%)", "oklch(0.75 0 0 / 10%)", "oklch(0.87 0 0 / 10%)", "oklch(1 0 0 / 10%)"] },
+      "action-blue": { "role": "primary", "displayName": "Action Blue", "canonical": "oklch(0.707 0.165 254.624)", "tonalRamp": ["oklch(0.15 0.12 254.624)", "oklch(0.27 0.14 254.624)", "oklch(0.39 0.16 254.624)", "oklch(0.51 0.18 254.624)", "oklch(0.63 0.19 254.624)", "oklch(0.71 0.165 254.624)", "oklch(0.83 0.12 254.624)", "oklch(0.95 0.05 254.624)"] },
+      "profit-green": { "role": "secondary", "displayName": "Profit Green", "canonical": "oklch(0.696 0.175 145)", "tonalRamp": ["oklch(0.15 0.08 145)", "oklch(0.27 0.12 145)", "oklch(0.39 0.15 145)", "oklch(0.51 0.17 145)", "oklch(0.63 0.175 145)", "oklch(0.75 0.15 145)", "oklch(0.87 0.10 145)", "oklch(0.95 0.04 145)"] },
+      "loss-red": { "role": "secondary", "displayName": "Loss Red", "canonical": "oklch(0.704 0.191 22.216)", "tonalRamp": ["oklch(0.15 0.08 22.216)", "oklch(0.27 0.12 22.216)", "oklch(0.39 0.16 22.216)", "oklch(0.51 0.19 22.216)", "oklch(0.63 0.191 22.216)", "oklch(0.75 0.16 22.216)", "oklch(0.87 0.10 22.216)", "oklch(0.95 0.04 22.216)"] },
+      "warning-amber": { "role": "secondary", "displayName": "Warning Amber", "canonical": "oklch(0.769 0.171 57)", "tonalRamp": ["oklch(0.15 0.07 57)", "oklch(0.27 0.11 57)", "oklch(0.39 0.14 57)", "oklch(0.51 0.17 57)", "oklch(0.63 0.171 57)", "oklch(0.75 0.15 57)", "oklch(0.87 0.10 57)", "oklch(0.95 0.04 57)"] }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Page Headline", "purpose": "Compact screen titles." },
+      "body": { "displayName": "Interface Body", "purpose": "Controls, tables, and explanatory copy." },
+      "label": { "displayName": "Operational Label", "purpose": "Metric names and compact categories." },
+      "data": { "displayName": "Data Voice", "purpose": "Financial and tabular values." }
+    },
+    "shadows": [
+      { "name": "control-hairline", "value": "0 1px 2px rgba(0,0,0,0.05)", "purpose": "Optional definition for outlined controls." },
+      { "name": "floating-surface", "value": "0 4px 12px rgba(0,0,0,0.18)", "purpose": "Menus, popovers, and tooltips." },
+      { "name": "modal-surface", "value": "0 10px 30px rgba(0,0,0,0.28)", "purpose": "Dialogs and drawers above a backdrop." }
+    ],
+    "motion": [
+      { "name": "control-state", "value": "150ms ease-out", "purpose": "Hover, focus, selection, and sidebar state changes." },
+      { "name": "overlay-state", "value": "200ms ease-out", "purpose": "Dialog, popover, and drawer entry or exit." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single dominant action in a local context.",
+      "html": "<button class=\"ds-btn-primary\">Add trade</button>",
+      "css": ".ds-btn-primary{height:36px;padding:8px 16px;border:0;border-radius:6px;background:var(--primary,oklch(0.707 0.165 254.624));color:var(--primary-foreground,#fff);font:500 14px 'Plus Jakarta Sans',system-ui,sans-serif;transition:background 150ms ease-out}.ds-btn-primary:hover{filter:brightness(.94)}.ds-btn-primary:focus-visible{outline:3px solid color-mix(in oklch,var(--ring,oklch(0.707 0.165 254.624)) 50%,transparent);outline-offset:1px}"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A secondary action with quiet structural emphasis.",
+      "html": "<button class=\"ds-btn-outline\">Filter</button>",
+      "css": ".ds-btn-outline{height:36px;padding:8px 16px;border:1px solid var(--border,rgba(255,255,255,.1));border-radius:6px;background:var(--background,oklch(0.108 0.004 285.823));color:var(--foreground,#fafafa);font:500 14px 'Plus Jakarta Sans',system-ui,sans-serif;transition:background 150ms ease-out,border-color 150ms ease-out}.ds-btn-outline:hover{background:var(--accent,oklch(0.274 0.006 286.033))}.ds-btn-outline:focus-visible{outline:3px solid color-mix(in oklch,var(--ring,oklch(0.707 0.165 254.624)) 50%,transparent);outline-offset:1px}"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "A compact field with an obvious focus state.",
+      "html": "<input class=\"ds-input\" placeholder=\"Symbol\" />",
+      "css": ".ds-input{box-sizing:border-box;width:240px;height:36px;padding:4px 12px;border:1px solid var(--input,rgba(255,255,255,.15));border-radius:6px;background:color-mix(in oklch,var(--input,white) 30%,transparent);color:var(--foreground,#fafafa);font:400 14px 'Plus Jakarta Sans',system-ui,sans-serif;transition:border-color 150ms ease-out,box-shadow 150ms ease-out}.ds-input::placeholder{color:var(--muted-foreground,#a1a1aa)}.ds-input:focus{border-color:var(--ring,oklch(0.707 0.165 254.624));outline:0;box-shadow:0 0 0 3px color-mix(in oklch,var(--ring,oklch(0.707 0.165 254.624)) 50%,transparent)}"
+    },
+    {
+      "name": "Metric Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A flat bordered group for one metric and its context.",
+      "html": "<section class=\"ds-metric\"><span>Total P&amp;L</span><strong>+$2,481.20</strong><small>All time</small></section>",
+      "css": ".ds-metric{display:grid;gap:6px;width:240px;padding:16px;border:1px solid var(--border,rgba(255,255,255,.1));border-radius:8px;background:var(--card,oklch(0.21 0.006 285.885));color:var(--card-foreground,#fafafa);font-family:'Plus Jakarta Sans',system-ui,sans-serif}.ds-metric span{color:var(--muted-foreground,#a1a1aa);font-size:12px}.ds-metric strong{color:var(--success,oklch(0.696 0.175 145));font:700 24px 'Anonymous Pro','Courier New',monospace;font-variant-numeric:tabular-nums}.ds-metric small{color:var(--muted-foreground,#a1a1aa);font-size:12px}"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "description": "A compact semantic label whose text reinforces color.",
+      "html": "<span class=\"ds-status\">Closed · Profit</span>",
+      "css": ".ds-status{display:inline-flex;align-items:center;padding:2px 8px;border:1px solid color-mix(in oklch,var(--success,oklch(0.696 0.175 145)) 35%,transparent);border-radius:4px;background:color-mix(in oklch,var(--success,oklch(0.696 0.175 145)) 10%,transparent);color:var(--success,oklch(0.696 0.175 145));font:600 12px 'Plus Jakarta Sans',system-ui,sans-serif}"
+    },
+    {
+      "name": "Sidebar Item",
+      "kind": "nav",
+      "description": "Compact primary navigation with a subtle selected surface.",
+      "html": "<a class=\"ds-nav-item\" href=\"#\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 19V9m5 10V5m5 14v-7m5 7V3\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg><span>Dashboard</span></a>",
+      "css": ".ds-nav-item{display:flex;align-items:center;gap:8px;height:32px;padding:0 8px;border-radius:6px;background:var(--sidebar-accent,oklch(0.274 0.006 286.033));color:var(--sidebar-accent-foreground,#fafafa);font:500 14px 'Plus Jakarta Sans',system-ui,sans-serif;text-decoration:none;transition:background 150ms ease-out}.ds-nav-item svg{width:16px;height:16px}.ds-nav-item:hover{filter:brightness(1.08)}.ds-nav-item:focus-visible{outline:2px solid var(--sidebar-ring,oklch(0.707 0.165 254.624));outline-offset:1px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Trading Terminal",
+    "overview": "JotTrade is a data-led operational workspace: minimal, intuitive, subtle, and quietly fun. The Vercel product interface is the primary language—compact navigation, crisp dividers, restrained color, and dense information made easy to scan. Personality comes from precise data typography, the faint dark-mode dot grid, responsive feedback, and small moments of delight rather than decorative spectacle.\n\nThe incumbent implementation is dark-first but supports a complete light theme. Open space, headings, and dividers establish hierarchy before containers do. Cards represent real conceptual groups; they are not a default wrapper for every section. The system should feel robust during long sessions and remain clear on mobile.",
+    "keyCharacteristics": ["Quiet neutral canvas with a sparse blue action accent.", "Compact, purposeful information density.", "Crisp one-pixel borders and mostly flat surfaces.", "Monospaced, tabular numbers for trading data.", "Profit, loss, and warning colors reserved for meaning.", "Small functional transitions and progressive disclosure."],
+    "rules": [
+      { "name": "The Semantic Color Rule", "body": "Green, red, and amber communicate trading or system state; they do not decorate neutral content.", "section": "colors" },
+      { "name": "The Sparse Blue Rule", "body": "Blue marks interaction, selection, or a primary data series.", "section": "colors" },
+      { "name": "The Data Voice Rule", "body": "Use the mono face for values that benefit from tabular alignment, not for ordinary prose.", "section": "typography" },
+      { "name": "The Meaningful Elevation Rule", "body": "A shadow must explain overlap, focus, or movement. In-flow surfaces stay flat.", "section": "elevation" }
+    ],
+    "dos": ["Do let data and task hierarchy determine the layout.", "Do use whitespace, headings, and dividers before adding another container.", "Do preserve compact density while keeping controls comfortably operable.", "Do reveal advanced filters and secondary actions progressively.", "Do reserve shadows for surfaces that overlap or move above content.", "Do make hover, focus, active, error, loading, and empty states explicit.", "Do include occasional subtle, functional moments of fun."],
+    "donts": ["Don't wrap every section in a card.", "Don't use large ambient shadows on in-flow cards or settings groups.", "Don't use gradients, glass effects, oversized radii, or decorative icon tiles as default styling.", "Don't give primary, secondary, destructive, and tertiary actions equal visual weight.", "Don't use semantic market colors as decoration or as the only carrier of meaning.", "Don't sacrifice information density for oversized headings or empty space.", "Don't copy the secondary inspiration images' marketing-page composition into operational screens."]
+  }
+}
