@@ -1,10 +1,9 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { AlertCircle, Loader2, UploadCloud } from "lucide-react";
+import Papa from "papaparse";
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import Papa from "papaparse";
 import { Button } from "@/components/ui/button";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { importTrades } from "@/server/importActions";
-import { UploadCloud, AlertCircle, Loader2 } from "lucide-react";
 import {
 	Table,
 	TableBody,
@@ -13,9 +12,26 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { importTrades } from "@/server/importActions";
+
+type ImportedTrade = {
+	ticket: string;
+	symbol: string;
+	side: string;
+	entryDate: string;
+	entryPrice: string;
+	quantity: string;
+	exitDate?: string;
+	exitPrice?: string;
+	fees: string;
+	netPnl: string;
+	notes: string;
+};
+
+type CsvRow = Record<string, string | undefined>;
 
 export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
-	const [parsedData, setParsedData] = useState<any[]>([]);
+	const [parsedData, setParsedData] = useState<ImportedTrade[]>([]);
 	const [error, setError] = useState<string | null>(null);
 	const [previewOpen, setPreviewOpen] = useState(false);
 
@@ -23,7 +39,7 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 
 	// Mapping logic for standard MT4/5 CSV
 	// ticket,opening_time_utc,closing_time_utc,type,lots,original_position_size,symbol,opening_price,closing_price,stop_loss,take_profit,commission_usd,swap_usd,profit_usd,equity_usd,margin_level,close_reason
-	const mapCsvToTrade = (row: any) => {
+	const mapCsvToTrade = useCallback((row: CsvRow): ImportedTrade | null => {
 		// Basic validation
 		if (!row.ticket || !row.symbol) return null;
 
@@ -40,6 +56,7 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 		const fees = Math.abs(commission) + Math.abs(swap);
 
 		return {
+			ticket: row.ticket,
 			symbol: row.symbol,
 			side: row.type, // 'buy' or 'sell'
 			entryDate: row.opening_time_utc,
@@ -51,46 +68,49 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 			netPnl: netPnl.toFixed(2),
 			notes: `Ticket: ${row.ticket} | Reason: ${row.close_reason || "N/A"}`,
 		};
-	};
-
-	const onDrop = useCallback((acceptedFiles: File[]) => {
-		setError(null);
-		const file = acceptedFiles[0];
-		if (!file) return;
-
-		if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
-			setError("Please upload a CSV file.");
-			return;
-		}
-
-		Papa.parse(file, {
-			header: true,
-			skipEmptyLines: true,
-			complete: (results) => {
-				if (results.errors.length > 0) {
-					console.error(results.errors);
-					setError("Error parsing CSV. Check console.");
-					return;
-				}
-
-				const mapped: any[] = [];
-				results.data.forEach((row: any) => {
-					const trade = mapCsvToTrade(row);
-					if (trade) mapped.push(trade);
-				});
-
-				if (mapped.length === 0) {
-					setError("No valid trades found in CSV. Check format.");
-				} else {
-					setParsedData(mapped);
-					setPreviewOpen(true);
-				}
-			},
-			error: (err) => {
-				setError("Failed to read file: " + err.message);
-			},
-		});
 	}, []);
+
+	const onDrop = useCallback(
+		(acceptedFiles: File[]) => {
+			setError(null);
+			const file = acceptedFiles[0];
+			if (!file) return;
+
+			if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
+				setError("Please upload a CSV file.");
+				return;
+			}
+
+			Papa.parse(file, {
+				header: true,
+				skipEmptyLines: true,
+				complete: (results) => {
+					if (results.errors.length > 0) {
+						console.error(results.errors);
+						setError("Error parsing CSV. Check console.");
+						return;
+					}
+
+					const mapped: ImportedTrade[] = [];
+					results.data.forEach((row) => {
+						const trade = mapCsvToTrade(row);
+						if (trade) mapped.push(trade);
+					});
+
+					if (mapped.length === 0) {
+						setError("No valid trades found in CSV. Check format.");
+					} else {
+						setParsedData(mapped);
+						setPreviewOpen(true);
+					}
+				},
+				error: (err) => {
+					setError(`Failed to read file: ${err.message}`);
+				},
+			});
+		},
+		[mapCsvToTrade],
+	);
 
 	const { getRootProps, getInputProps, isDragActive } = useDropzone({
 		onDrop,
@@ -98,7 +118,7 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 	});
 
 	const { mutate: doImport, isPending } = useMutation({
-		mutationFn: (trades: any[]) => importTrades({ data: { trades } }),
+		mutationFn: (trades: ImportedTrade[]) => importTrades({ data: { trades } }),
 		onSuccess: (res) => {
 			queryClient.invalidateQueries({ queryKey: ["trades"] });
 			setParsedData([]);
@@ -108,7 +128,7 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 			if (onSuccess) onSuccess();
 		},
 		onError: (err) => {
-			setError("Import failed: " + err.message);
+			setError(`Import failed: ${err.message}`);
 		},
 	});
 
@@ -116,7 +136,7 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 		return (
 			<div className="space-y-4">
 				<div className="flex items-center justify-between">
-					<h3 className="text-lg font-semibold text-zinc-100">
+					<h3 className="text-lg font-semibold">
 						Review Import ({parsedData.length} trades)
 					</h3>
 					<div className="space-x-2">
@@ -136,7 +156,7 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 					</div>
 				</div>
 
-				<div className="border border-zinc-800 rounded-md max-h-[400px] overflow-auto">
+				<div className="max-h-[400px] overflow-auto border border-border">
 					<Table>
 						<TableHeader>
 							<TableRow>
@@ -148,8 +168,8 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{parsedData.slice(0, 50).map((row, idx) => (
-								<TableRow key={idx}>
+							{parsedData.slice(0, 50).map((row) => (
+								<TableRow key={row.ticket}>
 									<TableCell>{row.entryDate?.substring(0, 10)}</TableCell>
 									<TableCell>{row.symbol}</TableCell>
 									<TableCell>{row.side}</TableCell>
@@ -157,8 +177,8 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 									<TableCell
 										className={
 											parseFloat(row.netPnl) >= 0
-												? "text-green-500"
-												: "text-red-500"
+												? "text-success"
+												: "text-destructive"
 										}
 									>
 										{row.netPnl}
@@ -167,7 +187,10 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 							))}
 							{parsedData.length > 50 && (
 								<TableRow>
-									<TableCell colSpan={5} className="text-center text-zinc-500">
+									<TableCell
+										colSpan={5}
+										className="text-center text-muted-foreground"
+									>
 										... and {parsedData.length - 50} more
 									</TableCell>
 								</TableRow>
@@ -183,20 +206,20 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 		<div className="w-full">
 			<div
 				{...getRootProps()}
-				className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer
-        ${isDragActive ? "border-primary bg-primary/10" : "border-zinc-800 hover:bg-zinc-900/50"}
-        ${error ? "border-red-500/50 bg-red-500/10" : ""}`}
+				className={`cursor-pointer border border-dashed p-8 text-center transition-colors
+        ${isDragActive ? "border-ring bg-accent/60" : "border-border hover:bg-accent/35"}
+        ${error ? "border-destructive/50 bg-destructive/10" : ""}`}
 			>
 				<input {...getInputProps()} />
 				<div className="flex flex-col items-center justify-center space-y-4">
-					<div className="p-4 bg-zinc-900 rounded-full border border-zinc-800">
-						<UploadCloud className="h-8 w-8 text-zinc-400" />
+					<div className="border border-border bg-background p-4">
+						<UploadCloud className="h-8 w-8 text-ring" />
 					</div>
 					<div>
-						<p className="text-lg font-medium text-zinc-200">
+						<p className="text-lg font-semibold">
 							{isDragActive ? "Drop CSV here" : "Drag & drop CSV file"}
 						</p>
-						<p className="text-sm text-zinc-500 mt-1">
+						<p className="mt-1 text-sm text-muted-foreground">
 							Supports Standard Format (MT4/5)
 						</p>
 					</div>
@@ -204,7 +227,7 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 			</div>
 
 			{error && (
-				<div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-md flex items-center text-red-400 text-sm">
+				<div className="mt-4 flex items-center border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
 					<AlertCircle className="h-4 w-4 mr-2" />
 					{error}
 				</div>

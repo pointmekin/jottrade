@@ -1,8 +1,6 @@
-import { useState, useEffect } from "react";
 import { Calculator, RotateCcw } from "lucide-react";
+import { useId, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
 	Card,
 	CardContent,
@@ -10,6 +8,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 
 export function SetupCalculator({
@@ -17,30 +17,29 @@ export function SetupCalculator({
 }: {
 	initialBalance?: number;
 }) {
-	const [balance, setBalance] = useState(initialBalance);
+	const [balance, setBalance] = useState(
+		() => Math.round(initialBalance * 100) / 100,
+	);
 	const [riskPercent, setRiskPercent] = useState(1.0);
 	const [entryPrice, setEntryPrice] = useState<string>("");
 	const [stopLoss, setStopLoss] = useState<string>("");
 	const [targetPrice, setTargetPrice] = useState<string>("");
+	const balanceId = useId();
+	const entryId = useId();
+	const stopLossId = useId();
+	const targetId = useId();
 
-	const [results, setResults] = useState<{
+	const results = useMemo<{
 		riskAmount: number;
 		positionSize: number;
 		rrRatio: number | null;
-	} | null>(null);
-
-	useEffect(() => {
-		calculate();
-	}, [balance, riskPercent, entryPrice, stopLoss, targetPrice]);
-
-	const calculate = () => {
+	} | null>(() => {
 		const entry = parseFloat(entryPrice);
 		const sl = parseFloat(stopLoss);
 		const tp = parseFloat(targetPrice);
 
-		if (isNaN(entry) || isNaN(sl) || entry === sl) {
-			setResults(null);
-			return;
+		if (Number.isNaN(entry) || Number.isNaN(sl) || entry === sl) {
+			return null;
 		}
 
 		const riskAmount = balance * (riskPercent / 100);
@@ -48,17 +47,17 @@ export function SetupCalculator({
 		const positionSize = riskAmount / slDist;
 
 		let rrRatio = null;
-		if (!isNaN(tp)) {
+		if (!Number.isNaN(tp)) {
 			const rewardDist = Math.abs(tp - entry);
 			rrRatio = rewardDist / slDist;
 		}
 
-		setResults({
+		return {
 			riskAmount,
 			positionSize,
 			rrRatio,
-		});
-	};
+		};
+	}, [balance, entryPrice, riskPercent, stopLoss, targetPrice]);
 
 	const clear = () => {
 		setEntryPrice("");
@@ -67,133 +66,125 @@ export function SetupCalculator({
 	};
 
 	return (
-		<Card className="w-full h-full bg-background/50 border-border">
-			<CardHeader>
-				<CardTitle className="flex items-center gap-2">
-					<Calculator className="h-5 w-5 text-primary" />
-					Position Size Calculator
+		<Card className="w-full gap-4 py-5">
+			<CardHeader className="px-5">
+				<CardTitle className="flex items-center gap-2 text-base">
+					<Calculator className="size-4 text-muted-foreground" />
+					Position size
 				</CardTitle>
 				<CardDescription>
 					Calculate risk, position size, and R:R ratio.
 				</CardDescription>
 			</CardHeader>
-			<CardContent className="space-y-6">
-				<div className="space-y-4">
+			<CardContent className="space-y-5 px-5">
+				<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
 					<div className="grid gap-2">
-						<Label htmlFor="balance">Account Balance</Label>
+						<Label htmlFor={balanceId}>Account balance</Label>
 						<Input
-							id="balance"
+							id={balanceId}
 							type="number"
 							value={balance}
 							onChange={(e) => setBalance(parseFloat(e.target.value) || 0)}
-							className="bg-background/50 border-input"
 						/>
 					</div>
-
 					<div className="grid gap-2">
-						<div className="flex justify-between">
-							<Label htmlFor="risk">Risk Percentage</Label>
-							<span className="text-sm text-foreground font-medium">
-								{riskPercent}%
-							</span>
-						</div>
-						<Slider
-							value={[riskPercent]}
-							onValueChange={(v: number[]) => setRiskPercent(v[0])}
-							max={5}
-							step={0.1}
-							className="py-4"
-						/>
-					</div>
-
-					<div className="grid grid-cols-2 gap-4">
-						<div className="grid gap-2">
-							<Label htmlFor="entry">Entry Price</Label>
-							<Input
-								id="entry"
-								type="number"
-								placeholder="0.00"
-								value={entryPrice}
-								onChange={(e) => setEntryPrice(e.target.value)}
-								className="bg-background/50 border-input"
-							/>
-						</div>
-						<div className="grid gap-2">
-							<Label htmlFor="stopLoss">Stop Loss</Label>
-							<Input
-								id="stopLoss"
-								type="number"
-								placeholder="0.00"
-								value={stopLoss}
-								onChange={(e) => setStopLoss(e.target.value)}
-								className="bg-background/50 border-input"
-							/>
-						</div>
-					</div>
-
-					<div className="grid gap-2">
-						<Label htmlFor="target">Target Price (Optional)</Label>
+						<Label htmlFor={entryId}>Entry price</Label>
 						<Input
-							id="target"
+							id={entryId}
+							type="number"
+							placeholder="0.00"
+							value={entryPrice}
+							onChange={(e) => setEntryPrice(e.target.value)}
+						/>
+					</div>
+					<div className="grid gap-2">
+						<Label htmlFor={stopLossId}>Stop loss</Label>
+						<Input
+							id={stopLossId}
+							type="number"
+							placeholder="0.00"
+							value={stopLoss}
+							onChange={(e) => setStopLoss(e.target.value)}
+						/>
+					</div>
+					<div className="grid gap-2">
+						<Label htmlFor={targetId}>Target price (optional)</Label>
+						<Input
+							id={targetId}
 							type="number"
 							placeholder="0.00"
 							value={targetPrice}
 							onChange={(e) => setTargetPrice(e.target.value)}
-							className="bg-background/50 border-input"
 						/>
 					</div>
 				</div>
 
-				<div className="pt-4 border-t border-border space-y-4">
+				<div className="grid gap-2 sm:max-w-sm">
+					<div className="flex items-center justify-between">
+						<Label htmlFor="risk">Risk percentage</Label>
+						<span className="font-data text-sm font-medium">
+							{riskPercent}%
+						</span>
+					</div>
+					<Slider
+						value={[riskPercent]}
+						onValueChange={(v: number[]) => setRiskPercent(v[0])}
+						max={5}
+						step={0.1}
+						className="py-2"
+					/>
+				</div>
+
+				<div className="space-y-4 border-t border-border pt-4">
 					{results ? (
-						<div className="grid grid-cols-2 gap-4">
-							<div className="bg-muted/30 p-3 rounded-lg">
-								<p className="text-xs text-muted-foreground">Risk Amount</p>
-								<p className="text-lg font-bold text-destructive">
+						<div className="grid gap-4 sm:grid-cols-3">
+							<div className="surface p-3">
+								<p className="field-label">Risk amount</p>
+								<p className="mt-1 font-data text-lg font-semibold text-destructive">
 									{new Intl.NumberFormat("en-US", {
 										style: "currency",
 										currency: "USD",
 									}).format(results.riskAmount)}
 								</p>
 							</div>
-							<div className="bg-muted/30 p-3 rounded-lg">
-								<p className="text-xs text-muted-foreground">Position Size</p>
-								<p className="text-lg font-bold text-primary">
+							<div className="surface p-3">
+								<p className="field-label">Position size</p>
+								<p className="mt-1 font-data text-lg font-semibold">
 									{results.positionSize.toFixed(4)}{" "}
 									<span className="text-xs font-normal text-muted-foreground">
-										Units
+										units
 									</span>
 								</p>
 							</div>
-							<div className="col-span-2 bg-muted/30 p-3 rounded-lg flex justify-between items-center">
-								<div className="text-left">
-									<p className="text-xs text-muted-foreground">R:R Ratio</p>
+							<div className="surface flex items-center justify-between gap-3 p-3">
+								<div>
+									<p className="field-label">R:R ratio</p>
 									<p
-										className={`text-lg font-bold ${results.rrRatio && results.rrRatio >= 2 ? "text-green-500" : "text-foreground"}`}
+										className={`mt-1 font-data text-lg font-semibold ${results.rrRatio && results.rrRatio >= 2 ? "text-success" : "text-foreground"}`}
 									>
 										{results.rrRatio ? `1:${results.rrRatio.toFixed(2)}` : "-"}
 									</p>
 								</div>
 								{results.rrRatio && results.rrRatio >= 2 && (
-									<span className="text-xs bg-green-500/10 text-green-500 px-2 py-1 rounded">
-										Good Setup
+									<span className="status-pill bg-success/10 text-success">
+										Good setup
 									</span>
 								)}
 							</div>
 						</div>
 					) : (
-						<div className="text-center text-sm text-muted-foreground py-4">
-							Enter prices to see results
-						</div>
+						<p className="py-2 text-sm text-muted-foreground">
+							Enter an entry price and stop loss to see results.
+						</p>
 					)}
 
 					<Button
 						variant="ghost"
 						size="sm"
 						onClick={clear}
-						className="w-full text-muted-foreground hover:text-foreground"
+						className="text-muted-foreground hover:text-foreground"
 					>
-						<RotateCcw className="h-4 w-4 mr-2" /> Reset
+						<RotateCcw className="size-4" /> Reset
 					</Button>
 				</div>
 			</CardContent>

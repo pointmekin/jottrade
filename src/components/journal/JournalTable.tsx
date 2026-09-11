@@ -1,11 +1,13 @@
 import {
-	ColumnDef,
+	type ColumnDef,
 	flexRender,
 	getCoreRowModel,
-	useReactTable,
 	getSortedRowModel,
-	SortingState,
+	type SortingState,
+	useReactTable,
 } from "@tanstack/react-table";
+import { format } from "date-fns";
+import { useState } from "react";
 import {
 	Table,
 	TableBody,
@@ -14,8 +16,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { useState } from "react";
-import { format } from "date-fns";
 
 export type Trade = {
 	id: number;
@@ -57,7 +57,7 @@ const columns: ColumnDef<Trade>[] = [
 			const side = row.getValue("side") as string;
 			return (
 				<span
-					className={`px-2 py-1 rounded text-xs font-medium ${side === "LONG" ? "bg-green-500/15 text-green-500" : "bg-red-500/15 text-red-500"}`}
+					className={`status-pill ${side === "LONG" ? "border-success/35 bg-success/10 text-success" : "border-destructive/35 bg-destructive/10 text-destructive"}`}
 				>
 					{side}
 				</span>
@@ -97,7 +97,7 @@ const columns: ColumnDef<Trade>[] = [
 		header: "Exit Date",
 		cell: ({ row }) => {
 			const val = row.getValue("exitDate");
-			if (!val) return <span className="text-zinc-600">-</span>;
+			if (!val) return <span className="text-muted-foreground">—</span>;
 			try {
 				return format(new Date(val as Date), "MMM dd, HH:mm");
 			} catch (e) {
@@ -109,7 +109,7 @@ const columns: ColumnDef<Trade>[] = [
 		accessorKey: "status",
 		header: "Status",
 		cell: ({ row }) => (
-			<span className="text-zinc-400 text-xs uppercase">
+			<span className="text-xs uppercase text-muted-foreground">
 				{row.getValue("status")}
 			</span>
 		),
@@ -120,7 +120,9 @@ const columns: ColumnDef<Trade>[] = [
 		cell: ({ row }) => {
 			const val = parseFloat(row.getValue("fees") || "0");
 			return (
-				<span className="text-zinc-500">{val > 0 ? val.toFixed(2) : "-"}</span>
+				<span className="text-muted-foreground">
+					{val > 0 ? val.toFixed(2) : "—"}
+				</span>
 			);
 		},
 	},
@@ -129,9 +131,9 @@ const columns: ColumnDef<Trade>[] = [
 		header: "Net P&L",
 		cell: ({ row }) => {
 			const val = row.original.netPnl;
-			if (!val) return <span className="text-zinc-500">-</span>;
+			if (!val) return <span className="text-muted-foreground">—</span>;
 			const num = parseFloat(val);
-			const color = num >= 0 ? "text-green-500" : "text-red-500";
+			const color = num >= 0 ? "text-success" : "text-destructive";
 			return (
 				<span className={`font-medium ${color}`}>
 					{new Intl.NumberFormat("en-US", {
@@ -147,9 +149,9 @@ const columns: ColumnDef<Trade>[] = [
 		header: "ROI",
 		cell: ({ row }) => {
 			const val = row.original.returnPercent;
-			if (!val) return <span className="text-zinc-500">-</span>;
+			if (!val) return <span className="text-muted-foreground">—</span>;
 			const num = parseFloat(val);
-			const color = num >= 0 ? "text-green-500" : "text-red-500";
+			const color = num >= 0 ? "text-success" : "text-destructive";
 			return <span className={`font-medium ${color}`}>{num.toFixed(2)}%</span>;
 		},
 	},
@@ -177,17 +179,17 @@ export function JournalTable({ data, onRowClick }: JournalTableProps) {
 	});
 
 	return (
-		<div className="rounded-md border border-zinc-800">
+		<div className="surface overflow-hidden">
 			<Table>
 				<TableHeader>
 					{table.getHeaderGroups().map((headerGroup) => (
 						<TableRow
 							key={headerGroup.id}
-							className="border-zinc-800 hover:bg-zinc-900/50"
+							className="border-border bg-background hover:bg-background"
 						>
 							{headerGroup.headers.map((header) => {
 								return (
-									<TableHead key={header.id} className="text-zinc-400">
+									<TableHead key={header.id}>
 										{header.isPlaceholder
 											? null
 											: flexRender(
@@ -206,11 +208,11 @@ export function JournalTable({ data, onRowClick }: JournalTableProps) {
 							<TableRow
 								key={row.id}
 								data-state={row.getIsSelected() && "selected"}
-								className="border-zinc-800 hover:bg-zinc-900/50 cursor-pointer"
+								className="cursor-pointer border-border hover:bg-accent/55"
 								onClick={() => onRowClick?.(row.original)}
 							>
 								{row.getVisibleCells().map((cell) => (
-									<TableCell key={cell.id} className="text-zinc-200">
+									<TableCell key={cell.id}>
 										{flexRender(cell.column.columnDef.cell, cell.getContext())}
 									</TableCell>
 								))}
@@ -220,9 +222,9 @@ export function JournalTable({ data, onRowClick }: JournalTableProps) {
 						<TableRow>
 							<TableCell
 								colSpan={columns.length}
-								className="h-24 text-center text-zinc-500"
+								className="h-36 text-center text-muted-foreground"
 							>
-								No trades found.
+								No trades match this section.
 							</TableCell>
 						</TableRow>
 					)}

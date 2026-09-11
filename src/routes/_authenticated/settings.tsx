@@ -1,5 +1,6 @@
-import { ModeToggle } from "@/components/mode-toggle";
 import { createFileRoute } from "@tanstack/react-router";
+import { AppPageHeader, SectionHeading } from "@/components/app-page-header";
+import { ModeToggle } from "@/components/mode-toggle";
 
 export const Route = createFileRoute("/_authenticated/settings")({
 	component: RouteComponent,
@@ -8,32 +9,28 @@ export const Route = createFileRoute("/_authenticated/settings")({
 
 function RouteComponent() {
 	return (
-		<div className="p-4 lg:p-8 space-y-8 max-w-2xl">
-			<div>
-				<h1 className="text-3xl font-bold tracking-tight text-foreground mb-1">
-					Settings
-				</h1>
-				<p className="text-sm text-muted-foreground">
-					Customize your experience.
-				</p>
-			</div>
-
-			<div className="bg-card border border-border rounded-lg p-5 space-y-4">
-				<div>
-					<p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-						Appearance
-					</p>
-					<div className="flex items-center justify-between">
-						<div>
-							<p className="text-sm font-medium text-foreground">Theme</p>
-							<p className="text-xs text-muted-foreground mt-0.5">
-								Switch between light and dark mode.
-							</p>
+		<div className="app-page">
+			<main className="page-frame section-enter max-w-4xl">
+				<AppPageHeader
+					title="Settings"
+					description="Set how the workspace behaves without changing the trading record beneath it."
+					meta="Workspace preferences"
+				/>
+				<div className="surface space-y-4 p-5">
+					<SectionHeading title="Appearance" detail="Local preference" />
+					<div>
+						<div className="flex items-center justify-between gap-5 py-2">
+							<div>
+								<p className="text-sm font-medium text-foreground">Theme</p>
+								<p className="text-xs text-muted-foreground mt-0.5">
+									Switch between light and dark mode.
+								</p>
+							</div>
+							<ModeToggle />
 						</div>
-						<ModeToggle />
 					</div>
 				</div>
-			</div>
+			</main>
 		</div>
 	);
 }

@@ -1,11 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { getStrategies } from "@/server/strategyActions";
-import { StrategyList } from "@/components/strategies/StrategyList";
-import { StrategyForm } from "@/components/strategies/StrategyForm";
-import { Button } from "@/components/ui/button";
+import { createFileRoute } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
+import { useState } from "react";
+import { AppPageHeader } from "@/components/app-page-header";
+import { StrategyForm } from "@/components/strategies/StrategyForm";
+import { StrategyList } from "@/components/strategies/StrategyList";
+import { Button } from "@/components/ui/button";
+import { getStrategies } from "@/server/strategyActions";
 
 export const Route = createFileRoute("/_authenticated/strategies")({
 	component: StrategiesPage,
@@ -44,55 +45,54 @@ function StrategiesPage() {
 	const showForm = creating || !!selected;
 
 	return (
-		<div className="p-8 w-full">
-			<div className="flex items-center justify-between mb-8">
-				<div>
-					<h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">
-						Strategies
-					</h1>
-					<p className="text-muted-foreground">
-						Define and manage your trading setups.
-					</p>
-				</div>
-				<Button onClick={handleNew}>
-					<Plus className="h-4 w-4 mr-2" />
-					New Strategy
-				</Button>
-			</div>
+		<div className="app-page">
+			<main className="page-frame section-enter">
+				<AppPageHeader
+					title="Strategies"
+					description="Define the setups you trade, then compare how each one performs."
+					meta={`${strategyList.length} recorded setups`}
+					actions={
+						<Button onClick={handleNew}>
+							<Plus className="h-4 w-4 mr-2" />
+							New Strategy
+						</Button>
+					}
+				/>
 
-			<div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6">
-				{/* Left panel */}
-				<div className="rounded-lg border border-border bg-card p-4">
-					{isLoading ? (
-						<div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
-							Loading...
-						</div>
-					) : (
-						<StrategyList
-							strategies={strategyList as Strategy[]}
-							selectedId={selected?.id ?? null}
-							onSelect={handleSelect}
-							onDeleted={handleDeleted}
-						/>
-					)}
-				</div>
+				<div className="grid grid-cols-1 gap-4 md:grid-cols-[280px_1fr]">
+					{/* Left panel */}
+					<div className="surface p-4">
+						{isLoading ? (
+							<div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
+								Loading...
+							</div>
+						) : (
+							<StrategyList
+								strategies={strategyList as Strategy[]}
+								selectedId={selected?.id ?? null}
+								onSelect={handleSelect}
+								onDeleted={handleDeleted}
+							/>
+						)}
+					</div>
 
-				{/* Right panel */}
-				<div className="rounded-lg border border-border bg-card p-6">
-					{showForm ? (
-						<>
-							<h2 className="text-lg font-semibold text-foreground mb-6">
-								{creating ? "New Strategy" : "Edit Strategy"}
-							</h2>
-							<StrategyForm strategy={selected} onSaved={handleSaved} />
-						</>
-					) : (
-						<div className="flex flex-col items-center justify-center h-48 text-muted-foreground text-sm">
-							Select a strategy to edit, or create a new one.
-						</div>
-					)}
+					{/* Right panel */}
+					<div className="surface min-h-72 p-4">
+						{showForm ? (
+							<>
+								<h2 className="text-lg font-semibold text-foreground mb-6">
+									{creating ? "New strategy" : "Edit strategy"}
+								</h2>
+								<StrategyForm strategy={selected} onSaved={handleSaved} />
+							</>
+						) : (
+							<div className="flex flex-col items-center justify-center h-48 text-muted-foreground text-sm">
+								Select a strategy to edit, or create a new one.
+							</div>
+						)}
+					</div>
 				</div>
-			</div>
+			</main>
 		</div>
 	);
 }

@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getStrategies } from "@/server/strategyActions";
+import { Filter, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
 	Select,
 	SelectContent,
@@ -11,7 +11,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Filter, X } from "lucide-react";
+import { getStrategies } from "@/server/strategyActions";
 
 // Filter state read/written to URL search params
 export type JournalFilters = {
@@ -56,7 +56,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 			}
 		}, 300);
 		return () => clearTimeout(debounceRef.current);
-	}, [symbolInput]);
+	}, [filters.symbol, symbolInput, update]);
 
 	const activeCount = [
 		filters.symbol,
@@ -80,13 +80,14 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 				<Button
 					variant="outline"
 					size="sm"
-					className="border-zinc-700 text-zinc-300"
+					className="border-border"
+					aria-expanded={expanded}
 					onClick={() => setExpanded(!expanded)}
 				>
 					<Filter className="h-3.5 w-3.5 mr-2" />
 					Filters
 					{activeCount > 0 && (
-						<Badge className="ml-2 h-4 px-1.5 text-xs bg-blue-600">
+						<Badge className="ml-2 h-4 rounded-md bg-ring px-1.5 font-data text-xs text-background">
 							{activeCount}
 						</Badge>
 					)}
@@ -95,7 +96,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 					<Button
 						variant="ghost"
 						size="sm"
-						className="text-zinc-500 h-8"
+						className="h-8 text-muted-foreground"
 						onClick={clearAll}
 					>
 						<X className="h-3.5 w-3.5 mr-1" /> Clear all
@@ -104,28 +105,29 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 			</div>
 
 			{expanded && (
-				<div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 rounded-lg border border-zinc-800 bg-zinc-900/50">
+				<div className="surface grid grid-cols-2 gap-3 p-4 md:grid-cols-4">
 					{/* Symbol */}
 					<div>
-						<p className="text-xs text-zinc-500 mb-1">Symbol</p>
+						<p className="field-label mb-1">Symbol</p>
 						<Input
 							value={symbolInput}
 							onChange={(e) => setSymbolInput(e.target.value)}
 							placeholder="AAPL"
-							className="h-8 bg-zinc-900 border-zinc-700 text-white text-sm"
+							className="h-8 text-sm"
 						/>
 					</div>
 
 					{/* Side */}
 					<div>
-						<p className="text-xs text-zinc-500 mb-1">Side</p>
+						<p className="field-label mb-1">Side</p>
 						<div className="flex gap-1">
 							{(["LONG", "SHORT"] as const).map((s) => (
 								<Button
 									key={s}
 									size="sm"
 									variant="outline"
-									className={`flex-1 h-8 text-xs border-zinc-700 ${filters.side === s ? "bg-zinc-700 text-white" : "text-zinc-400"}`}
+									className={`h-8 flex-1 text-xs ${filters.side === s ? "border-ring bg-accent text-accent-foreground" : "text-muted-foreground"}`}
+									aria-pressed={filters.side === s}
 									onClick={() =>
 										update({ side: filters.side === s ? undefined : s })
 									}
@@ -138,17 +140,17 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 
 					{/* Status */}
 					<div>
-						<p className="text-xs text-zinc-500 mb-1">Status</p>
+						<p className="field-label mb-1">Status</p>
 						<Select
 							value={filters.status ?? ""}
 							onValueChange={(v) =>
 								update({ status: v === "__all__" ? undefined : (v as any) })
 							}
 						>
-							<SelectTrigger className="h-8 bg-zinc-900 border-zinc-700 text-white text-sm">
+							<SelectTrigger className="h-8 text-sm">
 								<SelectValue placeholder="All" />
 							</SelectTrigger>
-							<SelectContent className="bg-zinc-900 border-zinc-700">
+							<SelectContent>
 								<SelectItem value="__all__">All</SelectItem>
 								{["OPEN", "CLOSED", "PENDING"].map((s) => (
 									<SelectItem key={s} value={s}>
@@ -161,15 +163,15 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 
 					{/* Strategy */}
 					<div>
-						<p className="text-xs text-zinc-500 mb-1">Strategy</p>
+						<p className="field-label mb-1">Strategy</p>
 						<Select
 							value={filters.setupId ?? ""}
 							onValueChange={(v) => update({ setupId: v || undefined })}
 						>
-							<SelectTrigger className="h-8 bg-zinc-900 border-zinc-700 text-white text-sm">
+							<SelectTrigger className="h-8 text-sm">
 								<SelectValue placeholder="All" />
 							</SelectTrigger>
-							<SelectContent className="bg-zinc-900 border-zinc-700">
+							<SelectContent>
 								<SelectItem value="">All</SelectItem>
 								<SelectItem value="none">No Strategy</SelectItem>
 								{(strategies as any[]).map((s: any) => (
@@ -183,7 +185,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 
 					{/* Confidence */}
 					<div>
-						<p className="text-xs text-zinc-500 mb-1">Confidence</p>
+						<p className="field-label mb-1">Confidence</p>
 						<div className="flex gap-1">
 							{(["HIGH", "MEDIUM", "LOW"] as const).map((c) => {
 								const active = (filters.confidence ?? "")
@@ -204,7 +206,8 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 										key={c}
 										size="sm"
 										variant="outline"
-										className={`flex-1 h-8 text-xs border-zinc-700 ${active ? "bg-zinc-700 text-white" : "text-zinc-400"}`}
+										className={`h-8 flex-1 text-xs ${active ? "border-ring bg-accent text-accent-foreground" : "text-muted-foreground"}`}
+										aria-pressed={active}
 										onClick={toggle}
 									>
 										{c[0]}
@@ -216,25 +219,25 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 
 					{/* Date from */}
 					<div>
-						<p className="text-xs text-zinc-500 mb-1">From</p>
+						<p className="field-label mb-1">From</p>
 						<Input
 							type="date"
 							value={filters.dateFrom ?? ""}
 							onChange={(e) =>
 								update({ dateFrom: e.target.value || undefined })
 							}
-							className="h-8 bg-zinc-900 border-zinc-700 text-white text-sm"
+							className="h-8 text-sm"
 						/>
 					</div>
 
 					{/* Date to */}
 					<div>
-						<p className="text-xs text-zinc-500 mb-1">To</p>
+						<p className="field-label mb-1">To</p>
 						<Input
 							type="date"
 							value={filters.dateTo ?? ""}
 							onChange={(e) => update({ dateTo: e.target.value || undefined })}
-							className="h-8 bg-zinc-900 border-zinc-700 text-white text-sm"
+							className="h-8 text-sm"
 						/>
 					</div>
 				</div>
@@ -246,7 +249,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 					{filters.symbol && (
 						<Badge
 							variant="outline"
-							className="border-zinc-700 text-zinc-300 gap-1"
+							className="gap-1 rounded-md border-border font-data text-xs uppercase"
 						>
 							Symbol: {filters.symbol}
 							<X
@@ -258,7 +261,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 					{filters.side && (
 						<Badge
 							variant="outline"
-							className="border-zinc-700 text-zinc-300 gap-1"
+							className="gap-1 rounded-md border-border font-data text-xs uppercase"
 						>
 							{filters.side}
 							<X
@@ -270,7 +273,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 					{filters.status && (
 						<Badge
 							variant="outline"
-							className="border-zinc-700 text-zinc-300 gap-1"
+							className="gap-1 rounded-md border-border font-data text-xs uppercase"
 						>
 							{filters.status}
 							<X

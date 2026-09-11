@@ -1,14 +1,15 @@
+import { useQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
 	useNavigate,
 	useSearch,
 } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { z } from "zod";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { z } from "zod";
+import { AppPageHeader } from "@/components/app-page-header";
+import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 import { Button } from "@/components/ui/button";
 import { getCalendarData } from "@/server/calendarActions";
-import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 
 const calendarSearchSchema = z.object({
 	year: z.number().default(() => new Date().getFullYear()),
@@ -49,56 +50,55 @@ function CalendarPage() {
 	});
 
 	return (
-		<div className="p-8 space-y-6 w-full">
-			<div className="flex items-center justify-between">
-				<div>
-					<h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">
-						Calendar
-					</h1>
-					<p className="text-muted-foreground">
-						View your trading activity by day.
-					</p>
-				</div>
-				<div className="flex items-center gap-2">
-					<Button
-						variant="outline"
-						size="icon"
-						className="border-border h-8 w-8"
-						onClick={() => goTo(year, month - 1)}
-					>
-						<ChevronLeft className="h-4 w-4" />
-					</Button>
-					<span className="text-foreground font-medium min-w-36 text-center">
-						{monthName}
-					</span>
-					<Button
-						variant="outline"
-						size="icon"
-						className="border-border h-8 w-8"
-						onClick={() => goTo(year, month + 1)}
-					>
-						<ChevronRight className="h-4 w-4" />
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						className="border-border text-foreground ml-2"
-						onClick={() =>
-							goTo(new Date().getFullYear(), new Date().getMonth() + 1)
-						}
-					>
-						Today
-					</Button>
-				</div>
-			</div>
+		<div className="app-page">
+			<main className="page-frame section-enter space-y-6">
+				<AppPageHeader
+					title="Calendar"
+					description="Read performance in the rhythm it happened, one trading day at a time."
+					meta={monthName}
+					actions={
+						<div className="flex items-center gap-2">
+							<Button
+								variant="outline"
+								size="icon"
+								className="border-border h-8 w-8"
+								onClick={() => goTo(year, month - 1)}
+							>
+								<ChevronLeft className="h-4 w-4" />
+							</Button>
+							<span className="text-foreground font-medium min-w-36 text-center">
+								{monthName}
+							</span>
+							<Button
+								variant="outline"
+								size="icon"
+								className="border-border h-8 w-8"
+								onClick={() => goTo(year, month + 1)}
+							>
+								<ChevronRight className="h-4 w-4" />
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								className="border-border text-foreground ml-2"
+								onClick={() =>
+									goTo(new Date().getFullYear(), new Date().getMonth() + 1)
+								}
+							>
+								Today
+							</Button>
+						</div>
+					}
+				/>
 
-			{isLoading ? (
-				<div className="flex items-center justify-center h-96 text-muted-foreground">
-					Loading calendar…
-				</div>
-			) : (
-				<CalendarGrid year={year} month={month} data={calendarData as any} />
-			)}
+				{isLoading ? (
+					<div className="empty-field h-96 text-muted-foreground">
+						Reading calendar section…
+					</div>
+				) : (
+					<CalendarGrid year={year} month={month} data={calendarData as any} />
+				)}
+			</main>
 		</div>
 	);
 }

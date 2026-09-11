@@ -36,12 +36,12 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 	const location = useLocation();
 
 	const hideSidebarRoutes = ["/sign-in", "/sign-up"];
-	const shouldHideSidebar = hideSidebarRoutes.some((route) =>
-		location.pathname.startsWith(route),
-	);
+	const shouldHideSidebar =
+		location.pathname === "/" ||
+		hideSidebarRoutes.some((route) => location.pathname.startsWith(route));
 
 	return (
-		<html lang="en">
+		<html lang="en" suppressHydrationWarning>
 			<head>
 				<HeadContent />
 				{/* This script:
@@ -73,22 +73,23 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 					}}
 				/>
 			</head>
-			<body className="bg-background">
+			<body className="bg-background antialiased">
 				<SidebarProvider>
 					{!shouldHideSidebar && (
 						<>
-							{/* Desktop sidebar — hidden below lg */}
+							{/* Desktop project index */}
 							<div className="hidden lg:block">
 								<AppSidebar />
 							</div>
-	{/* Mobile bottom nav — hidden at lg and above */}
 							<BottomNav />
 						</>
 					)}
 					<ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-						{/* pb-16 reserves space above the fixed bottom nav on mobile */}
 						<div
-							className={cn("w-full transform-gpu", !shouldHideSidebar && "pb-16 lg:pb-0")}
+							className={cn(
+								"w-full min-w-0 transform-gpu",
+								!shouldHideSidebar && "pb-16 lg:pb-0",
+							)}
 						>
 							{children}
 						</div>

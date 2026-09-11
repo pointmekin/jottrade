@@ -1,0 +1,196 @@
+{
+  "title": "Choose JotTrade's new visual world",
+  "question": "Every route will inherit this operating model. Choose one, take the familiar trading-dashboard exit, or re-roll.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "The Section Desk",
+      "kicker": "THE ROLL",
+      "lineage": "architectural section drawings and field notebooks",
+      "thesis": "A trade becomes a traced decision whose setup, execution, and outcome stay aligned across every view.",
+      "palette": ["#F2EEE4", "#171A1C", "#2457D6", "#E76F2E", "#2F7D59", "#B8483D"],
+      "materials": ["vellum", "graphite", "blueprint grid", "redline ink"],
+      "viewport": "A slim project index frames a live daily section: the equity profile runs through the page, trades pin to it with leaders, and one inspector follows selection across journal, chart, and calendar.",
+      "risk": "It becomes diagram theatre if annotations outnumber decisions.",
+      "raised": [
+        {
+          "from": "Gravity Rain Garden",
+          "raise": "Every selection visibly changes its dependent chart, table, and calendar evidence as one causal system."
+        },
+        {
+          "from": "Iridescent Cloud Edge",
+          "raise": "Semantic color stays in narrow bands along data edges instead of filling passive surfaces."
+        },
+        {
+          "from": "Variable Type Specimen",
+          "raise": "Decisive figures gain extreme scale contrast while controls stay compact."
+        },
+        {
+          "from": "Information Noise Sleeve",
+          "raise": "Responsive density drops in declared tiers so the main reading never shrinks into clutter."
+        }
+      ],
+      "wireframe": {
+        "cols": 12,
+        "rows": 10,
+        "regions": [
+          {"label": "project index", "x": 0, "y": 0, "w": 2, "h": 10},
+          {"label": "command line", "x": 2, "y": 0, "w": 10, "h": 1},
+          {"label": "daily section", "x": 2, "y": 1, "w": 7, "h": 6, "accent": true},
+          {"label": "trade inspector", "x": 9, "y": 1, "w": 3, "h": 6},
+          {"label": "linked ledger", "x": 2, "y": 7, "w": 10, "h": 3}
+        ]
+      },
+      "comp": ".impeccable/mocks/decision/assigned.webp"
+    },
+    {
+      "id": "model-pick",
+      "label": "The Closing Book",
+      "kicker": "IMPECCABLE'S PICK",
+      "lineage": "execution blotters and end-of-day analyst tear sheets",
+      "thesis": "JotTrade opens as today's trading record, with analysis attached directly to each line of evidence.",
+      "palette": ["#101312", "#ECE9DF", "#C58B2A", "#3F8F67", "#C5524A"],
+      "materials": ["ruled ledger", "timestamp columns", "coated report stock"],
+      "viewport": "A compact session header sits above the day's ledger; selected trades open a side analysis sheet without leaving the record.",
+      "risk": "This is the most familiar direction and can look like a polished broker terminal if the journal voice weakens.",
+      "wireframe": {
+        "cols": 12,
+        "rows": 10,
+        "regions": [
+          {"label": "session rail", "x": 0, "y": 0, "w": 2, "h": 10},
+          {"label": "session totals", "x": 2, "y": 0, "w": 10, "h": 2, "accent": true},
+          {"label": "execution ledger", "x": 2, "y": 2, "w": 7, "h": 8},
+          {"label": "analysis sheet", "x": 9, "y": 2, "w": 3, "h": 8}
+        ]
+      },
+      "comp": ".impeccable/mocks/decision/model-pick.webp"
+    },
+    {
+      "id": "challenger-seven-segment",
+      "label": "The Signal Board",
+      "verdict": "competitive",
+      "lineage": "seven-segment clocks, price totems, and scoreboards",
+      "thesis": "Every metric occupies a fixed signal cell; absence, pending data, and live results remain visible states.",
+      "palette": ["#0A0A0A", "#FF3B30", "#FFB400", "#00FF66", "#252525"],
+      "materials": ["matte black", "ghost segments", "brushed aluminum"],
+      "viewport": "A fixed performance mask shows the session's essential numbers above a banked trade ledger whose cells ignite on selection.",
+      "case": "Trader identification is immediate; long-form notes and strategy editing fit the system less naturally.",
+      "risk": "The display alphabet can turn ordinary reading into work.",
+      "wireframe": {
+        "cols": 12,
+        "rows": 10,
+        "regions": [
+          {"label": "mode bank", "x": 0, "y": 0, "w": 2, "h": 10},
+          {"label": "signal cells", "x": 2, "y": 0, "w": 10, "h": 3, "accent": true},
+          {"label": "display ledger", "x": 2, "y": 3, "w": 10, "h": 7}
+        ]
+      },
+      "comp": ".impeccable/mocks/decision/challenger-seven-segment.webp",
+      "hero": "https://impeccable.style/worlds/cards/signals-instruments-seven-segment-alarm-clock-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/signals-instruments-seven-segment-alarm-clock.webp"
+    },
+    {
+      "id": "challenger-manual",
+      "label": "The Tabbed Trading Manual",
+      "verdict": "competitive",
+      "lineage": "boxed-software manuals with acetate overlays and section boards",
+      "thesis": "Each workflow is a durable chapter, while filters and detail states hinge over the data as clear working leaves.",
+      "palette": ["#F4EFDF", "#161616", "#F2C230", "#178C8C", "#2457A6", "#6D4AA2"],
+      "materials": ["milk acetate", "section board", "print ink"],
+      "viewport": "A stepped chapter rail opens to the journal sheet; trade details and import mapping sit on hinged translucent layers above it.",
+      "case": "The interaction model is exceptionally clear; its physical metaphor is less native to traders than the lead concepts.",
+      "risk": "Tabs and overlays can become decoration unless every layer changes the work state.",
+      "wireframe": {
+        "cols": 12,
+        "rows": 10,
+        "regions": [
+          {"label": "chapter tabs", "x": 0, "y": 0, "w": 2, "h": 10, "accent": true},
+          {"label": "working leaf", "x": 2, "y": 0, "w": 7, "h": 10},
+          {"label": "clear overlay", "x": 9, "y": 1, "w": 3, "h": 8}
+        ]
+      },
+      "comp": ".impeccable/mocks/decision/challenger-manual.webp",
+      "hero": "https://impeccable.style/worlds/cards/rw-manual-acetate-tab-board-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/rw-manual-acetate-tab-board.webp"
+    },
+    {
+      "id": "challenger-gravity",
+      "label": "The Causal Garden",
+      "verdict": "declined",
+      "lineage": "a gravity-rain garden",
+      "thesis": "Trades pull visible streams of consequence through the workspace.",
+      "palette": ["#59655D", "#4D8DCE", "#CC5148", "#0B0C0B"],
+      "materials": ["vector fields", "rain trajectories"],
+      "viewport": "A performance field bends around decisions and outcomes.",
+      "case": "The causal model is useful, but traders do not identify with the world and routine entry becomes obscure.",
+      "risk": "Simulation overwhelms journal work.",
+      "kept": "Selections must visibly propagate through every dependent view.",
+      "hero": "https://impeccable.style/worlds/cards/dream-surreal-impossible-worlds-gravity-rain-garden-hero.webp"
+    },
+    {
+      "id": "challenger-cloud",
+      "label": "The Spectrum Edge",
+      "verdict": "declined",
+      "lineage": "iridescent cloud-edge observation",
+      "thesis": "Meaning appears as narrow spectral evidence around an otherwise quiet record.",
+      "palette": ["#FAFAF7", "#41474E", "#8FD9C8", "#DFA1BA", "#9D8AD3"],
+      "materials": ["cloud white", "spectral hairlines"],
+      "viewport": "A pale journal carries thin color bands where evidence changes state.",
+      "case": "The restraint is strong, but the world neither identifies the trader nor explains the journal's mechanism.",
+      "risk": "It reads as a generic wellness dashboard.",
+      "kept": "Reserve semantic color for the thinnest possible evidence band.",
+      "hero": "https://impeccable.style/worlds/cards/clouds-storms-auroras-iridescent-cloud-edge-hero.webp"
+    },
+    {
+      "id": "challenger-type",
+      "label": "The Metric Specimen",
+      "verdict": "declined",
+      "lineage": "an interactive variable-font specimen",
+      "thesis": "One decisive figure changes scale while the whole page responds to its selected range.",
+      "palette": ["#F7F5EF", "#111111", "#335CFF"],
+      "materials": ["specimen paper", "baseline grid"],
+      "viewport": "A single session result dominates a sparse field of supporting measures.",
+      "case": "Scale is legible, but the specimen grammar cannot carry dense journals, imports, and calendars without losing itself.",
+      "risk": "The product becomes a typography demo.",
+      "kept": "Use hard scale contrast to separate decisions from controls.",
+      "hero": "https://impeccable.style/worlds/cards/variable-font-specimen-hero.webp"
+    },
+    {
+      "id": "challenger-noise",
+      "label": "The Certified Feed",
+      "verdict": "declined",
+      "lineage": "Designers Republic information-noise sleeves",
+      "thesis": "Each trade is stamped, coded, and certified inside an aggressive information field.",
+      "palette": ["#000000", "#F50079", "#FF5A1F", "#FFFFFF"],
+      "materials": ["registration marks", "hazard labels", "barcode fragments"],
+      "viewport": "A dense coded feed surrounds one oversized session verdict.",
+      "case": "Its visual authority is high, but it fights long-session clarity and misstates the product's private reflective purpose.",
+      "risk": "Brand noise crowds out trading evidence.",
+      "kept": "Responsive density must step down by rule rather than merely shrink.",
+      "hero": "https://impeccable.style/worlds/cards/tdr-info-noise-sleeve-hero.webp"
+    }
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "code", "toggle": true},
+  "canon": true,
+  "canonCard": {
+    "label": "The premium trading dashboard",
+    "thesis": "A restrained dark analytics product with familiar cards, charts, tables, and a compact sidebar.",
+    "palette": ["#090A0C", "#1B1D21", "#F4F4F5", "#4A9EFF", "#4DBA7A", "#E06058"],
+    "materials": ["matte panels", "hairline borders", "terminal numerals"],
+    "viewport": "A polished dashboard summary leads into journal, calendar, strategy, and settings routes.",
+    "risk": "It is easy to learn and equally easy to confuse with every serious trading app.",
+    "wireframe": {
+      "cols": 12,
+      "rows": 10,
+      "regions": [
+        {"label": "sidebar", "x": 0, "y": 0, "w": 2, "h": 10},
+        {"label": "metric cards", "x": 2, "y": 0, "w": 10, "h": 2, "accent": true},
+        {"label": "charts", "x": 2, "y": 2, "w": 10, "h": 5},
+        {"label": "table", "x": 2, "y": 7, "w": 10, "h": 3}
+      ]
+    },
+    "comp": ".impeccable/mocks/decision/canon.webp"
+  },
+  "steer": true
+}

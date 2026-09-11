@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { authClient } from "../lib/auth-client";
-import { ArrowLeft, User, Mail, Shield, Camera } from "lucide-react";
+import { ArrowLeft, Mail } from "lucide-react";
+import { AppPageHeader, SectionHeading } from "@/components/app-page-header";
+import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { authClient } from "../lib/auth-client";
 
 export const Route = createFileRoute("/profile")({
 	component: Profile,
@@ -40,30 +42,29 @@ function Profile() {
 	const user = session.data.user;
 
 	return (
-		<div className="min-h-screen bg-background">
-			<div className="max-w-4xl mx-auto p-4 lg:p-8">
-				<div className="mb-8">
+		<div className="app-page">
+			<main className="page-frame section-enter max-w-5xl">
+				<div>
 					<Link
 						to="/dashboard"
-						className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors mb-4"
+						className="mb-4 inline-flex items-center text-sm text-muted-foreground transition-colors hover:text-foreground"
 					>
 						<ArrowLeft className="h-4 w-4 mr-2" />
 						Back to Dashboard
 					</Link>
-					<h1 className="text-3xl font-bold tracking-tight text-foreground">
-						Profile Settings
-					</h1>
-					<p className="text-muted-foreground mt-1">
-						Manage your account information and preferences.
-					</p>
+					<AppPageHeader
+						title="Profile"
+						description="Review the identity attached to this private trading record."
+						meta="Account record"
+					/>
 				</div>
 
-				<div className="bg-card border border-border rounded-xl overflow-hidden">
+				<div className="surface overflow-hidden">
 					{/* Header / Cover */}
-					<div className="h-28 bg-gradient-to-r from-primary/15 to-primary/5 border-b border-border relative">
+					<div className="relative h-28 border-b border-border bg-accent/40">
 						<div className="absolute -bottom-10 left-8">
-							<div className="relative">
-								<div className="w-20 h-20 rounded-full bg-card border-4 border-card flex items-center justify-center text-2xl font-bold text-foreground overflow-hidden shadow-md">
+							<div>
+								<div className="flex h-20 w-20 items-center justify-center overflow-hidden border-4 border-card bg-card font-data text-2xl font-semibold text-foreground">
 									{user.image ? (
 										<img
 											src={user.image}
@@ -71,17 +72,11 @@ function Profile() {
 											className="w-full h-full object-cover"
 										/>
 									) : (
-										<div className="w-full h-full bg-gradient-to-tr from-blue-500 to-violet-500 flex items-center justify-center text-white">
+										<div className="flex h-full w-full items-center justify-center bg-accent text-accent-foreground">
 											{user.name?.charAt(0) || "U"}
 										</div>
 									)}
 								</div>
-								<button
-									type="button"
-									className="absolute bottom-0 right-0 p-1.5 bg-muted hover:bg-accent rounded-full border-2 border-card text-muted-foreground hover:text-foreground transition-colors"
-								>
-									<Camera className="h-3.5 w-3.5" />
-								</button>
 							</div>
 						</div>
 					</div>
@@ -90,24 +85,24 @@ function Profile() {
 						<div className="grid gap-8">
 							{/* Personal Information */}
 							<section>
-								<h2 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
-									<User className="h-4 w-4 text-primary" />
-									Personal Information
-								</h2>
+								<SectionHeading
+									title="Personal information"
+									detail="Identity"
+								/>
 								<div className="grid gap-4 md:grid-cols-2">
 									<div className="space-y-1.5">
-										<label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+										<p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
 											Full Name
-										</label>
-										<div className="p-3 bg-background border border-border rounded-lg text-foreground text-sm">
+										</p>
+										<div className="border border-border bg-background p-3 text-sm text-foreground">
 											{user.name}
 										</div>
 									</div>
 									<div className="space-y-1.5">
-										<label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+										<p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
 											Email Address
-										</label>
-										<div className="p-3 bg-background border border-border rounded-lg text-foreground text-sm flex items-center gap-2">
+										</p>
+										<div className="flex items-center gap-2 border border-border bg-background p-3 text-sm text-foreground">
 											<Mail className="h-4 w-4 text-muted-foreground" />
 											{user.email}
 										</div>
@@ -119,28 +114,28 @@ function Profile() {
 
 							{/* Account Security */}
 							<section>
-								<h2 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
-									<Shield className="h-4 w-4 text-primary" />
-									Account Security
-								</h2>
+								<SectionHeading title="Account security" detail="Credentials" />
 								<div className="space-y-3">
-									<div className="flex items-center justify-between p-4 bg-background border border-border rounded-lg">
+									<div className="flex items-center justify-between border-b border-border py-4">
 										<div>
 											<h3 className="text-sm font-medium text-foreground">
 												Password
 											</h3>
-											<p className="text-xs text-muted-foreground mt-0.5">
-												Last changed 3 months ago
+											<p className="mt-0.5 text-xs text-muted-foreground">
+												Manage your password through your sign-in provider.
 											</p>
 										</div>
-										<button
+										<Button
 											type="button"
-											className="px-3 py-1.5 text-sm font-medium text-foreground bg-secondary hover:bg-secondary/80 border border-border rounded-lg transition-colors"
+											variant="outline"
+											size="sm"
+											disabled
+											title="Password management is not available in JotTrade yet"
 										>
 											Change Password
-										</button>
+										</Button>
 									</div>
-									<div className="flex items-center justify-between p-4 bg-background border border-border rounded-lg">
+									<div className="flex items-center justify-between py-4">
 										<div>
 											<h3 className="text-sm font-medium text-foreground">
 												Two-Factor Authentication
@@ -149,19 +144,22 @@ function Profile() {
 												Add an extra layer of security to your account
 											</p>
 										</div>
-										<button
+										<Button
 											type="button"
-											className="px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/10 border border-primary/30 rounded-lg transition-colors"
+											variant="outline"
+											size="sm"
+											disabled
+											title="Two-factor authentication is not available in JotTrade yet"
 										>
 											Enable 2FA
-										</button>
+										</Button>
 									</div>
 								</div>
 							</section>
 						</div>
 					</div>
 				</div>
-			</div>
+			</main>
 		</div>
 	);
 }

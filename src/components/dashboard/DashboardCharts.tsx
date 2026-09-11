@@ -1,23 +1,36 @@
 import {
-	LineChart,
+	CartesianGrid,
+	Cell,
 	Line,
+	LineChart,
+	Pie,
+	PieChart,
+	ResponsiveContainer,
+	Tooltip,
 	XAxis,
 	YAxis,
-	CartesianGrid,
-	Tooltip,
-	ResponsiveContainer,
-	PieChart,
-	Pie,
-	Cell,
 } from "recharts";
 
 interface EquityCurveProps {
 	data: { date: string; balance: number }[];
 }
 
+const axisDateFormat = new Intl.DateTimeFormat("en-US", {
+	month: "short",
+	year: "2-digit",
+});
+
+function formatAxisDate(value: string) {
+	const parsed = new Date(value);
+	if (Number.isNaN(parsed.getTime())) {
+		return value;
+	}
+	return axisDateFormat.format(parsed);
+}
+
 export function EquityCurveChart({ data }: EquityCurveProps) {
 	return (
-		<div className="w-full h-full min-h-[300px]">
+		<div className="h-full min-h-[300px] w-full font-data">
 			<ResponsiveContainer width="100%" height="100%">
 				<LineChart
 					data={data}
@@ -28,34 +41,43 @@ export function EquityCurveChart({ data }: EquityCurveProps) {
 						bottom: 5,
 					}}
 				>
-					<CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+					<CartesianGrid stroke="var(--border)" vertical={false} />
 					<XAxis
 						dataKey="date"
-						stroke="#52525b"
-						tick={{ fill: "#71717a" }}
-						tickLine={{ stroke: "#52525b" }}
+						stroke="var(--border)"
+						tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+						tickLine={false}
+						minTickGap={56}
+						tickFormatter={formatAxisDate}
 					/>
 					<YAxis
-						stroke="#52525b"
-						tick={{ fill: "#71717a" }}
-						tickLine={{ stroke: "#52525b" }}
+						stroke="var(--border)"
+						tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+						tickLine={false}
+						width={64}
 						domain={["auto", "auto"]}
 					/>
 					<Tooltip
 						contentStyle={{
-							backgroundColor: "#18181b",
-							borderColor: "#27272a",
-							color: "#f4f4f5",
+							backgroundColor: "var(--popover)",
+							borderColor: "var(--border)",
+							borderRadius: 8,
+							color: "var(--popover-foreground)",
 						}}
-						itemStyle={{ color: "#818cf8" }}
+						itemStyle={{ color: "var(--ring)" }}
 					/>
 					<Line
 						type="monotone"
 						dataKey="balance"
-						stroke="#818cf8"
+						stroke="var(--ring)"
 						strokeWidth={2}
 						dot={false}
-						activeDot={{ r: 6, fill: "#818cf8" }}
+						activeDot={{
+							r: 5,
+							fill: "var(--primary)",
+							stroke: "var(--background)",
+							strokeWidth: 2,
+						}}
 					/>
 				</LineChart>
 			</ResponsiveContainer>
@@ -89,11 +111,8 @@ export function WinLossPie({ winRate }: WinLossPieProps) {
 						dataKey="value"
 						stroke="none"
 					>
-						{data.map((_, index) => (
-							<Cell
-								key={`cell-${index}`}
-								fill={COLORS[index % COLORS.length]}
-							/>
+						{data.map((entry, index) => (
+							<Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
 						))}
 					</Pie>
 					<Tooltip

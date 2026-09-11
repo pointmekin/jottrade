@@ -1,9 +1,9 @@
+import { Badge } from "@/components/ui/badge";
 import {
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
-import { Badge } from "@/components/ui/badge";
 import type { CalendarDay } from "@/server/calendarActions";
 
 interface DayTradesPopoverProps {
@@ -27,11 +27,11 @@ export function DayTradesPopover({
 		<Popover open={open} onOpenChange={onOpenChange}>
 			<PopoverTrigger asChild>{children}</PopoverTrigger>
 			<PopoverContent
-				className="w-72 bg-zinc-950 border-zinc-800 text-white p-3"
+				className="w-72 rounded-sm border-border bg-popover p-3 text-popover-foreground"
 				side="right"
 			>
-				<p className="text-xs text-zinc-500 mb-3">
-					{new Date(date + "T00:00:00").toLocaleDateString("en-US", {
+				<p className="field-label mb-3">
+					{new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
 						weekday: "long",
 						month: "long",
 						day: "numeric",
@@ -39,25 +39,26 @@ export function DayTradesPopover({
 				</p>
 				<div className="space-y-2">
 					{day.trades.map((t) => (
-						<div
+						<button
+							type="button"
 							key={t.id}
-							className="flex items-center justify-between p-2 rounded bg-zinc-900 cursor-pointer hover:bg-zinc-800 transition-colors"
+							className="flex w-full cursor-pointer items-center justify-between border-b border-border p-2 text-left transition-colors hover:bg-accent/55"
 							onClick={() => onTradeClick(t.id)}
 						>
 							<div className="flex items-center gap-2">
 								<span className="font-medium text-sm">{t.symbol}</span>
 								<Badge
-									className={`text-[10px] h-4 px-1 ${t.side === "LONG" ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"}`}
+									className={`h-4 rounded-md px-1 text-xs ${t.side === "LONG" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}
 								>
 									{t.side}
 								</Badge>
 							</div>
 							<span
-								className={`text-xs font-medium ${t.netPnl === null ? "text-zinc-500" : t.netPnl >= 0 ? "text-green-400" : "text-red-400"}`}
+								className={`font-data text-xs font-medium ${t.netPnl === null ? "text-muted-foreground" : t.netPnl >= 0 ? "text-success" : "text-destructive"}`}
 							>
 								{t.netPnl === null ? "Open" : `$${t.netPnl.toFixed(2)}`}
 							</span>
-						</div>
+						</button>
 					))}
 				</div>
 			</PopoverContent>

@@ -19,43 +19,45 @@ export function CalendarDayCell({
 	const isLoss = hasTrades && day.netPnl < 0;
 
 	return (
-		<div
-			className={`min-h-[80px] p-1.5 border-b border-r border-zinc-800 cursor-pointer transition-colors
-        ${isCurrentMonth ? "" : "opacity-30"}
-        ${isProfit ? "bg-green-500/5 hover:bg-green-500/10" : ""}
-        ${isLoss ? "bg-red-500/5 hover:bg-red-500/10" : ""}
-        ${!hasTrades ? "hover:bg-zinc-900/50" : ""}
-      `}
+		<button
+			type="button"
+			disabled={!hasTrades}
+			className={`min-h-[88px] w-full p-2 text-left border-b border-r border-border transition-colors disabled:cursor-default
+				${isCurrentMonth ? "" : "opacity-30"}
+				${isProfit ? "bg-success/5 hover:bg-success/10" : ""}
+				${isLoss ? "bg-destructive/5 hover:bg-destructive/10" : ""}
+				${!hasTrades ? "hover:bg-accent/45" : ""}
+			`}
 			onClick={() => hasTrades && onClick(date)}
 		>
-			<p className="text-xs text-zinc-500 mb-1">{dayNum}</p>
+			<p className="mb-1 font-data text-xs text-muted-foreground">{dayNum}</p>
 			{hasTrades && (
 				<div className="space-y-1">
 					<p
-						className={`text-xs font-medium ${isProfit ? "text-green-400" : isLoss ? "text-red-400" : "text-zinc-400"}`}
+						className={`font-data text-xs font-semibold ${isProfit ? "text-success" : isLoss ? "text-destructive" : "text-muted-foreground"}`}
 					>
 						{day.netPnl >= 0 ? "+" : ""}${day.netPnl.toFixed(0)}
 					</p>
-					<p className="text-[10px] text-zinc-600">
+					<p className="text-xs text-muted-foreground">
 						{day.tradeCount} trade{day.tradeCount !== 1 ? "s" : ""}
 					</p>
 					<div className="flex flex-wrap gap-0.5">
 						{day.trades.slice(0, 3).map((t) => (
 							<span
 								key={t.id}
-								className="text-[9px] bg-zinc-800 text-zinc-400 px-1 rounded"
+								className="border border-border bg-muted px-1 font-data text-xs text-muted-foreground"
 							>
 								{t.symbol}
 							</span>
 						))}
 						{day.trades.length > 3 && (
-							<span className="text-[9px] text-zinc-600">
+							<span className="text-xs text-muted-foreground">
 								+{day.trades.length - 3}
 							</span>
 						)}
 					</div>
 				</div>
 			)}
-		</div>
+		</button>
 	);
 }

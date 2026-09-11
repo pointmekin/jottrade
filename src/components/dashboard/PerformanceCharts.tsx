@@ -1,11 +1,11 @@
 import {
-	BarChart,
 	Bar,
+	BarChart,
+	Cell,
+	ResponsiveContainer,
+	Tooltip,
 	XAxis,
 	YAxis,
-	Tooltip,
-	ResponsiveContainer,
-	Cell,
 } from "recharts";
 
 type GroupStats = {
@@ -23,8 +23,8 @@ interface PerformanceChartsProps {
 	byHour: GroupStats[];
 }
 
-const POSITIVE_COLOR = "#22c55e";
-const NEGATIVE_COLOR = "#ef4444";
+const POSITIVE_COLOR = "var(--success)";
+const NEGATIVE_COLOR = "var(--destructive)";
 
 function PnLBar({
 	data,
@@ -36,17 +36,28 @@ function PnLBar({
 	name: string;
 }) {
 	return (
-		<div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
-			<p className="text-sm font-medium text-zinc-300 mb-4">{name}</p>
+		<div className="surface p-4">
+			<p className="mb-4 text-sm font-semibold">{name}</p>
 			<ResponsiveContainer width="100%" height={200}>
 				<BarChart data={data} margin={{ left: -20, right: 10 }}>
-					<XAxis dataKey="name" tick={{ fontSize: 10, fill: "#71717a" }} />
-					<YAxis tick={{ fontSize: 10, fill: "#71717a" }} />
+					<XAxis
+						dataKey="name"
+						tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+						tickLine={false}
+						axisLine={{ stroke: "var(--border)" }}
+					/>
+					<YAxis
+						tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+						tickLine={false}
+						axisLine={false}
+					/>
 					<Tooltip
+						cursor={{ fill: "var(--accent)" }}
 						contentStyle={{
-							background: "#18181b",
-							border: "1px solid #27272a",
-							color: "#fff",
+							background: "var(--popover)",
+							border: "1px solid var(--border)",
+							borderRadius: 8,
+							color: "var(--popover-foreground)",
 						}}
 						formatter={(val: number | undefined) =>
 							val !== undefined
@@ -54,7 +65,7 @@ function PnLBar({
 								: ["", "Avg P&L"]
 						}
 					/>
-					<Bar dataKey={dataKey as string} radius={[3, 3, 0, 0]}>
+					<Bar dataKey={dataKey as string} radius={[4, 4, 0, 0]}>
 						{data.map((entry) => (
 							<Cell
 								key={entry.name}
@@ -79,11 +90,11 @@ export function PerformanceCharts({
 	byHour,
 }: PerformanceChartsProps) {
 	return (
-		<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-			<PnLBar data={byStrategy} name="Avg P&L by Strategy" />
-			<PnLBar data={bySymbol} name="Avg P&L by Symbol (Top 10)" />
-			<PnLBar data={byDayOfWeek} name="Avg P&L by Day of Week" />
-			<PnLBar data={byHour} name="Avg P&L by Entry Hour" />
+		<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+			<PnLBar data={byStrategy} name="Avg P&L by strategy" />
+			<PnLBar data={bySymbol} name="Avg P&L by symbol (top 10)" />
+			<PnLBar data={byDayOfWeek} name="Avg P&L by day of week" />
+			<PnLBar data={byHour} name="Avg P&L by entry hour" />
 		</div>
 	);
 }

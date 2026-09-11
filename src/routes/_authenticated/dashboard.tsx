@@ -1,30 +1,38 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { authClient } from "../../lib/auth-client";
 import { useQuery } from "@tanstack/react-query";
-import { getAnalytics } from "@/server/getAnalytics";
-import { getAdvancedAnalytics } from "@/server/getAdvancedAnalytics";
-import {
-	EquityCurveChart,
-	WinLossPie,
-} from "@/components/dashboard/DashboardCharts";
-import { RiskMetrics } from "@/components/dashboard/RiskMetrics";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { ArrowRight, Crosshair, Plus } from "lucide-react";
+import { AppPageHeader, SectionHeading } from "@/components/app-page-header";
+import { EquityCurveChart } from "@/components/dashboard/DashboardCharts";
 import { PerformanceCharts } from "@/components/dashboard/PerformanceCharts";
-import { Spinner } from "@/components/ui/spinner";
+import { RiskMetrics } from "@/components/dashboard/RiskMetrics";
 import { SetupCalculator } from "@/components/tools/SetupCalculator";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { getAdvancedAnalytics } from "@/server/getAdvancedAnalytics";
+import { getAnalytics } from "@/server/getAnalytics";
+import { authClient } from "../../lib/auth-client";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
 	component: Dashboard,
 });
 
+const currency = new Intl.NumberFormat("en-US", {
+	style: "currency",
+	currency: "USD",
+});
+const signedCurrency = new Intl.NumberFormat("en-US", {
+	style: "currency",
+	currency: "USD",
+	signDisplay: "always",
+});
+
 function Dashboard() {
 	const session = authClient.useSession();
 	const router = useRouter();
-
 	const { data: analytics, isLoading } = useQuery({
 		queryKey: ["analytics"],
 		queryFn: () => getAnalytics({ data: undefined }),
 	});
-
 	const { data: advanced } = useQuery({
 		queryKey: ["advanced-analytics"],
 		queryFn: () => getAdvancedAnalytics({ data: undefined }),
@@ -33,7 +41,7 @@ function Dashboard() {
 
 	if (session.isPending || isLoading) {
 		return (
-			<div className="min-h-screen flex items-center justify-center bg-background">
+			<div className="flex min-h-screen items-center justify-center">
 				<Spinner />
 			</div>
 		);
@@ -41,19 +49,20 @@ function Dashboard() {
 
 	if (!session.data) {
 		return (
-			<div className="min-h-screen flex flex-col items-center justify-center bg-background gap-6">
-				<div className="text-center space-y-2">
-					<h1 className="text-3xl font-bold text-foreground">Access Denied</h1>
-					<p className="text-muted-foreground">
-						You need to be signed in to view this page.
+			<div className="app-page flex items-center justify-center">
+				<div className="empty-field max-w-lg">
+					<Crosshair className="mb-4 size-6 text-ring" />
+					<h1 className="text-2xl font-semibold">Sign in required</h1>
+					<p className="mt-2 text-sm text-muted-foreground">
+						Sign in to view your trading data.
 					</p>
+					<Button
+						className="mt-5"
+						onClick={() => router.navigate({ to: "/sign-in" })}
+					>
+						Sign in
+					</Button>
 				</div>
-				<button
-					onClick={() => router.navigate({ to: "/sign-in" })}
-					className="px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-lg transition-colors"
-				>
-					Sign In
-				</button>
 			</div>
 		);
 	}
@@ -66,158 +75,119 @@ function Dashboard() {
 		profitFactor: 0,
 		totalTrades: 0,
 	};
-
 	const equityData = analytics?.equityCurve || [];
-	const pnlColor = stats.totalPnL >= 0 ? "text-success" : "text-destructive";
+	const pnlTone = stats.totalPnL >= 0 ? "text-success" : "text-destructive";
 
 	return (
-		<div className="min-h-screen flex flex-col">
-			<main className="flex-1 p-4 lg:p-8 overflow-y-auto">
-				<div className="max-w-7xl mx-auto space-y-8">
-					{/* Page header */}
-					<div>
-						<h1 className="text-3xl font-bold tracking-tight text-foreground mb-1">
-							Dashboard
-						</h1>
-						<p className="text-muted-foreground text-sm">
-							Your trading performance at a glance.
+		<div className="app-page">
+			<main className="page-frame section-enter">
+				<AppPageHeader
+					title="Dashboard"
+					actions={
+						<Button asChild>
+							<Link to="/journal" search={{ intent: "log" } as never}>
+								<Plus className="size-4" /> Log trade
+							</Link>
+						</Button>
+					}
+				/>
+
+				<section
+					className="metric-row grid-cols-2 lg:grid-cols-4"
+					aria-label="Account summary"
+				>
+					<div className="metric-cell">
+						<p className="field-label">Account balance</p>
+						<p className="metric-value mt-1">
+							{currency.format(stats.totalBalance)}
 						</p>
 					</div>
-
-					{/* Top Stats Cards */}
-					<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-						<div className="bg-card border border-border rounded-lg p-5">
-							<p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-								Total Balance
-							</p>
-							<p className="text-3xl font-bold text-foreground font-data">
-								{new Intl.NumberFormat("en-US", {
-									style: "currency",
-									currency: "USD",
-								}).format(stats.totalBalance)}
-							</p>
-						</div>
-
-						<div className="bg-card border border-border rounded-lg p-5">
-							<p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-								Total P&amp;L
-							</p>
-							<div className="flex items-end justify-between">
-								<p className={`text-3xl font-bold font-data ${pnlColor}`}>
-									{new Intl.NumberFormat("en-US", {
-										style: "currency",
-										currency: "USD",
-										signDisplay: "always",
-									}).format(stats.totalPnL)}
-								</p>
-								<span className="text-xs text-muted-foreground mb-1">
-									All Time
-								</span>
-							</div>
-						</div>
-
-						<div className="bg-card border border-border rounded-lg p-5">
-							<p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-								Active Trades
-							</p>
-							<div className="flex items-end justify-between">
-								<p className="text-3xl font-bold text-foreground font-data">
-									{stats.activeTrades}
-								</p>
-								<span className="text-xs text-muted-foreground mb-1">
-									Open Positions
-								</span>
-							</div>
-						</div>
+					<div className="metric-cell">
+						<p className="field-label">Net P&amp;L</p>
+						<p className={`metric-value mt-1 ${pnlTone}`}>
+							{signedCurrency.format(stats.totalPnL)}
+						</p>
+						<p className="mt-1 text-xs text-muted-foreground">
+							Across {stats.totalTrades} trades
+						</p>
 					</div>
-
-					{/* Charts Row */}
-					<div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-						{/* Equity Curve */}
-						<div className="lg:col-span-2 bg-card border border-border rounded-lg p-5 min-h-[380px] flex flex-col">
-							<h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-								Equity Curve
-							</h3>
-							<div className="flex-1">
-								{equityData.length > 0 ? (
-									<EquityCurveChart data={equityData} />
-								) : (
-									<div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-										No closed trades yet.
-									</div>
-								)}
-							</div>
-						</div>
-
-						{/* Secondary Stats */}
-						<div className="space-y-4">
-							{/* Win Rate */}
-							<div className="bg-card border border-border rounded-lg p-5">
-								<h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-									Win Rate
-								</h3>
-								<WinLossPie winRate={stats.winRate} />
-							</div>
-
-							{/* Profit Factor */}
-							<div className="bg-card border border-border rounded-lg p-5">
-								<p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-									Profit Factor
-								</p>
-								<p className="text-3xl font-bold text-foreground font-data">
-									{stats.profitFactor.toFixed(2)}
-								</p>
-								<p className="text-xs text-muted-foreground mt-1">
-									{stats.profitFactor > 1.5
-										? "Excellent"
-										: stats.profitFactor > 1
-											? "Profitable"
-											: "Needs Work"}
-								</p>
-							</div>
-
-							<div className="bg-card border border-border rounded-lg p-5">
-								<p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-									Total Trades
-								</p>
-								<p className="text-3xl font-bold text-foreground font-data">
-									{stats.totalTrades}
-								</p>
-							</div>
-
-							{/* Setup Calculator */}
-							<div className="pt-1">
-								<SetupCalculator initialBalance={stats.totalBalance || 10000} />
-							</div>
-						</div>
+					<div className="metric-cell">
+						<p className="field-label">Win rate</p>
+						<p className="metric-value mt-1">{stats.winRate.toFixed(1)}%</p>
+						<p className="mt-1 text-xs text-muted-foreground">
+							Profit factor {stats.profitFactor.toFixed(2)}
+						</p>
 					</div>
+					<div className="metric-cell">
+						<p className="field-label">Open positions</p>
+						<p className="metric-value mt-1">{stats.activeTrades}</p>
+						<p className="mt-1 text-xs text-muted-foreground">
+							Current exposure
+						</p>
+					</div>
+				</section>
 
-					{/* Advanced Analytics */}
-					{advanced && (
-						<div className="space-y-4">
-							<div className="flex items-center gap-3">
-								<h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
-									Risk &amp; Performance
-								</h2>
-								<div className="flex-1 h-px bg-border" />
+				<section className="surface mt-6 p-4 md:p-5">
+					<SectionHeading
+						title="Equity curve"
+						detail={`${stats.totalTrades} recorded trades`}
+						actions={
+							<Button asChild variant="outline" size="sm">
+								<Link to="/journal">
+									Open journal <ArrowRight className="size-4" />
+								</Link>
+							</Button>
+						}
+					/>
+					<div className="mt-4 h-[22rem]">
+						{equityData.length > 0 ? (
+							<EquityCurveChart data={equityData} />
+						) : (
+							<div className="empty-field h-full border-0">
+								<Crosshair className="mb-4 size-6 text-muted-foreground" />
+								<p className="font-semibold">No closed trades yet</p>
+								<p className="mt-1 max-w-sm text-sm text-muted-foreground">
+									Record a completed trade and its result becomes the first
+									point on this curve.
+								</p>
+								<Button asChild variant="outline" className="mt-5">
+									<Link to="/journal" search={{ intent: "log" } as never}>
+										Record first trade
+									</Link>
+								</Button>
 							</div>
-							<RiskMetrics
-								sharpe={(advanced as any).riskMetrics.sharpe}
-								maxDrawdown={(advanced as any).riskMetrics.maxDrawdown}
-								avgRR={(advanced as any).riskMetrics.avgRR}
-								avgHoldTimeHours={
-									(advanced as any).riskMetrics.avgHoldTimeHours
-								}
-							/>
-							<PerformanceCharts
-								byStrategy={(advanced as any).byStrategy}
-								bySymbol={(advanced as any).bySymbol}
-								byDayOfWeek={(advanced as any).byDayOfWeek}
-								byHour={(advanced as any).byHour}
-							/>
-						</div>
-					)}
-				</div>
+						)}
+					</div>
+				</section>
+
+				{advanced && (
+					<section className="mt-8 space-y-4">
+						<SectionHeading
+							title="Risk and performance"
+							detail="All recorded history"
+						/>
+						<RiskMetrics
+							sharpe={(advanced as any).riskMetrics.sharpe}
+							maxDrawdown={(advanced as any).riskMetrics.maxDrawdown}
+							avgRR={(advanced as any).riskMetrics.avgRR}
+							avgHoldTimeHours={(advanced as any).riskMetrics.avgHoldTimeHours}
+						/>
+						<PerformanceCharts
+							byStrategy={(advanced as any).byStrategy}
+							bySymbol={(advanced as any).bySymbol}
+							byDayOfWeek={(advanced as any).byDayOfWeek}
+							byHour={(advanced as any).byHour}
+						/>
+					</section>
+				)}
+
+				<section className="mt-8 space-y-4">
+					<SectionHeading
+						title="Tools"
+						detail="Plan a setup before you take it"
+					/>
+					<SetupCalculator initialBalance={stats.totalBalance || 10000} />
+				</section>
 			</main>
 		</div>
 	);

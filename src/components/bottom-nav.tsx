@@ -1,7 +1,5 @@
-// src/components/bottom-nav.tsx
-
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
-import { LogOut } from "lucide-react";
+import { Crosshair, LogOut, Settings } from "lucide-react";
 import { useState } from "react";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -14,6 +12,8 @@ import { authClient } from "@/lib/auth-client";
 import { navItems } from "@/lib/nav-items";
 import { cn } from "@/lib/utils";
 
+const mobileItems = navItems.slice(0, 4);
+
 export function BottomNav() {
 	const location = useLocation();
 	const router = useRouter();
@@ -22,116 +22,100 @@ export function BottomNav() {
 
 	const isActive = (url: string) =>
 		location.pathname === url || location.pathname.startsWith(`${url}/`);
-
 	const handleSignOut = async () => {
 		setSheetOpen(false);
 		await authClient.signOut({
-			fetchOptions: {
-				onSuccess: () => router.navigate({ to: "/sign-in" }),
-			},
+			fetchOptions: { onSuccess: () => router.navigate({ to: "/sign-in" }) },
 		});
 	};
-
 	const userInitial = session.data?.user.name?.charAt(0).toUpperCase() ?? "U";
-	const userImage = session.data?.user.image;
 
 	return (
 		<>
 			<nav
-				className="fixed bottom-0 left-0 right-0 z-50 flex lg:hidden border-t border-border bg-sidebar"
+				className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-border bg-sidebar lg:hidden"
 				style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
 			>
-				{navItems.map((item) => (
+				{mobileItems.map((item, index) => (
 					<Link
 						key={item.title}
 						to={item.url}
 						className={cn(
-							"flex flex-1 flex-col items-center justify-center gap-1 py-2 transition-colors",
-							isActive(item.url)
-								? "text-sidebar-primary"
-								: "text-muted-foreground hover:text-foreground",
+							"relative flex min-h-14 flex-col items-center justify-center gap-1 text-muted-foreground transition-colors",
+							isActive(item.url) &&
+								"bg-sidebar-accent text-sidebar-accent-foreground",
 						)}
 					>
-						<item.icon className="h-5 w-5" />
-						<span className="text-[10px] leading-none">{item.title}</span>
+						<span className="absolute left-1 top-1 font-data text-[7px] text-muted-foreground">
+							{String(index + 1).padStart(2, "0")}
+						</span>
+						<item.icon className="size-4" />
+						<span className="text-xs font-semibold">{item.title}</span>
 					</Link>
 				))}
-
-				{/* User avatar — opens account sheet */}
 				<button
 					type="button"
 					onClick={() => setSheetOpen(true)}
-					aria-label="Open account menu"
-					className="flex flex-1 flex-col items-center justify-center gap-1 py-2 text-muted-foreground hover:text-foreground transition-colors"
+					aria-label="Open account and settings"
+					className="relative flex min-h-14 flex-col items-center justify-center gap-1 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
 				>
-					<div className="h-5 w-5 rounded-full bg-gradient-to-tr from-blue-500 to-violet-500 flex items-center justify-center text-white overflow-hidden flex-shrink-0">
-						{userImage ? (
-							<img
-								src={userImage}
-								alt={session.data?.user.name ?? "User"}
-								className="w-full h-full object-cover"
-							/>
-						) : (
-							<span className="text-[8px] font-semibold">{userInitial}</span>
-						)}
+					<span className="absolute left-1 top-1 font-data text-[7px] text-muted-foreground">
+						05
+					</span>
+					<div className="flex size-4 items-center justify-center border border-current font-data text-[7px]">
+						{userInitial}
 					</div>
-					<span className="text-[10px] leading-none">Account</span>
+					<span className="text-xs font-semibold">Account</span>
 				</button>
 			</nav>
 
-			{/* Account sheet */}
 			<Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
 				<SheetContent
 					side="bottom"
-					className="bg-sidebar text-sidebar-foreground border-border"
+					className="rounded-md border-border bg-sidebar text-sidebar-foreground"
 				>
-					<SheetHeader className="pb-2">
-						<div className="flex items-center gap-3">
-							<div className="h-10 w-10 rounded-full bg-gradient-to-tr from-blue-500 to-violet-500 flex items-center justify-center text-white overflow-hidden flex-shrink-0">
-								{userImage ? (
-									<img
-										src={userImage}
-										alt={session.data?.user.name ?? "User"}
-										className="w-full h-full object-cover"
-									/>
-								) : (
-									<span className="text-sm font-semibold">{userInitial}</span>
-								)}
+					<div className="mx-auto max-w-lg">
+						<SheetHeader className="border-b border-border pb-4">
+							<div className="flex items-center gap-3">
+								<div className="flex size-10 items-center justify-center border border-border bg-sidebar-accent font-data text-xs">
+									<Crosshair className="size-4" />
+								</div>
+								<div className="min-w-0 text-left">
+									<SheetTitle className="truncate text-sm">
+										{session.data?.user.name || "JotTrade account"}
+									</SheetTitle>
+									<p className="truncate text-xs text-muted-foreground">
+										{session.data?.user.email}
+									</p>
+								</div>
 							</div>
-							<div className="min-w-0">
-								<SheetTitle className="text-sm font-medium truncate">
-									{session.data?.user.name}
-								</SheetTitle>
-								<p className="text-xs text-muted-foreground truncate mt-0.5">
-									{session.data?.user.email}
-								</p>
-							</div>
+						</SheetHeader>
+						<div className="grid gap-1 py-3">
+							<Link
+								to="/settings"
+								onClick={() => setSheetOpen(false)}
+								className="flex items-center gap-3 border border-transparent px-3 py-2 text-sm hover:border-border hover:bg-sidebar-accent"
+							>
+								<Settings className="size-4" /> Settings
+							</Link>
+							<Link
+								to="/profile"
+								onClick={() => setSheetOpen(false)}
+								className="flex items-center gap-3 border border-transparent px-3 py-2 text-sm hover:border-border hover:bg-sidebar-accent"
+							>
+								<Crosshair className="size-4" /> Profile
+							</Link>
 						</div>
-					</SheetHeader>
-
-					<Separator />
-
-					<div className="flex flex-col gap-1 p-2">
-						<Link
-							to="/profile"
-							onClick={() => setSheetOpen(false)}
-							className="flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-sidebar-accent transition-colors"
-						>
-							Profile
-						</Link>
-					</div>
-
-					<Separator />
-
-					<div className="p-2">
-						<button
-							type="button"
-							onClick={handleSignOut}
-							className="flex w-full items-center gap-2 px-3 py-2 rounded-md text-sm text-red-400 hover:bg-sidebar-accent transition-colors"
-						>
-							<LogOut className="h-4 w-4" />
-							Sign Out
-						</button>
+						<Separator />
+						<div className="pt-3">
+							<button
+								type="button"
+								onClick={handleSignOut}
+								className="flex w-full items-center gap-3 border border-transparent px-3 py-2 text-sm text-destructive hover:border-destructive/40 hover:bg-destructive/10"
+							>
+								<LogOut className="size-4" /> Sign out
+							</button>
+						</div>
 					</div>
 				</SheetContent>
 			</Sheet>

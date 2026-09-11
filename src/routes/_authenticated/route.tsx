@@ -1,6 +1,6 @@
-import { createFileRoute, Outlet, Navigate } from "@tanstack/react-router";
-import { authClient } from "@/lib/auth-client";
+import { createFileRoute, Navigate, Outlet } from "@tanstack/react-router";
 import { Spinner } from "@/components/ui/spinner";
+import { authClient } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/_authenticated")({
 	component: RouteComponent,

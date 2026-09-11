@@ -1,13 +1,13 @@
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { createStrategy, updateStrategy } from "@/server/strategyActions";
-import { getTrades } from "@/server/getTrades";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { getTrades } from "@/server/getTrades";
+import { createStrategy, updateStrategy } from "@/server/strategyActions";
 
 const schema = z.object({
 	name: z.string().min(1, "Name is required").max(100),
@@ -76,21 +76,21 @@ export function StrategyForm({ strategy, onSaved }: StrategyFormProps) {
 			className="space-y-4"
 		>
 			<div className="space-y-1">
-				<Label className="text-zinc-300">Name</Label>
+				<Label>Name</Label>
 				<Input
 					{...register("name")}
-					className="bg-zinc-900 border-zinc-700 text-white"
+					className="bg-background"
 					placeholder="e.g. Breakout"
 				/>
 				{errors.name && (
-					<p className="text-red-400 text-xs">{errors.name.message}</p>
+					<p className="text-xs text-destructive">{errors.name.message}</p>
 				)}
 			</div>
 			<div className="space-y-1">
-				<Label className="text-zinc-300">Description</Label>
+				<Label>Description</Label>
 				<Textarea
 					{...register("description")}
-					className="bg-zinc-900 border-zinc-700 text-white"
+					className="bg-background"
 					rows={3}
 					placeholder="Describe this setup..."
 				/>
@@ -104,7 +104,7 @@ export function StrategyForm({ strategy, onSaved }: StrategyFormProps) {
 			</Button>
 
 			{strategy && stratTrades.length > 0 && (
-				<div className="mt-6 pt-6 border-t border-zinc-800 grid grid-cols-2 gap-3">
+				<div className="mt-6 grid grid-cols-2 gap-3">
 					{[
 						{ label: "Trades", value: stratTrades.length },
 						{ label: "Win Rate", value: `${winRate.toFixed(1)}%` },
@@ -114,9 +114,9 @@ export function StrategyForm({ strategy, onSaved }: StrategyFormProps) {
 						},
 						{ label: "Total P&L", value: `$${totalPnl.toFixed(2)}` },
 					].map(({ label, value }) => (
-						<div key={label} className="bg-zinc-900 rounded-lg p-3">
-							<p className="text-xs text-zinc-500">{label}</p>
-							<p className="text-sm font-medium text-white">{value}</p>
+						<div key={label} className="surface p-3">
+							<p className="field-label">{label}</p>
+							<p className="mt-2 font-data text-sm font-semibold">{value}</p>
 						</div>
 					))}
 				</div>

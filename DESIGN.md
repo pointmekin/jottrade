@@ -1,52 +1,49 @@
 ---
 name: JotTrade
-description: A quiet, data-led trading workspace built for fast capture and clear review.
+description: A restrained, information-dense trading journal that keeps the data in front and the interface out of the way.
 colors:
   canvas-light: "oklch(1 0 0)"
-  ink-light: "oklch(0.141 0.005 285.823)"
-  canvas-dark: "oklch(0.108 0.004 285.823)"
-  surface-dark: "oklch(0.21 0.006 285.885)"
-  ink-dark: "oklch(0.985 0 0)"
-  structural-muted: "oklch(0.274 0.006 286.033)"
-  structural-border: "oklch(1 0 0 / 10%)"
-  action-blue: "oklch(0.707 0.165 254.624)"
-  profit-green: "oklch(0.696 0.175 145)"
-  loss-red: "oklch(0.704 0.191 22.216)"
-  warning-amber: "oklch(0.769 0.171 57)"
+  canvas-dark: "oklch(0.185 0.008 260)"
+  surface-light: "oklch(1 0 0)"
+  surface-dark: "oklch(0.215 0.009 260)"
+  ink-light: "oklch(0.22 0.01 260)"
+  ink-dark: "oklch(0.95 0.003 260)"
+  muted-light: "oklch(0.5 0.012 260)"
+  muted-dark: "oklch(0.7 0.01 260)"
+  accent-blue: "oklch(0.55 0.17 256)"
+  profit-green: "oklch(0.52 0.14 150)"
+  loss-red: "oklch(0.55 0.19 27)"
+  warning-amber: "oklch(0.67 0.16 70)"
 typography:
-  headline:
-    fontFamily: "Plus Jakarta Sans, system-ui, sans-serif"
-    fontSize: "1.875rem"
-    fontWeight: 700
-    lineHeight: 1.2
-    letterSpacing: "-0.025em"
-  title:
-    fontFamily: "Plus Jakarta Sans, system-ui, sans-serif"
-    fontSize: "0.875rem"
+  page-title:
+    fontFamily: "Archivo, system-ui, sans-serif"
+    fontSize: "1.75rem"
     fontWeight: 600
     lineHeight: 1.25
+    letterSpacing: "-0.02em"
+  section-title:
+    fontFamily: "Archivo, system-ui, sans-serif"
+    fontSize: "1rem"
+    fontWeight: 600
   body:
-    fontFamily: "Plus Jakarta Sans, system-ui, sans-serif"
+    fontFamily: "Archivo, system-ui, sans-serif"
     fontSize: "0.875rem"
     fontWeight: 400
     lineHeight: 1.5
   label:
-    fontFamily: "Plus Jakarta Sans, system-ui, sans-serif"
-    fontSize: "0.75rem"
-    fontWeight: 600
+    fontFamily: "Archivo, system-ui, sans-serif"
+    fontSize: "0.8125rem"
+    fontWeight: 400
     lineHeight: 1.25
-    letterSpacing: "0.05em"
-  data:
-    fontFamily: "Anonymous Pro, Courier New, monospace"
-    fontSize: "inherit"
-    fontWeight: 700
-    lineHeight: 1
-    letterSpacing: "-0.01em"
+  metric:
+    fontFamily: "Azeret Mono, SFMono-Regular, monospace"
+    fontSize: "1.5rem"
+    fontWeight: 600
+    letterSpacing: "-0.02em"
 rounded:
   sm: "4px"
   md: "6px"
   lg: "8px"
-  xl: "12px"
 spacing:
   xs: "4px"
   sm: "8px"
@@ -55,181 +52,138 @@ spacing:
   xl: "32px"
 components:
   button-primary:
-    backgroundColor: "{colors.action-blue}"
-    textColor: "{colors.ink-dark}"
-    typography: "{typography.body}"
-    rounded: "{rounded.md}"
-    padding: "8px 16px"
-    height: "36px"
-  button-secondary:
-    backgroundColor: "{colors.canvas-dark}"
-    textColor: "{colors.ink-dark}"
+    backgroundColor: "{colors.accent-blue}"
+    textColor: "oklch(0.99 0 0)"
     typography: "{typography.body}"
     rounded: "{rounded.md}"
     padding: "8px 16px"
     height: "36px"
   input:
-    backgroundColor: "{colors.canvas-dark}"
-    textColor: "{colors.ink-dark}"
+    backgroundColor: "{colors.canvas-light}"
+    textColor: "{colors.ink-light}"
     typography: "{typography.body}"
     rounded: "{rounded.md}"
     padding: "4px 12px"
     height: "36px"
-  card:
-    backgroundColor: "{colors.surface-dark}"
-    textColor: "{colors.ink-dark}"
+  surface:
+    backgroundColor: "{colors.surface-light}"
+    textColor: "{colors.ink-light}"
     rounded: "{rounded.lg}"
-    padding: "20px"
+    padding: "16px"
 ---
 
 # Design System: JotTrade
 
 ## Overview
 
-**Creative North Star: "The Quiet Trading Terminal"**
+JotTrade is a working tool, not a showpiece. The interface earns trust by being
+familiar, dense, and quiet. A trader should be able to scan a screen and read
+the numbers without decoding a visual metaphor first.
 
-JotTrade is a data-led operational workspace: minimal, intuitive, subtle, and quietly fun. The Vercel product interface is the primary language—compact navigation, crisp dividers, restrained color, and dense information made easy to scan. Personality comes from precise data typography, the faint dark-mode dot grid, responsive feedback, and small moments of delight rather than decorative spectacle.
+The reference language is restrained product UI in the manner of Vercel, Exness
+Personal Area, and StonkJournal: neutral grounds, thin dividers, sentence-case
+labels at readable sizes, and a single accent reserved for action and focus.
 
-The incumbent implementation is dark-first but supports a complete light theme. Open space, headings, and dividers establish hierarchy before containers do. Cards represent real conceptual groups; they are not a default wrapper for every section. The system should feel robust during long sessions and remain clear on mobile.
+**Key characteristics:**
 
-**Key Characteristics:**
-
-- Quiet neutral canvas with a sparse blue action accent.
-- Compact, purposeful information density.
-- Crisp one-pixel borders and mostly flat surfaces.
-- Monospaced, tabular numbers for trading data.
-- Profit, loss, and warning colors reserved for meaning.
-- Small functional transitions and progressive disclosure.
+- Neutral grounds in both themes. Chroma stays at or below 0.015.
+- One accent blue for primary action, selection, and focus.
+- Market colors carry meaning only. Green is profit, red is loss.
+- Monospace for figures, proportional sans for everything else.
+- Rounded corners at 6-8px. Nothing is square by doctrine.
 
 ## Colors
 
-The palette is a cool zinc-neutral system with one blue interaction accent and semantic market colors.
+### Grounds
 
-### Primary
+Light mode uses a pure white canvas with white surfaces separated by hairline
+borders. Dark mode uses a near-neutral dark ground at `oklch(0.185 0.008 260)`
+with surfaces one step lighter.
 
-- **Action Blue** (`oklch(0.707 0.165 254.624)` dark; `oklch(0.623 0.207 254.28)` light): primary actions, focus rings, links, and the blue chart ramp. Its rarity preserves priority.
+Every dark surface stays within 0.008 to 0.012 chroma. That range keeps the
+theme reading as neutral rather than blue.
 
-### Secondary
+### Accent
 
-- **Profit Green** (`oklch(0.696 0.175 145)` dark): positive P&L and successful states.
-- **Loss Red** (`oklch(0.704 0.191 22.216)` dark): negative P&L, destructive actions, and errors.
-- **Warning Amber** (`oklch(0.769 0.171 57)` dark): caution and pending attention.
+Accent blue `oklch(0.55 0.17 256)` marks the primary action, the current
+selection, and the focus ring. It never decorates.
 
-### Neutral
+### Market colors
 
-- **Night Canvas** (`oklch(0.108 0.004 285.823)`): dark application background.
-- **Zinc Surface** (`oklch(0.21 0.006 285.885)`): dark cards, panels, and popovers.
-- **Quiet Structure** (`oklch(0.274 0.006 286.033)`): muted fills and selected navigation.
-- **Hairline Border** (`oklch(1 0 0 / 10%)`): dark separators and container edges.
-- **Paper Canvas** (`oklch(1 0 0)`): light application and card background.
-- **Near-black Ink** (`oklch(0.141 0.005 285.823)`): primary light-theme text.
+- **Profit green** for positive P&L.
+- **Loss red** for negative P&L.
+- **Warning amber** for caution states.
 
-### Named Rules
-
-**The Semantic Color Rule.** Green, red, and amber communicate trading or system state; they do not decorate neutral content.
-
-**The Sparse Blue Rule.** Blue marks interaction, selection, or a primary data series. Avoid spreading it across passive surfaces.
+These appear only where the data gives them meaning. A green value always means
+money was made.
 
 ## Typography
 
-**Display Font:** Plus Jakarta Sans with system-ui fallback  
-**Body Font:** Plus Jakarta Sans with system-ui fallback  
-**Data Font:** Anonymous Pro with Courier New fallback
+Archivo carries the interface. Azeret Mono carries figures, with
+`tabular-nums` so columns of numbers align.
 
-**Character:** Plus Jakarta Sans keeps the interface contemporary and approachable. Anonymous Pro separates figures, prices, and performance data from explanatory copy while its tabular numerals stabilize changing values.
+Sizes are fixed rem values, not fluid clamps. Product UI is viewed at a
+consistent size, and a heading that shrinks inside a panel looks worse, not
+better. The one exception is the marketing landing page, where a display clamp
+is appropriate.
 
-### Hierarchy
-
-- **Headline** (700, 30px, 1.2): page titles with tight tracking.
-- **Metric** (700, 24–30px): prominent values; use `.font-data` when the value is financial or tabular.
-- **Title** (600, 14–16px): card and section titles.
-- **Body** (400, 14px, 1.5): controls, descriptions, and table content.
-- **Label** (600, 12px, tracked uppercase where useful): compact categories and metric labels.
-
-### Named Rules
-
-**The Data Voice Rule.** Use the mono face for values that benefit from tabular alignment, not for paragraphs or ordinary navigation.
+Labels are sentence case at 13px. Uppercase tracked micro-labels are not part
+of this system.
 
 ## Layout
 
-Authenticated screens use a fixed desktop sidebar and a bottom navigation bar below the `md` breakpoint. Content generally uses `16px` padding on mobile and `32px` on large screens, with a `max-width: 80rem` dashboard container. Grids progress from one column to two, three, or four columns as space permits. The recurring spacing rhythm is 4, 8, 16, 24, and 32px.
+### Page structure
 
-Keep primary content in the open canvas. Use bordered groups for related metrics, tables, forms, and actionable objects. Preserve compact density in data-heavy views, then collapse grids and move secondary controls behind disclosure on small screens. Mobile is a complete operating surface, not a compressed desktop screenshot.
+Every screen opens with a title, an optional description, an optional action on
+the right, and an optional toolbar row underneath for filters and controls.
+`AppPageHeader` owns this pattern.
 
-## Elevation & Depth
+### Density
 
-The system is flat by default. Canvas, inline panels, cards, tables, and inputs rely on tonal difference and crisp one-pixel borders. Shadows communicate a surface that actually sits above another layer: dropdowns, popovers, tooltips, dialogs, drawers, and transient dragged or focused states. Use the lowest elevation that makes the relationship clear.
+Metrics sit in compact rows of four, each with a label, a value, and an optional
+supporting line. There is no hero metric. The largest element on a screen should
+be the data the user came to read.
 
-### Shadow Vocabulary
+Charts fill their container. A chart pinned to a fixed height inside a stretching
+grid row leaves dead space, so chart wrappers size to their own content.
 
-- **Control Hairline** (`0 1px 2px rgba(0,0,0,0.05)`): the existing `shadow-xs` treatment on outlined controls and fields; omit when the border is sufficient.
-- **Floating Surface** (`0 4px 12px rgba(0,0,0,0.18)`): menus and popovers.
-- **Modal Surface** (`0 10px 30px rgba(0,0,0,0.28)`): dialogs and drawers over a backdrop.
+### Containers
 
-### Named Rules
+`.surface` is the standard container: rounded, hairline border, card ground. Use
+it for a coherent region, not as a wrapper around every paragraph.
 
-**The Meaningful Elevation Rule.** A shadow must explain overlap, focus, or movement. In-flow surfaces stay flat.
-
-## Shapes
-
-The base radius is 8px, yielding a restrained 4–12px family. Standard controls use 6px corners, operational cards use 8px, and larger dialogs may use 12px. Small status marks may be circular; ordinary actions and filters remain compact rounded rectangles rather than pills. Thin borders and rectilinear grids carry the technical character.
+The page canvas carries no texture or grid. Cards and sheets stay opaque so
+dense content remains legible.
 
 ## Components
 
-Controls are quiet at rest and become more explicit on hover, focus, selection, or error.
+Every interactive component carries default, hover, focus, active, and disabled
+states. Buttons are medium weight, 36px tall, with a 6px radius. Inputs match
+that height and radius on an opaque ground.
 
-### Buttons
+Table headers are sentence case at 13px in muted ink. Rows stay dense.
 
-- **Shape:** compact 6px corners; 32, 36, or 40px heights.
-- **Primary:** solid Action Blue with high-contrast text.
-- **Hover / Focus:** increase fill contrast on hover; use a visible 3px translucent blue focus ring.
-- **Secondary / Ghost:** bordered or neutral-fill secondary actions; ghost treatment for tertiary actions.
+## Motion
 
-### Chips
+Motion reports state; it does not perform. Page content fades and rises 4px over
+180ms on mount. Transitions run 150-250ms. Every animation respects
+`prefers-reduced-motion`.
 
-- **Style:** small 12px labels with compact padding and 4–6px corners.
-- **State:** neutral by default; selected filters gain a stronger surface or sparse blue emphasis. Semantic colors only reflect real status.
-
-### Cards / Containers
-
-- **Corner Style:** 8px for operational cards; 12px exists in the generic primitive but should be used deliberately.
-- **Background:** canvas or Zinc Surface depending on theme and hierarchy.
-- **Shadow Strategy:** flat for inline content; see Meaningful Elevation Rule.
-- **Border:** one-pixel Hairline Border.
-- **Internal Padding:** normally 16–20px for dense metrics and 24px for larger compositions.
-
-### Inputs / Fields
-
-- **Style:** 36px tall, 6px corners, quiet fill, one-pixel border, 12px horizontal padding.
-- **Focus:** stronger Action Blue border with a 3px translucent ring.
-- **Error / Disabled:** destructive border plus written error text; disabled controls retain their shape at reduced opacity.
-
-### Navigation
-
-Desktop navigation occupies a narrow persistent sidebar with 32px rows, 16px icons, and a subtle selected fill. Mobile uses a fixed bottom bar with safe-area padding and concise labels. Active state is visible through fill, contrast, and weight rather than color alone.
-
-### Data Surfaces
-
-Charts, metric grids, calendars, and tables favor alignment and comparison. Use mono tabular numerals for financial values, fine dividers for rows and cells, and minimal chart decoration. Positive and negative states combine color with signs or labels.
+There are no orchestrated page-load sequences.
 
 ## Do's and Don'ts
 
-### Do:
+**Do**
 
-- **Do** let data and task hierarchy determine the layout.
-- **Do** use whitespace, headings, and dividers before adding another container.
-- **Do** preserve compact density while keeping controls comfortably operable.
-- **Do** reveal advanced filters and secondary actions progressively.
-- **Do** reserve shadows for surfaces that overlap or move above content.
-- **Do** make hover, focus, active, error, loading, and empty states explicit.
-- **Do** include occasional subtle, functional moments of fun.
+- Put a control row under the title when a screen has something to filter.
+- Reserve accent blue for action, selection, and focus.
+- Use monospace with tabular figures for any aligned number.
+- Explain a metric with a short supporting line under its value.
 
-### Don't:
+**Don't**
 
-- **Don't** wrap every section in a card.
-- **Don't** use large ambient shadows on in-flow cards or settings groups.
-- **Don't** use gradients, glass effects, oversized radii, or decorative icon tiles as default styling.
-- **Don't** give primary, secondary, destructive, and tertiary actions equal visual weight.
-- **Don't** use semantic market colors as decoration or as the only carrier of meaning.
-- **Don't** sacrifice information density for oversized headings or empty space.
-- **Don't** copy the secondary inspiration images' marketing-page composition into operational screens.
+- Number the navigation, or any list that is not genuinely a sequence.
+- Add uppercase tracked micro-labels above sections.
+- Put a decorative rule, grid, or marker on a surface.
+- Size product headings with a fluid clamp.
+- Let a translucent surface sit over a textured ground.

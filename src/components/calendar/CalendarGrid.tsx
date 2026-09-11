@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
+import type { CalendarDay } from "@/server/calendarActions";
 import { CalendarDayCell } from "./CalendarDayCell";
 import { DayTradesPopover } from "./DayTradesPopover";
-import type { CalendarDay } from "@/server/calendarActions";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -33,13 +33,13 @@ export function CalendarGrid({ year, month, data }: CalendarGridProps) {
 	}, [year, month]);
 
 	return (
-		<div className="border border-zinc-800 rounded-lg overflow-hidden">
+		<div className="surface overflow-hidden">
 			{/* Day of week header */}
-			<div className="grid grid-cols-7 border-b border-zinc-800">
+			<div className="grid grid-cols-7 border-b border-border bg-background">
 				{DOW.map((d) => (
 					<div
 						key={d}
-						className="py-2 text-center text-xs text-zinc-500 font-medium"
+						className="py-2 text-center font-data text-xs font-semibold text-muted-foreground"
 					>
 						{d}
 					</div>
@@ -62,14 +62,12 @@ export function CalendarGrid({ year, month, data }: CalendarGridProps) {
 								onOpenChange={(open) => setSelectedDate(open ? date : null)}
 								onTradeClick={() => setSelectedDate(null)}
 							>
-								<div>
-									<CalendarDayCell
-										date={date}
-										day={day}
-										isCurrentMonth={currentMonth}
-										onClick={setSelectedDate}
-									/>
-								</div>
+								<CalendarDayCell
+									date={date}
+									day={day}
+									isCurrentMonth={currentMonth}
+									onClick={setSelectedDate}
+								/>
 							</DayTradesPopover>
 						);
 					}

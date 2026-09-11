@@ -1,8 +1,7 @@
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createTrade } from "@/server/tradeActions";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import {
 	Form,
@@ -22,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { createTrade } from "@/server/tradeActions";
 
 const formSchema = z.object({
 	symbol: z
@@ -31,7 +31,7 @@ const formSchema = z.object({
 	side: z.enum(["LONG", "SHORT"]),
 	entryDate: z
 		.string()
-		.refine((val) => !isNaN(Date.parse(val)), "Invalid date"),
+		.refine((val) => !Number.isNaN(Date.parse(val)), "Invalid date"),
 	entryPrice: z.string().min(1, "Price is required"),
 	quantity: z.string().min(1, "Quantity is required"),
 	notes: z.string().optional(),
@@ -46,10 +46,9 @@ interface TradeEntryFormProps {
 }
 
 const inputCls =
-	"bg-zinc-900 border-zinc-800 text-white font-mono text-sm focus-visible:border-zinc-600 focus-visible:ring-0 focus-visible:ring-offset-0 transition-colors placeholder:text-zinc-700";
+	"bg-background border-input text-foreground font-data text-sm placeholder:text-muted-foreground";
 
-const labelCls =
-	"text-zinc-500 text-[10px] uppercase tracking-widest font-semibold";
+const labelCls = "field-label";
 
 export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 	const queryClient = useQueryClient();
@@ -102,7 +101,7 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 									{...field}
 								/>
 							</FormControl>
-							<FormMessage className="text-red-400 text-xs" />
+							<FormMessage className="text-xs text-destructive" />
 						</FormItem>
 					)}
 				/>
@@ -120,26 +119,20 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 									defaultValue={field.value}
 								>
 									<FormControl>
-										<SelectTrigger className="bg-zinc-900 border-zinc-800 text-white focus:ring-0 focus:ring-offset-0 focus:border-zinc-600 text-sm">
+										<SelectTrigger className="border-input bg-background text-sm">
 											<SelectValue />
 										</SelectTrigger>
 									</FormControl>
-									<SelectContent className="bg-zinc-900 border-zinc-800 text-white">
-										<SelectItem
-											value="LONG"
-											className="focus:bg-zinc-800 focus:text-white text-emerald-400"
-										>
-											▲ Long
+									<SelectContent>
+										<SelectItem value="LONG" className="text-success">
+											Long
 										</SelectItem>
-										<SelectItem
-											value="SHORT"
-											className="focus:bg-zinc-800 focus:text-white text-red-400"
-										>
-											▼ Short
+										<SelectItem value="SHORT" className="text-destructive">
+											Short
 										</SelectItem>
 									</SelectContent>
 								</Select>
-								<FormMessage className="text-red-400 text-xs" />
+								<FormMessage className="text-xs text-destructive" />
 							</FormItem>
 						)}
 					/>
@@ -157,7 +150,7 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 										{...field}
 									/>
 								</FormControl>
-								<FormMessage className="text-red-400 text-xs" />
+								<FormMessage className="text-xs text-destructive" />
 							</FormItem>
 						)}
 					/>
@@ -180,7 +173,7 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 										{...field}
 									/>
 								</FormControl>
-								<FormMessage className="text-red-400 text-xs" />
+								<FormMessage className="text-xs text-destructive" />
 							</FormItem>
 						)}
 					/>
@@ -200,7 +193,7 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 										{...field}
 									/>
 								</FormControl>
-								<FormMessage className="text-red-400 text-xs" />
+								<FormMessage className="text-xs text-destructive" />
 							</FormItem>
 						)}
 					/>
@@ -208,11 +201,9 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 
 				{/* Optional divider */}
 				<div className="flex items-center gap-3 pt-1">
-					<div className="h-px flex-1 bg-zinc-800" />
-					<span className="text-[10px] uppercase tracking-widest text-zinc-600 font-semibold">
-						Optional
-					</span>
-					<div className="h-px flex-1 bg-zinc-800" />
+					<div className="h-px flex-1 bg-border" />
+					<span className="field-label">Optional</span>
+					<div className="h-px flex-1 bg-border" />
 				</div>
 
 				{/* Exit Price + Exit Date */}
@@ -284,7 +275,7 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 							<FormControl>
 								<Textarea
 									placeholder="Setup context, emotions, plan…"
-									className="bg-zinc-900 border-zinc-800 text-white text-sm resize-none min-h-20 focus-visible:border-zinc-600 focus-visible:ring-0 focus-visible:ring-offset-0 transition-colors placeholder:text-zinc-700"
+									className="min-h-20 resize-none border-input bg-background text-sm text-foreground placeholder:text-muted-foreground"
 									{...field}
 								/>
 							</FormControl>
@@ -298,7 +289,7 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 						<Button
 							type="button"
 							variant="outline"
-							className="flex-1 border-zinc-800 text-zinc-400 hover:bg-zinc-900 hover:text-white"
+							className="flex-1 border-border text-muted-foreground"
 							onClick={onCancel}
 						>
 							Cancel
@@ -310,8 +301,8 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 						className={cn(
 							"flex-1 font-medium transition-all",
 							isLong
-								? "bg-emerald-600 hover:bg-emerald-500 text-white"
-								: "bg-red-600 hover:bg-red-500 text-white",
+								? "bg-success text-success-foreground hover:bg-success/88"
+								: "bg-destructive text-destructive-foreground hover:bg-destructive/88",
 						)}
 					>
 						{isPending ? "Logging…" : `Log ${isLong ? "Long" : "Short"}`}

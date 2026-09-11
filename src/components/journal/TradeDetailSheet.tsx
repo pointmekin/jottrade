@@ -1,18 +1,18 @@
-import { useCallback, useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Upload, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
 import {
 	Drawer,
 	DrawerContent,
 	DrawerHeader,
 	DrawerTitle,
 } from "@/components/ui/drawer";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
 	Select,
@@ -21,15 +21,15 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Upload, X } from "lucide-react";
-import { updateTrade } from "@/server/tradeActions";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import {
 	deleteTradeImage,
 	getSignedUploadUrl,
 	saveTradeImage,
 } from "@/server/imageActions";
 import { getStrategies } from "@/server/strategyActions";
-import { cn } from "@/lib/utils";
+import { updateTrade } from "@/server/tradeActions";
 import type { Trade } from "./JournalTable";
 
 const MISTAKE_OPTIONS = [
@@ -178,47 +178,45 @@ export function TradeDetailSheet({
 		>
 			<DrawerContent
 				className={cn(
-					"bg-zinc-950 border-zinc-800/60 text-white",
+					"border-border bg-popover text-popover-foreground",
 					isDesktop
-						? "inset-y-0 right-0 left-auto h-screen w-[480px] max-w-[90vw] mt-0 rounded-none border-l flex-col"
-						: "inset-x-0 bottom-0 top-auto max-h-[92vh] rounded-t-2xl border-t flex-col",
+						? "inset-y-0 right-0 left-auto h-screen w-[480px] max-w-[90vw] mt-0 rounded-md border-l flex-col"
+						: "inset-x-0 bottom-0 top-auto max-h-[92vh] rounded-md border-t flex-col",
 				)}
 			>
 				{/* Direction accent bar */}
 				<div
 					className={cn(
 						"h-px w-full flex-shrink-0",
-						isLong
-							? "bg-gradient-to-r from-transparent via-emerald-500 to-transparent"
-							: "bg-gradient-to-r from-transparent via-red-500 to-transparent",
+						isLong ? "bg-success" : "bg-destructive",
 					)}
 				/>
 
 				{/* Mobile drag handle */}
 				{!isDesktop && (
 					<div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-						<div className="h-1 w-10 rounded-full bg-zinc-700" />
+						<div className="h-1 w-10 bg-border" />
 					</div>
 				)}
 
 				{/* Header */}
-				<DrawerHeader className="px-5 pt-4 pb-3 border-b border-zinc-800/60 flex-shrink-0">
+				<DrawerHeader className="flex-shrink-0 border-b border-border px-5 pb-3 pt-4">
 					<div className="flex items-start justify-between gap-3">
 						<div className="flex items-center gap-2.5 flex-wrap">
-							<DrawerTitle className="text-white text-xl font-bold tracking-tight">
+							<DrawerTitle className="text-xl font-semibold tracking-tight">
 								{trade.symbol}
 							</DrawerTitle>
 							<span
 								className={cn(
-									"inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded",
+									"status-pill",
 									isLong
-										? "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20"
-										: "bg-red-500/10 text-red-400 ring-1 ring-red-500/20",
+										? "border-success/35 bg-success/10 text-success"
+										: "border-destructive/35 bg-destructive/10 text-destructive",
 								)}
 							>
-								{isLong ? "▲" : "▼"} {trade.side}
+								{trade.side}
 							</span>
-							<span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 ring-1 ring-zinc-700/50 uppercase tracking-wide">
+							<span className="status-pill bg-muted text-muted-foreground">
 								{trade.status}
 							</span>
 						</div>
@@ -226,14 +224,16 @@ export function TradeDetailSheet({
 							<div
 								className={cn(
 									"text-right flex-shrink-0",
-									netPnl >= 0 ? "text-emerald-400" : "text-red-400",
+									netPnl >= 0 ? "text-success" : "text-destructive",
 								)}
 							>
-								<p className="text-lg font-bold font-mono tabular-nums leading-none">
+								<p className="font-data text-lg font-semibold leading-none">
 									{netPnl >= 0 ? "+" : ""}
 									{netPnl.toFixed(2)}
 								</p>
-								<p className="text-xs text-zinc-600 mt-0.5">net P&L</p>
+								<p className="mt-0.5 text-xs text-muted-foreground">
+									net P&amp;L
+								</p>
 							</div>
 						)}
 					</div>
@@ -250,25 +250,25 @@ export function TradeDetailSheet({
 							<FieldGroup label="Entry Price">
 								<Input
 									{...register("entryPrice")}
-									className="bg-zinc-900 border-zinc-800 text-white font-mono text-sm focus-visible:border-zinc-600 focus-visible:ring-0 focus-visible:ring-offset-0 transition-colors"
+									className="border-input bg-background font-data text-sm"
 								/>
 							</FieldGroup>
 							<FieldGroup label="Exit Price">
 								<Input
 									{...register("exitPrice")}
-									className="bg-zinc-900 border-zinc-800 text-white font-mono text-sm focus-visible:border-zinc-600 focus-visible:ring-0 focus-visible:ring-offset-0 transition-colors"
+									className="border-input bg-background font-data text-sm"
 								/>
 							</FieldGroup>
 							<FieldGroup label="Quantity">
 								<Input
 									{...register("quantity")}
-									className="bg-zinc-900 border-zinc-800 text-white font-mono text-sm focus-visible:border-zinc-600 focus-visible:ring-0 focus-visible:ring-offset-0 transition-colors"
+									className="border-input bg-background font-data text-sm"
 								/>
 							</FieldGroup>
 							<FieldGroup label="Fees">
 								<Input
 									{...register("fees")}
-									className="bg-zinc-900 border-zinc-800 text-white font-mono text-sm focus-visible:border-zinc-600 focus-visible:ring-0 focus-visible:ring-offset-0 transition-colors"
+									className="border-input bg-background font-data text-sm"
 								/>
 							</FieldGroup>
 						</div>
@@ -278,16 +278,12 @@ export function TradeDetailSheet({
 								value={watch("confidence") ?? ""}
 								onValueChange={(v) => setValue("confidence", v as any)}
 							>
-								<SelectTrigger className="bg-zinc-900 border-zinc-800 text-white focus:ring-0 focus:ring-offset-0 focus:border-zinc-600">
+								<SelectTrigger className="border-input bg-background">
 									<SelectValue placeholder="Select confidence" />
 								</SelectTrigger>
-								<SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+								<SelectContent>
 									{["HIGH", "MEDIUM", "LOW"].map((c) => (
-										<SelectItem
-											key={c}
-											value={c}
-											className="focus:bg-zinc-800 focus:text-white"
-										>
+										<SelectItem key={c} value={c} className="focus:bg-accent">
 											{c}
 										</SelectItem>
 									))}
@@ -300,22 +296,15 @@ export function TradeDetailSheet({
 								value={watch("mistake") ?? ""}
 								onValueChange={(v) => setValue("mistake", v)}
 							>
-								<SelectTrigger className="bg-zinc-900 border-zinc-800 text-white focus:ring-0 focus:ring-offset-0 focus:border-zinc-600">
+								<SelectTrigger className="border-input bg-background">
 									<SelectValue placeholder="Any mistake?" />
 								</SelectTrigger>
-								<SelectContent className="bg-zinc-900 border-zinc-800 text-white">
-									<SelectItem
-										value="__none__"
-										className="focus:bg-zinc-800 focus:text-white"
-									>
+								<SelectContent>
+									<SelectItem value="__none__" className="focus:bg-accent">
 										None
 									</SelectItem>
 									{MISTAKE_OPTIONS.map((m) => (
-										<SelectItem
-											key={m}
-											value={m}
-											className="focus:bg-zinc-800 focus:text-white"
-										>
+										<SelectItem key={m} value={m} className="focus:bg-accent">
 											{m}
 										</SelectItem>
 									))}
@@ -328,21 +317,18 @@ export function TradeDetailSheet({
 								value={watch("setupId") ?? "none"}
 								onValueChange={(v) => setValue("setupId", v)}
 							>
-								<SelectTrigger className="bg-zinc-900 border-zinc-800 text-white focus:ring-0 focus:ring-offset-0 focus:border-zinc-600">
+								<SelectTrigger className="border-input bg-background">
 									<SelectValue placeholder="Select strategy" />
 								</SelectTrigger>
-								<SelectContent className="bg-zinc-900 border-zinc-800 text-white">
-									<SelectItem
-										value="none"
-										className="focus:bg-zinc-800 focus:text-white"
-									>
+								<SelectContent>
+									<SelectItem value="none" className="focus:bg-accent">
 										None
 									</SelectItem>
 									{(strategies as any[]).map((s: any) => (
 										<SelectItem
 											key={s.id}
 											value={String(s.id)}
-											className="focus:bg-zinc-800 focus:text-white"
+											className="focus:bg-accent"
 										>
 											{s.name}
 										</SelectItem>
@@ -357,8 +343,8 @@ export function TradeDetailSheet({
 							className={cn(
 								"w-full font-medium transition-all",
 								isLong
-									? "bg-emerald-600 hover:bg-emerald-500 text-white"
-									: "bg-red-600 hover:bg-red-500 text-white",
+									? "bg-success text-success-foreground hover:bg-success/88"
+									: "bg-destructive text-destructive-foreground hover:bg-destructive/88",
 							)}
 						>
 							{saveMut.isPending ? "Saving…" : "Save Changes"}
@@ -366,45 +352,45 @@ export function TradeDetailSheet({
 					</form>
 
 					{/* Divider */}
-					<div className="h-px bg-zinc-800/60" />
+					<div className="h-px bg-border" />
 
 					{/* Notes */}
 					<div className="space-y-2">
-						<p className="text-zinc-500 text-[10px] uppercase tracking-widest font-semibold">Notes</p>
+						<p className="field-label">Notes</p>
 						<Textarea
 							defaultValue={(trade as any)?.notes ?? ""}
-							className="bg-zinc-900 border-zinc-800 text-white min-h-32 resize-none text-sm leading-relaxed focus-visible:border-zinc-600 focus-visible:ring-0 focus-visible:ring-offset-0 transition-colors placeholder:text-zinc-600"
+							className="min-h-32 resize-none border-input bg-background text-sm leading-relaxed placeholder:text-muted-foreground"
 							placeholder="Add your trade notes here…"
 							onBlur={(e) => noteMut.mutate(e.target.value)}
 						/>
-						<p className="text-xs text-zinc-700">Auto-saved on blur.</p>
+						<p className="text-xs text-muted-foreground">Auto-saved on blur.</p>
 					</div>
 
 					{/* Divider */}
-					<div className="h-px bg-zinc-800/60" />
+					<div className="h-px bg-border" />
 
 					{/* Images */}
 					<div className="space-y-3 pb-6">
-						<p className="text-zinc-500 text-[10px] uppercase tracking-widest font-semibold">Images</p>
+						<p className="field-label">Images</p>
 						<div
 							{...getRootProps()}
 							className={cn(
-								"border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all duration-200",
+								"cursor-pointer border border-dashed p-6 text-center transition-colors",
 								isDragActive
-									? "border-zinc-500 bg-zinc-800/50 scale-[0.99]"
-									: "border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/50",
+									? "border-ring bg-accent/60"
+									: "border-border hover:bg-accent/35",
 							)}
 						>
 							<input {...getInputProps()} />
-							<Upload className="h-5 w-5 mx-auto mb-2.5 text-zinc-600" />
-							<p className="text-sm text-zinc-400 font-medium">
+							<Upload className="mx-auto mb-2.5 h-5 w-5 text-ring" />
+							<p className="text-sm font-medium">
 								{uploading
 									? "Uploading…"
 									: isDragActive
 										? "Drop images here"
 										: "Drag & drop or click to upload"}
 							</p>
-							<p className="text-xs text-zinc-700 mt-1">
+							<p className="mt-1 text-xs text-muted-foreground">
 								Max 10MB · JPEG, PNG, WebP, GIF · Up to 10 files
 							</p>
 						</div>
@@ -414,7 +400,7 @@ export function TradeDetailSheet({
 								{screenshots.map((url) => (
 									<div
 										key={url}
-										className="relative group rounded-lg overflow-hidden bg-zinc-900 ring-1 ring-zinc-800"
+										className="group relative overflow-hidden border border-border bg-muted"
 									>
 										<img
 											src={url}
@@ -449,9 +435,7 @@ function FieldGroup({
 }) {
 	return (
 		<div className="space-y-1.5">
-			<Label className="text-zinc-500 text-[10px] uppercase tracking-widest font-semibold">
-				{label}
-			</Label>
+			<Label className="field-label">{label}</Label>
 			{children}
 		</div>
 	);

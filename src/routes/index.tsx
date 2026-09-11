@@ -1,132 +1,145 @@
-import { createFileRoute } from "@tanstack/react-router";
-import {
-	Zap,
-	Server,
-	Route as RouteIcon,
-	Shield,
-	Waves,
-	Sparkles,
-} from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowRight, Crosshair } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-export const Route = createFileRoute("/")({ component: App });
+export const Route = createFileRoute("/")({ component: Home });
 
-function App() {
-	const features = [
-		{
-			icon: <Zap className="w-12 h-12 text-cyan-400" />,
-			title: "Powerful Server Functions",
-			description:
-				"Write server-side code that seamlessly integrates with your client components. Type-safe, secure, and simple.",
-		},
-		{
-			icon: <Server className="w-12 h-12 text-cyan-400" />,
-			title: "Flexible Server Side Rendering",
-			description:
-				"Full-document SSR, streaming, and progressive enhancement out of the box. Control exactly what renders where.",
-		},
-		{
-			icon: <RouteIcon className="w-12 h-12 text-cyan-400" />,
-			title: "API Routes",
-			description:
-				"Build type-safe API endpoints alongside your application. No separate backend needed.",
-		},
-		{
-			icon: <Shield className="w-12 h-12 text-cyan-400" />,
-			title: "Strongly Typed Everything",
-			description:
-				"End-to-end type safety from server to client. Catch errors before they reach production.",
-		},
-		{
-			icon: <Waves className="w-12 h-12 text-cyan-400" />,
-			title: "Full Streaming Support",
-			description:
-				"Stream data from server to client progressively. Perfect for AI applications and real-time updates.",
-		},
-		{
-			icon: <Sparkles className="w-12 h-12 text-cyan-400" />,
-			title: "Next Generation Ready",
-			description:
-				"Built from the ground up for modern web applications. Deploy anywhere JavaScript runs.",
-		},
-	];
+const sampleTrades = [
+	{
+		time: "09:42",
+		symbol: "XAUUSD",
+		setup: "Range reclaim",
+		result: "+$184.20",
+		positive: true,
+	},
+	{
+		time: "11:06",
+		symbol: "EURUSD",
+		setup: "Failed breakout",
+		result: "-$62.40",
+		positive: false,
+	},
+	{
+		time: "14:18",
+		symbol: "NAS100",
+		setup: "Trend pullback",
+		result: "+$246.80",
+		positive: true,
+	},
+];
 
+function Home() {
 	return (
-		<div className="min-h-screen bg-linear-to-b from-slate-900 via-slate-800 to-slate-900">
-			<section className="relative py-20 px-6 text-center overflow-hidden">
-				<div className="absolute inset-0 bg-linear-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10"></div>
-				<div className="relative max-w-5xl mx-auto">
-					<div className="flex items-center justify-center gap-6 mb-6">
-						<img
-							src="/tanstack-circle-logo.png"
-							alt="TanStack Logo"
-							className="w-24 h-24 md:w-32 md:h-32"
-						/>
-						<h1 className="text-6xl md:text-7xl font-black text-white tracking-[-0.08em]">
-							<span className="text-gray-300">TANSTACK</span>{" "}
-							<span className="bg-linear-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-								START
-							</span>
+		<main className="min-h-screen p-4 md:p-6 lg:p-8">
+			<div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-[96rem] border border-border md:min-h-[calc(100vh-3rem)] lg:grid-cols-[minmax(0,0.85fr)_minmax(34rem,1.15fr)]">
+				<section className="flex flex-col justify-between border-b border-border p-6 lg:border-b-0 lg:border-r lg:p-10">
+					<div className="flex items-center gap-3">
+						<Crosshair className="size-5 text-ring" />
+						<span className="font-semibold tracking-[-0.02em]">JotTrade</span>
+					</div>
+					<div className="py-16 lg:py-8">
+						<h1 className="max-w-3xl text-balance text-[clamp(2.5rem,6vw,5rem)] font-semibold leading-[0.95] tracking-[-0.035em]">
+							Know why every trade worked.
 						</h1>
-					</div>
-					<p className="text-2xl md:text-3xl text-gray-300 mb-4 font-light">
-						The framework for next generation AI applications
-					</p>
-					<p className="text-lg text-gray-400 max-w-3xl mx-auto mb-8">
-						Full-stack framework powered by TanStack Router for React and Solid.
-						Build modern applications with server functions, streaming, and type
-						safety.
-					</p>
-					<div className="flex flex-col items-center gap-4">
-						<div className="flex gap-4">
-							<a
-								href="/sign-in"
-								className="px-8 py-3 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold rounded-lg transition-colors shadow-lg shadow-cyan-500/50"
-							>
-								Sign In
-							</a>
-							<a
-								href="/sign-up"
-								className="px-8 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors border border-slate-600"
-							>
-								Sign Up
-							</a>
-						</div>
-						<a
-							href="https://tanstack.com/start"
-							target="_blank"
-							rel="noopener noreferrer"
-							className="text-cyan-400 hover:text-cyan-300 underline"
-						>
-							Documentation
-						</a>
-						<p className="text-gray-400 text-sm mt-2">
-							Begin your TanStack Start journey by editing{" "}
-							<code className="px-2 py-1 bg-slate-700 rounded text-cyan-400">
-								/src/routes/index.tsx
-							</code>
+						<p className="mt-8 max-w-lg text-base leading-7 text-muted-foreground">
+							Record or import a trade, then connect the setup, execution,
+							outcome, and lesson in one private workspace.
 						</p>
+						<div className="mt-8 flex flex-wrap gap-2">
+							<Button asChild size="lg">
+								<Link to="/sign-up">
+									Start a journal <ArrowRight className="size-4" />
+								</Link>
+							</Button>
+							<Button asChild size="lg" variant="outline">
+								<Link to="/sign-in">Sign in</Link>
+							</Button>
+						</div>
 					</div>
-				</div>
-			</section>
+					<p className="border-t border-border pt-3 text-xs text-muted-foreground">
+						Private trading journal
+					</p>
+				</section>
 
-			<section className="py-16 px-6 max-w-7xl mx-auto">
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-					{features.map((feature, index) => (
-						<div
-							key={index}
-							className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-6 hover:border-cyan-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/10"
-						>
-							<div className="mb-4">{feature.icon}</div>
-							<h3 className="text-xl font-semibold text-white mb-3">
-								{feature.title}
-							</h3>
-							<p className="text-gray-400 leading-relaxed">
-								{feature.description}
+				<section
+					className="surface relative flex min-h-[42rem] flex-col border-0 p-4 md:p-8 lg:p-10"
+					aria-label="Synthetic journal example"
+				>
+					<div className="flex items-center justify-between border-b border-border pb-3">
+						<div>
+							<p className="text-sm font-semibold">Tuesday</p>
+							<p className="mt-1 text-xs text-muted-foreground">
+								Synthetic example
 							</p>
 						</div>
-					))}
-				</div>
-			</section>
-		</div>
+						<span className="status-pill border-success/35 bg-success/10 text-success">
+							Net +$368.60
+						</span>
+					</div>
+					<div className="relative flex flex-1 items-center py-10">
+						<div className="absolute inset-y-10 left-[42%] w-px bg-ring/70" />
+						<div className="w-full">
+							<div className="grid grid-cols-[42%_1fr] items-center">
+								<p className="pr-6 text-right font-data text-xs text-muted-foreground">
+									08:00 / OPEN
+								</p>
+								<div className="border-t border-ring pl-6">
+									<p className="-mt-3 inline-block bg-card px-2 font-data text-lg font-semibold">
+										$10,000.00
+									</p>
+								</div>
+							</div>
+							<div className="my-14 grid grid-cols-[42%_1fr] items-center">
+								<div className="pr-6 text-right">
+									<p className="text-sm font-semibold">Range reclaim</p>
+									<p className="font-data text-xs text-muted-foreground">
+										XAUUSD / LONG
+									</p>
+								</div>
+								<div className="relative border-t border-success pl-6">
+									<span className="absolute -left-1.5 -top-1.5 size-3 border-2 border-success bg-background" />
+									<p className="-mt-3 inline-block bg-card px-2 font-data text-2xl font-semibold text-success">
+										+$184.20
+									</p>
+								</div>
+							</div>
+							<div className="grid grid-cols-[42%_1fr] items-center">
+								<p className="pr-6 text-right font-data text-xs text-muted-foreground">
+									16:00 / CLOSE
+								</p>
+								<div className="border-t border-ring pl-6">
+									<p className="-mt-3 inline-block bg-card px-2 font-data text-lg font-semibold">
+										$10,368.60
+									</p>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div className="border-t border-border">
+						{sampleTrades.map((trade) => (
+							<div
+								key={trade.time}
+								className="grid grid-cols-[4rem_1fr_auto] items-center gap-3 border-b border-border py-3 text-xs"
+							>
+								<span className="font-data text-muted-foreground">
+									{trade.time}
+								</span>
+								<span>
+									<strong>{trade.symbol}</strong>
+									<span className="ml-2 text-muted-foreground">
+										{trade.setup}
+									</span>
+								</span>
+								<span
+									className={`font-data font-semibold ${trade.positive ? "text-success" : "text-destructive"}`}
+								>
+									{trade.result}
+								</span>
+							</div>
+						))}
+					</div>
+				</section>
+			</div>
+		</main>
 	);
 }

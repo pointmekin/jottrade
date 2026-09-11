@@ -15,10 +15,10 @@ function MetricCard({
 	sub?: string;
 }) {
 	return (
-		<div className="rounded-lg border border-border bg-card p-4">
-			<p className="text-xs text-muted-foreground mb-1">{label}</p>
-			<p className="text-2xl font-bold text-foreground">{value}</p>
-			{sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+		<div className="surface p-4">
+			<p className="field-label">{label}</p>
+			<p className="metric-value mt-1">{value}</p>
+			{sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
 		</div>
 	);
 }
@@ -33,19 +33,23 @@ export function RiskMetrics({
 	const holdStr = hours < 24 ? `${hours}h` : `${Math.round(hours / 24)}d`;
 
 	return (
-		<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+		<div className="metric-row grid-cols-2 md:grid-cols-4">
 			<MetricCard
-				label="Sharpe Ratio"
+				label="Sharpe ratio"
 				value={sharpe.toFixed(2)}
 				sub="Annualized (252d)"
 			/>
 			<MetricCard
-				label="Max Drawdown"
+				label="Max drawdown"
 				value={`-$${maxDrawdown.dollars.toFixed(0)}`}
 				sub={`${maxDrawdown.percent.toFixed(1)}% peak-to-trough`}
 			/>
-			<MetricCard label="Avg Risk/Reward" value={`${avgRR.toFixed(2)}x`} />
-			<MetricCard label="Avg Hold Time" value={holdStr} />
+			<MetricCard
+				label="Avg risk/reward"
+				value={`${avgRR.toFixed(2)}x`}
+				sub="Reward per unit risked"
+			/>
+			<MetricCard label="Avg hold time" value={holdStr} sub="Entry to exit" />
 		</div>
 	);
 }
