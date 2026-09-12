@@ -2,12 +2,11 @@
 import { neon } from "@neondatabase/serverless";
 
 /**
- * Prefer the unprefixed name. Anything called `VITE_*` is inlined into the
+ * Keep this name unprefixed. Vite inlines anything called `VITE_*` into the
  * browser bundle, so a connection string under that name leaks its password.
- * `VITE_DATABASE_URL` stays as a fallback for the existing local `.env`.
  */
 function databaseUrl(): string | undefined {
-	return process.env.DATABASE_URL || process.env.VITE_DATABASE_URL;
+	return process.env.DATABASE_URL;
 }
 
 let client: ReturnType<typeof neon>;
@@ -30,7 +29,7 @@ import * as schema from "./db/schema";
 const url = databaseUrl();
 if (!url) {
 	throw new Error(
-		"No database URL. Set DATABASE_URL (preferred) or VITE_DATABASE_URL.",
+		"No database URL. Set DATABASE_URL.",
 	);
 }
 

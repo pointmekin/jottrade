@@ -10,7 +10,6 @@ import neon from './neon-vite-plugin.ts'
 const config = defineConfig({
   plugins: [
     devtools(),
-    nitro(),
     neon,
     // this is the plugin that enables path aliases
     viteTsConfigPaths({
@@ -18,6 +17,8 @@ const config = defineConfig({
     }),
     tailwindcss(),
     tanstackStart(),
+    // Must follow tanstackStart(). Nitro builds the server output Vercel serves.
+    nitro(),
     viteReact({
       babel: {
         plugins: ['babel-plugin-react-compiler'],
