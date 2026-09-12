@@ -10,9 +10,11 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
+import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
 
 interface EquityCurveProps {
 	data: { date: string; balance: number }[];
+	currency?: string;
 }
 
 const axisDateFormat = new Intl.DateTimeFormat("en-US", {
@@ -28,7 +30,13 @@ function formatAxisDate(value: string) {
 	return axisDateFormat.format(parsed);
 }
 
-export function EquityCurveChart({ data }: EquityCurveProps) {
+export function EquityCurveChart({
+	data,
+	currency = DEFAULT_CURRENCY,
+}: EquityCurveProps) {
+	const formatBalance = (value: number) =>
+		formatMoney(value, currency, { maximumFractionDigits: 0 });
+
 	return (
 		<div className="h-full min-h-[300px] w-full font-data">
 			<ResponsiveContainer width="100%" height="100%">
@@ -54,8 +62,9 @@ export function EquityCurveChart({ data }: EquityCurveProps) {
 						stroke="var(--border)"
 						tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
 						tickLine={false}
-						width={64}
+						width={84}
 						domain={["auto", "auto"]}
+						tickFormatter={formatBalance}
 					/>
 					<Tooltip
 						contentStyle={{
@@ -65,6 +74,10 @@ export function EquityCurveChart({ data }: EquityCurveProps) {
 							color: "var(--popover-foreground)",
 						}}
 						itemStyle={{ color: "var(--ring)" }}
+						formatter={(value) => [
+							`${formatMoney(Number(value), currency)} ${currency}`,
+							"Balance",
+						]}
 					/>
 					<Line
 						type="monotone"

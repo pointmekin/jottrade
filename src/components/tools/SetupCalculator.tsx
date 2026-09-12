@@ -11,12 +11,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { useCurrency } from "@/hooks/use-currency";
+import { currencySymbol, formatMoney } from "@/lib/currency";
 
 export function SetupCalculator({
-	initialBalance = 10000,
+	initialBalance = 0,
 }: {
 	initialBalance?: number;
 }) {
+	const currency = useCurrency();
 	const [balance, setBalance] = useState(
 		() => Math.round(initialBalance * 100) / 100,
 	);
@@ -79,7 +82,9 @@ export function SetupCalculator({
 			<CardContent className="space-y-5 px-5">
 				<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
 					<div className="grid gap-2">
-						<Label htmlFor={balanceId}>Account balance</Label>
+						<Label htmlFor={balanceId}>
+							Account balance ({currencySymbol(currency)} {currency})
+						</Label>
 						<Input
 							id={balanceId}
 							type="number"
@@ -141,10 +146,7 @@ export function SetupCalculator({
 							<div className="surface p-3">
 								<p className="field-label">Risk amount</p>
 								<p className="mt-1 font-data text-lg font-semibold text-destructive">
-									{new Intl.NumberFormat("en-US", {
-										style: "currency",
-										currency: "USD",
-									}).format(results.riskAmount)}
+									{formatMoney(results.riskAmount, currency)}
 								</p>
 							</div>
 							<div className="surface p-3">

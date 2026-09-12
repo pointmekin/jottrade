@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Filter, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { PeriodPicker } from "@/components/period-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { describePeriod, PeriodPreset } from "@/lib/period";
 import { getStrategies } from "@/server/strategyActions";
 
 // Filter state read/written to URL search params
@@ -21,6 +23,8 @@ export type JournalFilters = {
 	setupId?: string; // number or "none"
 	confidence?: string; // comma-separated
 	mistake?: string;
+	period?: PeriodPreset;
+	/** Bounds of the custom period. */
 	dateFrom?: string;
 	dateTo?: string;
 	page?: number;
@@ -58,6 +62,8 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 		return () => clearTimeout(debounceRef.current);
 	}, [filters.symbol, symbolInput, update]);
 
+	const period = filters.period ?? PeriodPreset.All;
+
 	const activeCount = [
 		filters.symbol,
 		filters.side,
@@ -65,18 +71,30 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 		filters.setupId,
 		filters.confidence,
 		filters.mistake,
-		filters.dateFrom,
-		filters.dateTo,
 	].filter(Boolean).length;
 
 	const clearAll = () => {
 		setSymbolInput("");
-		onFiltersChange({ page: 1 });
+		onFiltersChange({ page: 1, period });
 	};
 
 	return (
 		<div className="space-y-3">
-			<div className="flex items-center gap-2">
+			<div className="flex flex-wrap items-center gap-2">
+				<PeriodPicker
+					value={{
+						preset: period,
+						from: filters.dateFrom,
+						to: filters.dateTo,
+					}}
+					onChange={(next) =>
+						update({
+							period: next.preset,
+							dateFrom: next.from,
+							dateTo: next.to,
+						})
+					}
+				/>
 				<Button
 					variant="outline"
 					size="sm"
@@ -216,36 +234,34 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 							})}
 						</div>
 					</div>
-
-					{/* Date from */}
-					<div>
-						<p className="field-label mb-1">From</p>
-						<Input
-							type="date"
-							value={filters.dateFrom ?? ""}
-							onChange={(e) =>
-								update({ dateFrom: e.target.value || undefined })
-							}
-							className="h-8 text-sm"
-						/>
-					</div>
-
-					{/* Date to */}
-					<div>
-						<p className="field-label mb-1">To</p>
-						<Input
-							type="date"
-							value={filters.dateTo ?? ""}
-							onChange={(e) => update({ dateTo: e.target.value || undefined })}
-							className="h-8 text-sm"
-						/>
-					</div>
 				</div>
 			)}
 
 			{/* Active filter chips */}
-			{activeCount > 0 && (
+			{(activeCount > 0 || period !== PeriodPreset.All) && (
 				<div className="flex flex-wrap gap-2">
+					{period !== PeriodPreset.All && (
+						<Badge
+							variant="outline"
+							className="gap-1 rounded-md border-border font-data text-xs uppercase"
+						>
+							{describePeriod({
+								preset: period,
+								from: filters.dateFrom,
+								to: filters.dateTo,
+							})}
+							<X
+								className="h-3 w-3 cursor-pointer"
+								onClick={() =>
+									update({
+										period: PeriodPreset.All,
+										dateFrom: undefined,
+										dateTo: undefined,
+									})
+								}
+							/>
+						</Badge>
+					)}
 					{filters.symbol && (
 						<Badge
 							variant="outline"

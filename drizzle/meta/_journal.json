@@ -15,6 +15,13 @@
       "when": 1765735745695,
       "tag": "0001_daffy_thunderbolts",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789193917948,
+      "tag": "0002_wild_silver_surfer",
+      "breakpoints": true
     }
   ]
 }

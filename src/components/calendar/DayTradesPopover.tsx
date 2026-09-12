@@ -4,6 +4,8 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
+import { useCurrency } from "@/hooks/use-currency";
+import { formatMoney } from "@/lib/currency";
 import type { CalendarDay } from "@/server/calendarActions";
 
 interface DayTradesPopoverProps {
@@ -23,6 +25,8 @@ export function DayTradesPopover({
 	onTradeClick,
 	children,
 }: DayTradesPopoverProps) {
+	const currency = useCurrency();
+
 	return (
 		<Popover open={open} onOpenChange={onOpenChange}>
 			<PopoverTrigger asChild>{children}</PopoverTrigger>
@@ -56,7 +60,9 @@ export function DayTradesPopover({
 							<span
 								className={`font-data text-xs font-medium ${t.netPnl === null ? "text-muted-foreground" : t.netPnl >= 0 ? "text-success" : "text-destructive"}`}
 							>
-								{t.netPnl === null ? "Open" : `$${t.netPnl.toFixed(2)}`}
+								{t.netPnl === null
+									? "Open"
+									: formatMoney(t.netPnl, currency, { signed: true })}
 							</span>
 						</button>
 					))}

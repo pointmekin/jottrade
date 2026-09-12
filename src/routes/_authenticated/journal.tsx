@@ -31,6 +31,7 @@ import {
 	DrawerTitle,
 } from "@/components/ui/drawer";
 import { Spinner } from "@/components/ui/spinner";
+import { describePeriod, PeriodPreset, resolvePeriod } from "@/lib/period";
 import { cn } from "@/lib/utils";
 import { getTrades } from "@/server/getTrades";
 
@@ -41,6 +42,7 @@ const journalSearchSchema = z.object({
 	setupId: z.string().optional(),
 	confidence: z.string().optional(),
 	mistake: z.string().optional(),
+	period: z.nativeEnum(PeriodPreset).default(PeriodPreset.All),
 	dateFrom: z.string().optional(),
 	dateTo: z.string().optional(),
 	intent: z.enum(["log"]).optional(),
@@ -79,6 +81,12 @@ function JournalPage() {
 		navigate({ search: newFilters as any });
 	};
 
+	const { from, to } = resolvePeriod({
+		preset: filters.period,
+		from: filters.dateFrom,
+		to: filters.dateTo,
+	});
+
 	const queryParams = {
 		symbol: filters.symbol,
 		side: filters.side,
@@ -93,8 +101,8 @@ function JournalPage() {
 			| ("HIGH" | "MEDIUM" | "LOW")[]
 			| undefined,
 		mistake: filters.mistake?.split(",").filter(Boolean),
-		dateFrom: filters.dateFrom,
-		dateTo: filters.dateTo,
+		dateFrom: from?.toISOString(),
+		dateTo: to?.toISOString(),
 		page: filters.page ?? 1,
 	};
 
@@ -120,7 +128,11 @@ function JournalPage() {
 				<AppPageHeader
 					title="Journal"
 					description="Every trade you have recorded, with filters and full detail."
-					meta={`${total} trades in view`}
+					meta={`${total} trades · ${describePeriod({
+						preset: filters.period,
+						from: filters.dateFrom,
+						to: filters.dateTo,
+					})}`}
 					actions={
 						<>
 							<Dialog open={importOpen} onOpenChange={setImportOpen}>

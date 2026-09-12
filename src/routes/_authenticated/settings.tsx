@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppPageHeader, SectionHeading } from "@/components/app-page-header";
 import { ModeToggle } from "@/components/mode-toggle";
+import { AccountSettings } from "@/components/settings/AccountSettings";
 
 export const Route = createFileRoute("/_authenticated/settings")({
 	component: RouteComponent,
@@ -16,7 +17,9 @@ function RouteComponent() {
 					description="Set how the workspace behaves without changing the trading record beneath it."
 					meta="Workspace preferences"
 				/>
-				<div className="surface space-y-4 p-5">
+				<AccountSettings />
+
+				<div className="surface mt-6 space-y-4 p-5">
 					<SectionHeading title="Appearance" detail="Local preference" />
 					<div>
 						<div className="flex items-center justify-between gap-5 py-2">

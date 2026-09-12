@@ -1,8 +1,11 @@
+import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
+
 interface RiskMetricsProps {
 	sharpe: number;
 	maxDrawdown: { dollars: number; percent: number };
 	avgRR: number;
 	avgHoldTimeHours: number;
+	currency?: string;
 }
 
 function MetricCard({
@@ -28,6 +31,7 @@ export function RiskMetrics({
 	maxDrawdown,
 	avgRR,
 	avgHoldTimeHours,
+	currency = DEFAULT_CURRENCY,
 }: RiskMetricsProps) {
 	const hours = Math.round(avgHoldTimeHours);
 	const holdStr = hours < 24 ? `${hours}h` : `${Math.round(hours / 24)}d`;
@@ -41,8 +45,10 @@ export function RiskMetrics({
 			/>
 			<MetricCard
 				label="Max drawdown"
-				value={`-$${maxDrawdown.dollars.toFixed(0)}`}
-				sub={`${maxDrawdown.percent.toFixed(1)}% peak-to-trough`}
+				value={formatMoney(-maxDrawdown.dollars || 0, currency, {
+					maximumFractionDigits: 0,
+				})}
+				sub={`${maxDrawdown.percent.toFixed(1)}% peak-to-trough · ${currency}`}
 			/>
 			<MetricCard
 				label="Avg risk/reward"

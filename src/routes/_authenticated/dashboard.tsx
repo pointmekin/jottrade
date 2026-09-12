@@ -1,33 +1,49 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { ArrowRight, Crosshair, Plus } from "lucide-react";
+import {
+	createFileRoute,
+	Link,
+	useNavigate,
+	useRouter,
+	useSearch,
+} from "@tanstack/react-router";
+import { ArrowRight, Crosshair, Plus, Wallet } from "lucide-react";
+import { useMemo } from "react";
+import { z } from "zod";
 import { AppPageHeader, SectionHeading } from "@/components/app-page-header";
 import { EquityCurveChart } from "@/components/dashboard/DashboardCharts";
 import { PerformanceCharts } from "@/components/dashboard/PerformanceCharts";
 import { RiskMetrics } from "@/components/dashboard/RiskMetrics";
+import { PeriodPicker } from "@/components/period-picker";
 import { SetupCalculator } from "@/components/tools/SetupCalculator";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { useCurrency } from "@/hooks/use-currency";
 import type { TradeStats } from "@/lib/analytics";
+import { formatMoney, formatMoneyWithCode } from "@/lib/currency";
+import {
+	describePeriod,
+	PeriodPreset,
+	type PeriodSelection,
+	resolvePeriod,
+} from "@/lib/period";
 import { getAdvancedAnalytics } from "@/server/getAdvancedAnalytics";
 import { getAnalytics } from "@/server/getAnalytics";
 import { authClient } from "../../lib/auth-client";
 
+const dashboardSearchSchema = z.object({
+	period: z.nativeEnum(PeriodPreset).default(PeriodPreset.All),
+	from: z.string().optional(),
+	to: z.string().optional(),
+});
+
 export const Route = createFileRoute("/_authenticated/dashboard")({
+	validateSearch: dashboardSearchSchema,
 	component: Dashboard,
 });
 
-const currency = new Intl.NumberFormat("en-US", {
-	style: "currency",
-	currency: "USD",
-});
-const signedCurrency = new Intl.NumberFormat("en-US", {
-	style: "currency",
-	currency: "USD",
-	signDisplay: "always",
-});
-
 const EMPTY_STATS: TradeStats = {
+	openingBalance: 0,
+	netDeposits: 0,
 	totalBalance: 0,
 	activeTrades: 0,
 	totalPnL: 0,
@@ -42,13 +58,32 @@ const EMPTY_STATS: TradeStats = {
 function Dashboard() {
 	const session = authClient.useSession();
 	const router = useRouter();
+	const navigate = useNavigate({ from: "/dashboard" });
+	const search = useSearch({ from: "/_authenticated/dashboard" });
+	const currency = useCurrency();
+
+	const selection: PeriodSelection = useMemo(
+		() => ({ preset: search.period, from: search.from, to: search.to }),
+		[search.period, search.from, search.to],
+	);
+
+	// The preset resolves against the browser clock, so "this month" follows the
+	// user's timezone rather than the server's.
+	const rangeInput = useMemo(() => {
+		const { from, to } = resolvePeriod(selection);
+		return {
+			from: from?.toISOString(),
+			to: to?.toISOString(),
+		};
+	}, [selection]);
+
 	const { data: analytics, isLoading } = useQuery({
-		queryKey: ["analytics"],
-		queryFn: () => getAnalytics({ data: undefined }),
+		queryKey: ["analytics", rangeInput],
+		queryFn: () => getAnalytics({ data: rangeInput } as never),
 	});
 	const { data: advanced } = useQuery({
-		queryKey: ["advanced-analytics"],
-		queryFn: () => getAdvancedAnalytics({ data: undefined }),
+		queryKey: ["advanced-analytics", rangeInput],
+		queryFn: () => getAdvancedAnalytics({ data: rangeInput } as never),
 		staleTime: 5 * 60 * 1000,
 	});
 
@@ -83,35 +118,78 @@ function Dashboard() {
 	const stats = analytics?.stats ?? EMPTY_STATS;
 	const equityData = analytics?.equityCurve || [];
 	const pnlTone = stats.totalPnL >= 0 ? "text-success" : "text-destructive";
+	const periodLabel = describePeriod(selection);
+	const isAllTime = (selection.preset ?? PeriodPreset.All) === PeriodPreset.All;
+	const hasFunding = stats.openingBalance !== 0 || stats.netDeposits !== 0;
 
 	return (
 		<div className="app-page">
 			<main className="page-frame section-enter">
 				<AppPageHeader
 					title="Dashboard"
+					meta={`${periodLabel} · ${currency}`}
 					actions={
-						<Button asChild>
-							<Link to="/journal" search={{ intent: "log" } as never}>
-								<Plus className="size-4" /> Log trade
-							</Link>
-						</Button>
+						<>
+							<PeriodPicker
+								value={selection}
+								onChange={(next) =>
+									navigate({
+										search: {
+											period: next.preset ?? PeriodPreset.All,
+											from: next.from,
+											to: next.to,
+										},
+									})
+								}
+							/>
+							<Button asChild>
+								<Link to="/journal" search={{ intent: "log" } as never}>
+									<Plus className="size-4" /> Log trade
+								</Link>
+							</Button>
+						</>
 					}
 				/>
 
+				{!hasFunding && (
+					<div className="surface mt-4 flex flex-wrap items-center justify-between gap-3 p-4">
+						<div className="flex items-start gap-3">
+							<Wallet className="mt-0.5 size-4 text-muted-foreground" />
+							<div>
+								<p className="text-sm font-medium text-foreground">
+									No deposits recorded
+								</p>
+								<p className="mt-0.5 text-sm text-muted-foreground">
+									Balance starts at zero until you record what you funded the
+									account with.
+								</p>
+							</div>
+						</div>
+						<Button asChild variant="outline" size="sm">
+							<Link to="/settings">Add deposits</Link>
+						</Button>
+					</div>
+				)}
+
 				<section
-					className="metric-row grid-cols-2 lg:grid-cols-4"
+					className="metric-row mt-4 grid-cols-2 lg:grid-cols-4"
 					aria-label="Account summary"
 				>
 					<div className="metric-cell">
 						<p className="field-label">Account balance</p>
 						<p className="metric-value mt-1">
-							{currency.format(stats.totalBalance)}
+							{formatMoney(stats.totalBalance, currency)}
+						</p>
+						<p className="mt-1 text-xs text-muted-foreground">
+							{isAllTime
+								? `Deposits ${formatMoney(stats.netDeposits, currency, { signed: true })}`
+								: `Opened at ${formatMoney(stats.openingBalance, currency)}`}
 						</p>
 					</div>
 					<div className="metric-cell">
 						<p className="field-label">Net P&amp;L</p>
 						<p className={`metric-value mt-1 ${pnlTone}`}>
-							{signedCurrency.format(stats.totalPnL)}
+							{formatMoney(stats.totalPnL, currency, { signed: true })}
 						</p>
 						<p className="mt-1 text-xs text-muted-foreground">
 							Across {stats.totalTrades} trades
@@ -142,7 +220,7 @@ function Dashboard() {
 				<section className="surface mt-6 p-4 md:p-5">
 					<SectionHeading
 						title="Equity curve"
-						detail={`${stats.totalTrades} recorded trades`}
+						detail={`${stats.totalTrades} trades · ${periodLabel} · ${currency}`}
 						actions={
 							<Button asChild variant="outline" size="sm">
 								<Link to="/journal">
@@ -153,14 +231,14 @@ function Dashboard() {
 					/>
 					<div className="mt-4 h-[22rem]">
 						{equityData.length > 0 ? (
-							<EquityCurveChart data={equityData} />
+							<EquityCurveChart data={equityData} currency={currency} />
 						) : (
 							<div className="empty-field h-full border-0">
 								<Crosshair className="mb-4 size-6 text-muted-foreground" />
-								<p className="font-semibold">No closed trades yet</p>
+								<p className="font-semibold">Nothing in this period</p>
 								<p className="mt-1 max-w-sm text-sm text-muted-foreground">
-									Record a completed trade and its result becomes the first
-									point on this curve.
+									No closed trade or deposit falls inside {periodLabel}. Widen
+									the period or record a trade.
 								</p>
 								<Button asChild variant="outline" className="mt-5">
 									<Link to="/journal" search={{ intent: "log" } as never}>
@@ -174,15 +252,13 @@ function Dashboard() {
 
 				{advanced && (
 					<section className="mt-8 space-y-4">
-						<SectionHeading
-							title="Risk and performance"
-							detail="All recorded history"
-						/>
+						<SectionHeading title="Risk and performance" detail={periodLabel} />
 						<RiskMetrics
 							sharpe={(advanced as any).riskMetrics.sharpe}
 							maxDrawdown={(advanced as any).riskMetrics.maxDrawdown}
 							avgRR={(advanced as any).riskMetrics.avgRR}
 							avgHoldTimeHours={(advanced as any).riskMetrics.avgHoldTimeHours}
+							currency={currency}
 						/>
 						<PerformanceCharts
 							byStrategy={(advanced as any).byStrategy}
@@ -196,9 +272,9 @@ function Dashboard() {
 				<section className="mt-8 space-y-4">
 					<SectionHeading
 						title="Tools"
-						detail="Plan a setup before you take it"
+						detail={`Plan a setup before you take it · ${formatMoneyWithCode(stats.totalBalance, currency)}`}
 					/>
-					<SetupCalculator initialBalance={stats.totalBalance || 10000} />
+					<SetupCalculator initialBalance={stats.totalBalance} />
 				</section>
 			</main>
 		</div>

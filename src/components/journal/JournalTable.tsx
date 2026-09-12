@@ -7,7 +7,7 @@ import {
 	useReactTable,
 } from "@tanstack/react-table";
 import { format } from "date-fns";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
 	Table,
 	TableBody,
@@ -16,6 +16,8 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { useCurrency } from "@/hooks/use-currency";
+import { formatMoney } from "@/lib/currency";
 
 export type Trade = {
 	id: number;
@@ -31,7 +33,7 @@ export type Trade = {
 	returnPercent: string | null;
 };
 
-const columns: ColumnDef<Trade>[] = [
+const buildColumns = (currency: string): ColumnDef<Trade>[] => [
 	{
 		accessorKey: "entryDate",
 		header: "Date",
@@ -66,26 +68,19 @@ const columns: ColumnDef<Trade>[] = [
 	},
 	{
 		accessorKey: "entryPrice",
-		header: "Entry",
+		header: `Entry (${currency})`,
 		cell: ({ row }) => {
 			const val = parseFloat(row.getValue("entryPrice") || "0");
-			return new Intl.NumberFormat("en-US", {
-				style: "currency",
-				currency: "USD",
-			}).format(val);
+			return formatMoney(val, currency);
 		},
 	},
 	{
 		accessorKey: "exitPrice",
-		header: "Exit",
+		header: `Exit (${currency})`,
 		cell: ({ row }) => {
 			const valStr = row.getValue("exitPrice");
 			if (!valStr) return "-";
-			const val = parseFloat(valStr as string);
-			return new Intl.NumberFormat("en-US", {
-				style: "currency",
-				currency: "USD",
-			}).format(val);
+			return formatMoney(parseFloat(valStr as string), currency);
 		},
 	},
 	{
@@ -128,7 +123,7 @@ const columns: ColumnDef<Trade>[] = [
 	},
 	{
 		id: "pnl",
-		header: "Net P&L",
+		header: `Net P&L (${currency})`,
 		cell: ({ row }) => {
 			const val = row.original.netPnl;
 			if (!val) return <span className="text-muted-foreground">—</span>;
@@ -136,10 +131,7 @@ const columns: ColumnDef<Trade>[] = [
 			const color = num >= 0 ? "text-success" : "text-destructive";
 			return (
 				<span className={`font-medium ${color}`}>
-					{new Intl.NumberFormat("en-US", {
-						style: "currency",
-						currency: "USD",
-					}).format(num)}
+					{formatMoney(num, currency, { signed: true })}
 				</span>
 			);
 		},
@@ -163,6 +155,8 @@ interface JournalTableProps {
 }
 
 export function JournalTable({ data, onRowClick }: JournalTableProps) {
+	const currency = useCurrency();
+	const columns = useMemo(() => buildColumns(currency), [currency]);
 	const [sorting, setSorting] = useState<SortingState>([
 		{ id: "entryDate", desc: true }, // Default sort
 	]);

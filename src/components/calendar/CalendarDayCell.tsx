@@ -1,3 +1,5 @@
+import { useCurrency } from "@/hooks/use-currency";
+import { formatMoney } from "@/lib/currency";
 import type { CalendarDay } from "@/server/calendarActions";
 
 interface CalendarDayCellProps {
@@ -13,6 +15,7 @@ export function CalendarDayCell({
 	isCurrentMonth,
 	onClick,
 }: CalendarDayCellProps) {
+	const currency = useCurrency();
 	const dayNum = parseInt(date.slice(8, 10), 10);
 	const hasTrades = !!day && day.tradeCount > 0;
 	const isProfit = hasTrades && day.netPnl > 0;
@@ -36,7 +39,10 @@ export function CalendarDayCell({
 					<p
 						className={`font-data text-xs font-semibold ${isProfit ? "text-success" : isLoss ? "text-destructive" : "text-muted-foreground"}`}
 					>
-						{day.netPnl >= 0 ? "+" : ""}${day.netPnl.toFixed(0)}
+						{formatMoney(day.netPnl, currency, {
+							signed: true,
+							maximumFractionDigits: 0,
+						})}
 					</p>
 					<p className="text-xs text-muted-foreground">
 						{day.tradeCount} trade{day.tradeCount !== 1 ? "s" : ""}

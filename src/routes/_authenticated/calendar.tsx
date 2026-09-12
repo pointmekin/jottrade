@@ -9,6 +9,7 @@ import { z } from "zod";
 import { AppPageHeader } from "@/components/app-page-header";
 import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 import { Button } from "@/components/ui/button";
+import { useCurrency } from "@/hooks/use-currency";
 import { getCalendarData } from "@/server/calendarActions";
 
 const calendarSearchSchema = z.object({
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/_authenticated/calendar")({
 function CalendarPage() {
 	const navigate = useNavigate({ from: "/calendar" });
 	const { year, month } = useSearch({ from: "/_authenticated/calendar" });
+	const currency = useCurrency();
 
 	const { data: calendarData = {}, isLoading } = useQuery({
 		queryKey: ["calendar", year, month],
@@ -55,7 +57,7 @@ function CalendarPage() {
 				<AppPageHeader
 					title="Calendar"
 					description="Read performance in the rhythm it happened, one trading day at a time."
-					meta={monthName}
+					meta={`${monthName} · ${currency}`}
 					actions={
 						<div className="flex items-center gap-2">
 							<Button

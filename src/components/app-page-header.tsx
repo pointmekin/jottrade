@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 interface AppPageHeaderProps {
 	title: string;
 	description?: string;
+	/** Short context line, such as the active period and currency. */
+	meta?: string;
 	actions?: ReactNode;
 	toolbar?: ReactNode;
 }
@@ -10,6 +12,7 @@ interface AppPageHeaderProps {
 export function AppPageHeader({
 	title,
 	description,
+	meta,
 	actions,
 	toolbar,
 }: AppPageHeaderProps) {
@@ -19,6 +22,7 @@ export function AppPageHeader({
 				<div className="min-w-0">
 					<h1 className="page-title">{title}</h1>
 					{description && <p className="page-description">{description}</p>}
+					{meta && <p className="field-label mt-1">{meta}</p>}
 				</div>
 				{actions && (
 					<div className="flex shrink-0 flex-wrap items-center gap-2">
