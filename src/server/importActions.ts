@@ -1,26 +1,26 @@
-import { createServerFn } from '@tanstack/react-start';
-import { db } from '@/db';
-import { trades } from '@/db/schema';
+import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
-import { auth } from '@/lib/auth';
-import { z } from 'zod';
-import { calculatePnL } from '@/lib/finance';
+import { z } from "zod";
+import { db } from "@/db";
+import { trades } from "@/db/schema";
+import { auth } from "@/lib/auth";
+import { calculatePnL } from "@/lib/finance";
 
 // Schema that matches our DB structure mostly, but allows for bulk array
 const importTradeSchema = z.object({
-  symbol: z.string().min(1),
-  side: z.string(), // "buy" / "sell" -> needs mapping
-  entryDate: z.string().or(z.date()),
-  entryPrice: z.string().or(z.number()),
-  quantity: z.string().or(z.number()),
-  
-  exitDate: z.string().or(z.date()).optional(),
-  exitPrice: z.string().or(z.number()).optional(),
-  
-  fees: z.string().or(z.number()).optional(),
-  netPnl: z.string().or(z.number()).optional(),
+	symbol: z.string().min(1),
+	side: z.string(), // "buy" / "sell" -> needs mapping
+	entryDate: z.string().or(z.date()),
+	entryPrice: z.string().or(z.number()),
+	quantity: z.string().or(z.number()),
 
-  notes: z.string().optional(), // We will put ticket ID here
+	exitDate: z.string().or(z.date()).optional(),
+	exitPrice: z.string().or(z.number()).optional(),
+
+	fees: z.string().or(z.number()).optional(),
+	netPnl: z.string().or(z.number()).optional(),
+
+	notes: z.string().optional(), // We will put ticket ID here
 });
 
 /**
@@ -28,129 +28,134 @@ const importTradeSchema = z.object({
  * position can close in several partial fills, so the exit leg is part of the key.
  */
 async function buildImportHash(parts: (string | null | undefined)[]) {
-  const digest = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(parts.map((p) => p ?? '').join('|'))
-  );
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+	const digest = await crypto.subtle.digest(
+		"SHA-256",
+		new TextEncoder().encode(parts.map((p) => p ?? "").join("|")),
+	);
+	return Array.from(new Uint8Array(digest))
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
 }
 
-// @ts-ignore
-export const importTrades = createServerFn({ method: "POST" })
-  .handler(async (ctx: any) => {
-      const rawData = ctx.data;
-      // We expect rawData to be the array directly? or object { trades: [...] }?
-      // Let's assume passed as { trades: [...] }
-      const input = (rawData?.trades || rawData) as z.infer<typeof importTradeSchema>[];
-      
-      const session = await auth.api.getSession({
-          headers: getRequestHeaders()
-      });
+// @ts-expect-error
+export const importTrades = createServerFn({ method: "POST" }).handler(
+	async (ctx: any) => {
+		const rawData = ctx.data;
+		// We expect rawData to be the array directly? or object { trades: [...] }?
+		// Let's assume passed as { trades: [...] }
+		const input = (rawData?.trades || rawData) as z.infer<
+			typeof importTradeSchema
+		>[];
 
-      if (!session) {
-          throw new Error("Unauthorized");
-      }
+		const session = await auth.api.getSession({
+			headers: getRequestHeaders(),
+		});
 
-      const valuesToInsert: typeof trades.$inferInsert[] = [];
+		if (!session) {
+			throw new Error("Unauthorized");
+		}
 
-      for (const item of input) {
-        // Map fields
-        const side = item.side.toLowerCase().includes("buy") ? "LONG" : "SHORT";
-        
-        const entryPriceStr = String(item.entryPrice);
-        const exitPriceStr = item.exitPrice ? String(item.exitPrice) : null;
-        
-        // Restore these variables required for fallback calculation and insertion
-        const quantityStr = String(item.quantity);
-        const feesStr = item.fees ? String(item.fees) : "0";
+		const valuesToInsert: (typeof trades.$inferInsert)[] = [];
 
-        // A reported net P&L of exactly 0 is a scratch trade, not a missing value.
-        const rawNetPnl = item.netPnl === undefined ? '' : String(item.netPnl).trim();
-        let netPnl = rawNetPnl === '' ? undefined : rawNetPnl;
-        let returnPercent = undefined;
-        let status = "OPEN";
-        const exitDate = item.exitDate ? new Date(item.exitDate) : null;
+		for (const item of input) {
+			// Map fields
+			const side = item.side.toLowerCase().includes("buy") ? "LONG" : "SHORT";
 
-        // Analytics needs an exit timestamp to place a closed trade on the curve.
-        if (exitPriceStr && entryPriceStr && exitDate) {
-            status = "CLOSED";
+			const entryPriceStr = String(item.entryPrice);
+			const exitPriceStr = item.exitPrice ? String(item.exitPrice) : null;
 
-            // ROI Logic: Price Change %
-            // Since we don't know the margin/leverage, calculating ROI on Equity is impossible without that data.
-            // Converting to "Price Return" is the standard fallback.
-            const en = parseFloat(entryPriceStr);
-            const ex = parseFloat(exitPriceStr);
-            
-            if (!isNaN(en) && !isNaN(ex) && en !== 0) {
-                 // (Exit - Entry) / Entry
-                 let diffPct = ((ex - en) / en) * 100;
-                 // If SHORT, Entry > Exit is good. (Entry - Exit) / Entry = -((Exit - Entry)/Entry)
-                 // So if Short, flip the sign.
-                 if (side === "SHORT") diffPct = -diffPct;
-                 returnPercent = diffPct.toFixed(2);
-            }
+			// Restore these variables required for fallback calculation and insertion
+			const quantityStr = String(item.quantity);
+			const feesStr = item.fees ? String(item.fees) : "0";
 
-            if (!netPnl) {
-                // Only calculate manual PnL if NOT provided by CSV. 
-                // This fallback assumes stock-like math (Qty * PriceDiff).
-                const pnl = calculatePnL(
-                    side,
-                    entryPriceStr,
-                    exitPriceStr,
-                    quantityStr,
-                    feesStr
-                );
-                netPnl = pnl.netPnl;
-                if (!returnPercent) returnPercent = pnl.returnPercent; 
-            }
-        }
+			// A reported net P&L of exactly 0 is a scratch trade, not a missing value.
+			const rawNetPnl =
+				item.netPnl === undefined ? "" : String(item.netPnl).trim();
+			let netPnl = rawNetPnl === "" ? undefined : rawNetPnl;
+			let returnPercent;
+			let status = "OPEN";
+			const exitDate = item.exitDate ? new Date(item.exitDate) : null;
 
-        const entryDate = new Date(item.entryDate);
-        const symbol = item.symbol.toUpperCase();
+			// Analytics needs an exit timestamp to place a closed trade on the curve.
+			if (exitPriceStr && entryPriceStr && exitDate) {
+				status = "CLOSED";
 
-        valuesToInsert.push({
-            userId: session.user.id,
-            symbol,
-            side,
-            entryDate,
-            entryPrice: entryPriceStr,
-            quantity: quantityStr,
+				// ROI Logic: Price Change %
+				// Since we don't know the margin/leverage, calculating ROI on Equity is impossible without that data.
+				// Converting to "Price Return" is the standard fallback.
+				const en = parseFloat(entryPriceStr);
+				const ex = parseFloat(exitPriceStr);
 
-            exitDate,
-            exitPrice: exitPriceStr,
-            fees: feesStr,
+				if (!isNaN(en) && !isNaN(ex) && en !== 0) {
+					// (Exit - Entry) / Entry
+					let diffPct = ((ex - en) / en) * 100;
+					// If SHORT, Entry > Exit is good. (Entry - Exit) / Entry = -((Exit - Entry)/Entry)
+					// So if Short, flip the sign.
+					if (side === "SHORT") diffPct = -diffPct;
+					returnPercent = diffPct.toFixed(2);
+				}
 
-            status,
-            netPnl,
-            returnPercent,
-            notes: item.notes,
-            importHash: await buildImportHash([
-                session.user.id,
-                symbol,
-                side,
-                entryDate.toISOString(),
-                exitDate?.toISOString(),
-                entryPriceStr,
-                exitPriceStr,
-                quantityStr,
-            ]),
-        });
-      }
+				if (!netPnl) {
+					// Only calculate manual PnL if NOT provided by CSV.
+					// This fallback assumes stock-like math (Qty * PriceDiff).
+					const pnl = calculatePnL(
+						side,
+						entryPriceStr,
+						exitPriceStr,
+						quantityStr,
+						feesStr,
+					);
+					netPnl = pnl.netPnl;
+					if (!returnPercent) returnPercent = pnl.returnPercent;
+				}
+			}
 
-      let inserted = 0;
-      if (valuesToInsert.length > 0) {
-          const rows = await db.insert(trades)
-            .values(valuesToInsert)
-            .onConflictDoNothing({ target: trades.importHash })
-            .returning({ id: trades.id });
-          inserted = rows.length;
-      }
+			const entryDate = new Date(item.entryDate);
+			const symbol = item.symbol.toUpperCase();
 
-      return {
-          success: true,
-          count: inserted,
-          skipped: valuesToInsert.length - inserted,
-      };
-  });
+			valuesToInsert.push({
+				userId: session.user.id,
+				symbol,
+				side,
+				entryDate,
+				entryPrice: entryPriceStr,
+				quantity: quantityStr,
+
+				exitDate,
+				exitPrice: exitPriceStr,
+				fees: feesStr,
+
+				status,
+				netPnl,
+				returnPercent,
+				notes: item.notes,
+				importHash: await buildImportHash([
+					session.user.id,
+					symbol,
+					side,
+					entryDate.toISOString(),
+					exitDate?.toISOString(),
+					entryPriceStr,
+					exitPriceStr,
+					quantityStr,
+				]),
+			});
+		}
+
+		let inserted = 0;
+		if (valuesToInsert.length > 0) {
+			const rows = await db
+				.insert(trades)
+				.values(valuesToInsert)
+				.onConflictDoNothing({ target: trades.importHash })
+				.returning({ id: trades.id });
+			inserted = rows.length;
+		}
+
+		return {
+			success: true,
+			count: inserted,
+			skipped: valuesToInsert.length - inserted,
+		};
+	},
+);

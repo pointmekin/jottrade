@@ -8,36 +8,37 @@
 // Let's strictly use safe floating point math helper or standard JS with care.
 
 export function calculatePnL(
-  side: "LONG" | "SHORT",
-  entryPrice: string | number,
-  exitPrice: string | number,
-  quantity: string | number,
-  fees: string | number = 0
+	side: "LONG" | "SHORT",
+	entryPrice: string | number,
+	exitPrice: string | number,
+	quantity: string | number,
+	fees: string | number = 0,
 ) {
-  const entry = Number(entryPrice);
-  const exit = Number(exitPrice);
-  const qty = Number(quantity);
-  const fee = Number(fees);
+	const entry = Number(entryPrice);
+	const exit = Number(exitPrice);
+	const qty = Number(quantity);
+	const fee = Number(fees);
 
-  if (isNaN(entry) || isNaN(exit) || isNaN(qty)) return { netPnl: "0", returnPercent: "0" };
+	if (isNaN(entry) || isNaN(exit) || isNaN(qty))
+		return { netPnl: "0", returnPercent: "0" };
 
-  let grossPnl = 0;
-  if (side === "LONG") {
-    grossPnl = (exit - entry) * qty;
-  } else {
-    grossPnl = (entry - exit) * qty;
-  }
+	let grossPnl = 0;
+	if (side === "LONG") {
+		grossPnl = (exit - entry) * qty;
+	} else {
+		grossPnl = (entry - exit) * qty;
+	}
 
-  const netPnl = grossPnl - fee;
-  
-  // Return Percent: (Net PnL / Cost Basis) * 100 ? 
-  // Or (Exit - Entry)/Entry * 100?
-  // Usually PnL % is on the invested capital.
-  const costBasis = entry * qty;
-  const returnPercent = costBasis !== 0 ? (netPnl / costBasis) * 100 : 0;
+	const netPnl = grossPnl - fee;
 
-  return {
-    netPnl: netPnl.toFixed(2),
-    returnPercent: returnPercent.toFixed(2),
-  };
+	// Return Percent: (Net PnL / Cost Basis) * 100 ?
+	// Or (Exit - Entry)/Entry * 100?
+	// Usually PnL % is on the invested capital.
+	const costBasis = entry * qty;
+	const returnPercent = costBasis !== 0 ? (netPnl / costBasis) * 100 : 0;
+
+	return {
+		netPnl: netPnl.toFixed(2),
+		returnPercent: returnPercent.toFixed(2),
+	};
 }

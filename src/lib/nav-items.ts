@@ -1,4 +1,3 @@
-import type { ComponentType } from "react";
 import {
 	BarChart2,
 	CalendarDays,
@@ -6,6 +5,7 @@ import {
 	Settings,
 	Target,
 } from "lucide-react";
+import type { ComponentType } from "react";
 
 export type NavItem = {
 	title: string;
