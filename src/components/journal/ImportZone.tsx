@@ -30,6 +30,73 @@ type ImportedTrade = {
 
 type CsvRow = Record<string, string | undefined>;
 
+// Exness names the money columns `profit`/`commission`/`swap`; some MT4/5
+// exports suffix them with `_usd`. Both spellings map to the same field.
+const COLUMN_ALIASES = {
+	ticket: ["ticket"],
+	symbol: ["symbol"],
+	type: ["type"],
+	lots: ["lots"],
+	openingTime: ["opening_time_utc"],
+	closingTime: ["closing_time_utc"],
+	openingPrice: ["opening_price"],
+	closingPrice: ["closing_price"],
+	profit: ["profit", "profit_usd"],
+	commission: ["commission", "commission_usd"],
+	swap: ["swap", "swap_usd"],
+	closeReason: ["close_reason"],
+} as const;
+
+type ColumnKey = keyof typeof COLUMN_ALIASES;
+type ColumnMap = Partial<Record<ColumnKey, string>>;
+
+const REQUIRED_COLUMNS: ColumnKey[] = [
+	"ticket",
+	"symbol",
+	"type",
+	"lots",
+	"openingTime",
+	"openingPrice",
+	"profit",
+];
+
+function resolveColumns(fields: string[]): ColumnMap {
+	const present = new Set(fields.map((f) => f.trim().toLowerCase()));
+	const resolved: ColumnMap = {};
+	for (const key of Object.keys(COLUMN_ALIASES) as ColumnKey[]) {
+		const match = COLUMN_ALIASES[key].find((alias) => present.has(alias));
+		if (match) resolved[key] = match;
+	}
+	return resolved;
+}
+
+function cell(row: CsvRow, columns: ColumnMap, key: ColumnKey) {
+	const column = columns[key];
+	return column ? row[column] : undefined;
+}
+
+/** Exness leaves a numeric cell empty to mean zero, so a blank is not an error. */
+function parseNumber(value: string | undefined): number | null {
+	const trimmed = value?.trim();
+	if (!trimmed) return null;
+	const parsed = Number(trimmed.replace(/[\s,]/g, ""));
+	return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * The `*_time_utc` columns carry no zone suffix, so `new Date(value)` would read
+ * them as local time and shift every timestamp by the machine offset.
+ */
+function parseUtcDate(value: string | undefined): string | undefined {
+	const trimmed = value?.trim();
+	if (!trimmed) return undefined;
+	const normalized = /(Z|[+-]\d{2}:?\d{2})$/.test(trimmed)
+		? trimmed
+		: `${trimmed.replace(" ", "T")}Z`;
+	const parsed = new Date(normalized);
+	return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
+}
+
 export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 	const [parsedData, setParsedData] = useState<ImportedTrade[]>([]);
 	const [error, setError] = useState<string | null>(null);
@@ -37,38 +104,45 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 
 	const queryClient = useQueryClient();
 
-	// Mapping logic for standard MT4/5 CSV
-	// ticket,opening_time_utc,closing_time_utc,type,lots,original_position_size,symbol,opening_price,closing_price,stop_loss,take_profit,commission_usd,swap_usd,profit_usd,equity_usd,margin_level,close_reason
-	const mapCsvToTrade = useCallback((row: CsvRow): ImportedTrade | null => {
-		// Basic validation
-		if (!row.ticket || !row.symbol) return null;
+	// Mapping logic for standard MT4/5 and Exness CSV exports
+	// ticket,opening_time_utc,closing_time_utc,type,lots,original_position_size,symbol,opening_price,closing_price,stop_loss,take_profit,commission,swap,profit,equity,margin_level,close_reason
+	const mapCsvToTrade = useCallback(
+		(row: CsvRow, columns: ColumnMap): ImportedTrade | null => {
+			const ticket = cell(row, columns, "ticket")?.trim();
+			const symbol = cell(row, columns, "symbol")?.trim();
+			const side = cell(row, columns, "type")?.trim();
+			const entryDate = parseUtcDate(cell(row, columns, "openingTime"));
+			const entryPrice = parseNumber(cell(row, columns, "openingPrice"));
+			const quantity = parseNumber(cell(row, columns, "lots"));
 
-		const profit = parseFloat(row.profit_usd || 0);
-		const commission = parseFloat(row.commission_usd || 0);
-		const swap = parseFloat(row.swap_usd || 0);
+			if (!ticket || !symbol || !side) return null;
+			if (!entryDate || entryPrice === null || quantity === null) return null;
 
-		// MT4/5: Profit is usually Gross. Net = Profit + Commission + Swap
-		// Commission and swap are usually negative values in the CSV loop, but let's just add them algebraically.
-		const netPnl = profit + commission + swap;
+			const profit = parseNumber(cell(row, columns, "profit")) ?? 0;
+			const commission = parseNumber(cell(row, columns, "commission")) ?? 0;
+			const swap = parseNumber(cell(row, columns, "swap")) ?? 0;
 
-		// Fees: usually we want to see the total cost.
-		// If commission is -5 and swap is -1, fees are 6.
-		const fees = Math.abs(commission) + Math.abs(swap);
+			// The broker reports profit gross of costs; commission and swap arrive signed.
+			const netPnl = profit + commission + swap;
+			const fees = Math.abs(commission) + Math.abs(swap);
+			const closeReason = cell(row, columns, "closeReason")?.trim();
 
-		return {
-			ticket: row.ticket,
-			symbol: row.symbol,
-			side: row.type, // 'buy' or 'sell'
-			entryDate: row.opening_time_utc,
-			entryPrice: row.opening_price,
-			quantity: row.lots,
-			exitDate: row.closing_time_utc,
-			exitPrice: row.closing_price,
-			fees: fees.toFixed(2),
-			netPnl: netPnl.toFixed(2),
-			notes: `Ticket: ${row.ticket} | Reason: ${row.close_reason || "N/A"}`,
-		};
-	}, []);
+			return {
+				ticket,
+				symbol,
+				side, // 'buy' or 'sell'
+				entryDate,
+				entryPrice: String(entryPrice),
+				quantity: String(quantity),
+				exitDate: parseUtcDate(cell(row, columns, "closingTime")),
+				exitPrice: parseNumber(cell(row, columns, "closingPrice"))?.toString(),
+				fees: fees.toFixed(2),
+				netPnl: netPnl.toFixed(2),
+				notes: `Ticket: ${ticket} | Reason: ${closeReason || "N/A"}`,
+			};
+		},
+		[],
+	);
 
 	const onDrop = useCallback(
 		(acceptedFiles: File[]) => {
@@ -81,7 +155,7 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 				return;
 			}
 
-			Papa.parse(file, {
+			Papa.parse<CsvRow>(file, {
 				header: true,
 				skipEmptyLines: true,
 				complete: (results) => {
@@ -91,18 +165,48 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 						return;
 					}
 
+					const columns = resolveColumns(results.meta.fields ?? []);
+					const missing = REQUIRED_COLUMNS.filter((key) => !columns[key]);
+					if (missing.length > 0) {
+						const names = missing
+							.map((key) => COLUMN_ALIASES[key].join(" or "))
+							.join(", ");
+						setError(`CSV is missing required columns: ${names}.`);
+						return;
+					}
+
 					const mapped: ImportedTrade[] = [];
+					let skipped = 0;
 					results.data.forEach((row) => {
-						const trade = mapCsvToTrade(row);
-						if (trade) mapped.push(trade);
+						const trade = mapCsvToTrade(row, columns);
+						if (trade) {
+							mapped.push(trade);
+						} else {
+							skipped++;
+						}
 					});
 
 					if (mapped.length === 0) {
 						setError("No valid trades found in CSV. Check format.");
-					} else {
-						setParsedData(mapped);
-						setPreviewOpen(true);
+						return;
 					}
+
+					// A profit column that is blank on every row means the wrong export
+					// variant. Importing it would silently flatten the equity curve.
+					if (mapped.every((trade) => Number(trade.netPnl) === 0)) {
+						setError(
+							`Every row has zero P&L. Check that the "${columns.profit}" column holds values.`,
+						);
+						return;
+					}
+
+					if (skipped > 0) {
+						setError(
+							`${skipped} row(s) skipped: incomplete or unreadable values.`,
+						);
+					}
+					setParsedData(mapped);
+					setPreviewOpen(true);
 				},
 				error: (err) => {
 					setError(`Failed to read file: ${err.message}`);
@@ -124,7 +228,10 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 			setParsedData([]);
 			setPreviewOpen(false);
 			// Toast success?
-			alert(`Success! Imported ${res.count} trades.`);
+			const duplicates = res.skipped
+				? ` ${res.skipped} duplicate(s) skipped.`
+				: "";
+			alert(`Success! Imported ${res.count} trades.${duplicates}`);
 			if (onSuccess) onSuccess();
 		},
 		onError: (err) => {
@@ -169,7 +276,9 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 						</TableHeader>
 						<TableBody>
 							{parsedData.slice(0, 50).map((row) => (
-								<TableRow key={row.ticket}>
+								<TableRow
+									key={`${row.ticket}-${row.exitDate ?? row.entryDate}`}
+								>
 									<TableCell>{row.entryDate?.substring(0, 10)}</TableCell>
 									<TableCell>{row.symbol}</TableCell>
 									<TableCell>{row.side}</TableCell>

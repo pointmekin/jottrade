@@ -4,6 +4,135 @@ export type ClosedTrade = {
   netPnl: number;
 };
 
+export const DEFAULT_INITIAL_BALANCE = 10000;
+
+export const TradeStatus = {
+  Open: 'OPEN',
+  Closed: 'CLOSED',
+  Pending: 'PENDING',
+} as const;
+
+export type TradeStatus = (typeof TradeStatus)[keyof typeof TradeStatus];
+
+export type TradeRecord = {
+  status: string | null;
+  entryDate: Date;
+  exitDate: Date | null;
+  netPnl: number;
+};
+
+export type EquityPoint = { date: string; balance: number };
+
+export type TradeStats = {
+  totalBalance: number;
+  totalPnL: number;
+  activeTrades: number;
+  winRate: number;
+  /** null when there is no losing trade to divide by. */
+  profitFactor: number | null;
+  totalTrades: number;
+  winningTrades: number;
+  losingTrades: number;
+  breakevenTrades: number;
+};
+
+export function toUtcDay(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function previousUtcDay(day: string): string {
+  const date = new Date(`${day}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return toUtcDay(date);
+}
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+/**
+ * Realized P&L, win/loss counts, and a daily equity curve.
+ *
+ * Only CLOSED trades count as realized; PENDING trades belong to neither bucket.
+ * Breakeven trades stay out of the win rate denominator, so a scratch trade does
+ * not read as a loss.
+ */
+export function summarizeTrades(
+  records: TradeRecord[],
+  initialBalance: number
+): { stats: TradeStats; equityCurve: EquityPoint[] } {
+  const realizedAt = (trade: TradeRecord) => trade.exitDate ?? trade.entryDate;
+
+  const closed = records
+    .filter((trade) => trade.status === TradeStatus.Closed)
+    .sort((a, b) => realizedAt(a).getTime() - realizedAt(b).getTime());
+
+  const activeTrades = records.filter(
+    (trade) => trade.status === TradeStatus.Open
+  ).length;
+
+  let totalPnL = 0;
+  let grossProfit = 0;
+  let grossLoss = 0;
+  let winningTrades = 0;
+  let losingTrades = 0;
+  let breakevenTrades = 0;
+
+  // Insertion order stays chronological because `closed` is sorted.
+  const dailyPnl = new Map<string, number>();
+
+  for (const trade of closed) {
+    const pnl = Number.isFinite(trade.netPnl) ? trade.netPnl : 0;
+    totalPnL += pnl;
+
+    if (pnl > 0) {
+      winningTrades++;
+      grossProfit += pnl;
+    } else if (pnl < 0) {
+      losingTrades++;
+      grossLoss += Math.abs(pnl);
+    } else {
+      breakevenTrades++;
+    }
+
+    const day = toUtcDay(realizedAt(trade));
+    dailyPnl.set(day, (dailyPnl.get(day) ?? 0) + pnl);
+  }
+
+  const equityCurve: EquityPoint[] = [];
+  let balance = initialBalance;
+
+  const firstDay = dailyPnl.keys().next().value;
+  if (firstDay) {
+    equityCurve.push({
+      date: previousUtcDay(firstDay),
+      balance: round2(initialBalance),
+    });
+  }
+
+  for (const [day, pnl] of dailyPnl) {
+    balance += pnl;
+    equityCurve.push({ date: day, balance: round2(balance) });
+  }
+
+  const decidedTrades = winningTrades + losingTrades;
+
+  return {
+    stats: {
+      totalBalance: round2(balance),
+      totalPnL: round2(totalPnL),
+      activeTrades,
+      winRate: decidedTrades > 0 ? (winningTrades / decidedTrades) * 100 : 0,
+      profitFactor: grossLoss > 0 ? grossProfit / grossLoss : null,
+      totalTrades: closed.length,
+      winningTrades,
+      losingTrades,
+      breakevenTrades,
+    },
+    equityCurve,
+  };
+}
+
 /**
  * Groups closed trades by exit date (YYYY-MM-DD UTC). Returns date → sum of netPnl.
  * Note: uses UTC date from exitDate — trades stored with UTC timestamps will group correctly.

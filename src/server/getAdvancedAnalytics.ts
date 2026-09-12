@@ -3,9 +3,10 @@ import { getRequestHeaders } from '@tanstack/react-start/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { trades, strategies, portfolios } from '@/db/schema';
-import { and, eq, asc } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull } from 'drizzle-orm';
 import {
   groupByDay, computeSharpe, computeMaxDrawdown, computeAvgRR, computeAvgHoldTime,
+  DEFAULT_INITIAL_BALANCE, TradeStatus,
   type ClosedTrade,
 } from '@/lib/analytics';
 
@@ -21,6 +22,7 @@ function aggregateGroup(pnls: number[]) {
 }
 
 const DOW_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DOW_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 export const getAdvancedAnalytics = createServerFn({ method: 'GET' })
   .handler(async () => {
@@ -29,16 +31,25 @@ export const getAdvancedAnalytics = createServerFn({ method: 'GET' })
 
     const [allTrades, allStrategies, userPortfolios] = await Promise.all([
       db.select().from(trades)
-        .where(and(eq(trades.userId, session.user.id), eq(trades.status, 'CLOSED')))
+        .where(and(
+          eq(trades.userId, session.user.id),
+          eq(trades.status, TradeStatus.Closed),
+          isNotNull(trades.exitDate),
+        ))
         .orderBy(asc(trades.exitDate)),
       db.select().from(strategies).where(eq(strategies.userId, session.user.id)),
-      db.select().from(portfolios).where(eq(portfolios.userId, session.user.id)).limit(1),
+      db.select().from(portfolios)
+        .where(eq(portfolios.userId, session.user.id))
+        .orderBy(desc(portfolios.isDefault), asc(portfolios.id))
+        .limit(1),
     ]);
 
-    const initialBalance = userPortfolios[0] ? Number(userPortfolios[0].initialBalance) : 10000;
+    const initialBalance = userPortfolios[0]
+      ? Number(userPortfolios[0].initialBalance)
+      : DEFAULT_INITIAL_BALANCE;
 
     const analyticsInput: ClosedTrade[] = allTrades.map((t) => ({
-      exitDate: new Date(t.exitDate!),
+      exitDate: new Date(t.exitDate as Date),
       entryDate: new Date(t.entryDate),
       netPnl: Number(t.netPnl ?? 0),
     }));
@@ -76,21 +87,21 @@ export const getAdvancedAnalytics = createServerFn({ method: 'GET' })
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    // By day of week (Mon-Fri)
-    const dowGroups: Record<number, number[]> = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+    // By day of week. UTC keeps these buckets aligned with groupByDay.
+    const dowGroups: Record<number, number[]> = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
     for (const t of allTrades) {
-      const dow = new Date(t.exitDate!).getDay();
-      if (dow >= 1 && dow <= 5) dowGroups[dow].push(Number(t.netPnl ?? 0));
+      const dow = new Date(t.exitDate as Date).getUTCDay();
+      dowGroups[dow].push(Number(t.netPnl ?? 0));
     }
-    const byDayOfWeek = [1, 2, 3, 4, 5].map((d) => ({
+    const byDayOfWeek = DOW_ORDER.map((d) => ({
       name: DOW_NAMES[d], ...aggregateGroup(dowGroups[d]),
     }));
 
     // By entry hour
     const hourGroups: Record<string, number[]> = {};
     for (const t of allTrades) {
-      const hour = new Date(t.entryDate).getHours();
-      const key = `${hour}:00`;
+      const hour = new Date(t.entryDate).getUTCHours();
+      const key = `${String(hour).padStart(2, '0')}:00`;
       if (!hourGroups[key]) hourGroups[key] = [];
       hourGroups[key].push(Number(t.netPnl ?? 0));
     }

@@ -19,9 +19,23 @@ const importTradeSchema = z.object({
   
   fees: z.string().or(z.number()).optional(),
   netPnl: z.string().or(z.number()).optional(),
-  
+
   notes: z.string().optional(), // We will put ticket ID here
 });
+
+/**
+ * Stable identity of one fill. A broker ticket alone is not unique because a
+ * position can close in several partial fills, so the exit leg is part of the key.
+ */
+async function buildImportHash(parts: (string | null | undefined)[]) {
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(parts.map((p) => p ?? '').join('|'))
+  );
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
 
 // @ts-ignore
 export const importTrades = createServerFn({ method: "POST" })
@@ -52,13 +66,17 @@ export const importTrades = createServerFn({ method: "POST" })
         const quantityStr = String(item.quantity);
         const feesStr = item.fees ? String(item.fees) : "0";
 
-        let netPnl = item.netPnl ? String(item.netPnl) : undefined;
+        // A reported net P&L of exactly 0 is a scratch trade, not a missing value.
+        const rawNetPnl = item.netPnl === undefined ? '' : String(item.netPnl).trim();
+        let netPnl = rawNetPnl === '' ? undefined : rawNetPnl;
         let returnPercent = undefined;
         let status = "OPEN";
+        const exitDate = item.exitDate ? new Date(item.exitDate) : null;
 
-        if (exitPriceStr && entryPriceStr) {
+        // Analytics needs an exit timestamp to place a closed trade on the curve.
+        if (exitPriceStr && entryPriceStr && exitDate) {
             status = "CLOSED";
-            
+
             // ROI Logic: Price Change %
             // Since we don't know the margin/leverage, calculating ROI on Equity is impossible without that data.
             // Converting to "Price Return" is the standard fallback.
@@ -89,28 +107,50 @@ export const importTrades = createServerFn({ method: "POST" })
             }
         }
 
+        const entryDate = new Date(item.entryDate);
+        const symbol = item.symbol.toUpperCase();
+
         valuesToInsert.push({
             userId: session.user.id,
-            symbol: item.symbol.toUpperCase(),
+            symbol,
             side,
-            entryDate: new Date(item.entryDate),
+            entryDate,
             entryPrice: entryPriceStr,
             quantity: quantityStr,
-            
-            exitDate: item.exitDate ? new Date(item.exitDate) : null,
+
+            exitDate,
             exitPrice: exitPriceStr,
             fees: feesStr,
-            
+
             status,
             netPnl,
             returnPercent,
-            notes: item.notes
+            notes: item.notes,
+            importHash: await buildImportHash([
+                session.user.id,
+                symbol,
+                side,
+                entryDate.toISOString(),
+                exitDate?.toISOString(),
+                entryPriceStr,
+                exitPriceStr,
+                quantityStr,
+            ]),
         });
       }
 
+      let inserted = 0;
       if (valuesToInsert.length > 0) {
-          await db.insert(trades).values(valuesToInsert);
+          const rows = await db.insert(trades)
+            .values(valuesToInsert)
+            .onConflictDoNothing({ target: trades.importHash })
+            .returning({ id: trades.id });
+          inserted = rows.length;
       }
 
-      return { success: true, count: valuesToInsert.length };
+      return {
+          success: true,
+          count: inserted,
+          skipped: valuesToInsert.length - inserted,
+      };
   });

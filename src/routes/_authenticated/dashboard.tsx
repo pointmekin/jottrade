@@ -8,6 +8,7 @@ import { RiskMetrics } from "@/components/dashboard/RiskMetrics";
 import { SetupCalculator } from "@/components/tools/SetupCalculator";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import type { TradeStats } from "@/lib/analytics";
 import { getAdvancedAnalytics } from "@/server/getAdvancedAnalytics";
 import { getAnalytics } from "@/server/getAnalytics";
 import { authClient } from "../../lib/auth-client";
@@ -25,6 +26,18 @@ const signedCurrency = new Intl.NumberFormat("en-US", {
 	currency: "USD",
 	signDisplay: "always",
 });
+
+const EMPTY_STATS: TradeStats = {
+	totalBalance: 0,
+	activeTrades: 0,
+	totalPnL: 0,
+	winRate: 0,
+	profitFactor: null,
+	totalTrades: 0,
+	winningTrades: 0,
+	losingTrades: 0,
+	breakevenTrades: 0,
+};
 
 function Dashboard() {
 	const session = authClient.useSession();
@@ -67,14 +80,7 @@ function Dashboard() {
 		);
 	}
 
-	const stats = analytics?.stats || {
-		totalBalance: 0,
-		activeTrades: 0,
-		totalPnL: 0,
-		winRate: 0,
-		profitFactor: 0,
-		totalTrades: 0,
-	};
+	const stats = analytics?.stats ?? EMPTY_STATS;
 	const equityData = analytics?.equityCurve || [];
 	const pnlTone = stats.totalPnL >= 0 ? "text-success" : "text-destructive";
 
@@ -115,7 +121,13 @@ function Dashboard() {
 						<p className="field-label">Win rate</p>
 						<p className="metric-value mt-1">{stats.winRate.toFixed(1)}%</p>
 						<p className="mt-1 text-xs text-muted-foreground">
-							Profit factor {stats.profitFactor.toFixed(2)}
+							{stats.winningTrades}W / {stats.losingTrades}L
+							{stats.breakevenTrades > 0 &&
+								` / ${stats.breakevenTrades} scratch`}
+							{" · PF "}
+							{stats.profitFactor === null
+								? "—"
+								: stats.profitFactor.toFixed(2)}
 						</p>
 					</div>
 					<div className="metric-cell">
