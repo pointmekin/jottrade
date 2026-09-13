@@ -11,8 +11,10 @@ import { AppPageHeader } from "@/components/app-page-header";
 import { FilterBar, type JournalFilters } from "@/components/journal/FilterBar";
 import { ImportZone } from "@/components/journal/ImportZone";
 import type { Trade } from "@/components/journal/JournalTable";
-import { JournalTable } from "@/components/journal/JournalTable";
-import { TradeDetailSheet } from "@/components/journal/TradeDetailSheet";
+import {
+	JournalTable,
+	JournalTableSkeleton,
+} from "@/components/journal/JournalTable";
 import { TradeEntryForm } from "@/components/journal/TradeEntryForm";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,7 +32,6 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from "@/components/ui/drawer";
-import { Spinner } from "@/components/ui/spinner";
 import { describePeriod, PeriodPreset, resolvePeriod } from "@/lib/period";
 import { cn } from "@/lib/utils";
 import { getTrades } from "@/server/getTrades";
@@ -72,8 +73,6 @@ function JournalPage() {
 	const isDesktop = useIsDesktop();
 	const [sheetOpen, setSheetOpen] = useState(search.intent === "log");
 	const [importOpen, setImportOpen] = useState(false);
-	const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
-	const [detailOpen, setDetailOpen] = useState(false);
 
 	const filters: JournalFilters = search;
 
@@ -118,8 +117,10 @@ function JournalPage() {
 	const totalPages = Math.ceil(total / pageSize);
 
 	const handleRowClick = (trade: Trade) => {
-		setSelectedTrade(trade);
-		setDetailOpen(true);
+		navigate({
+			to: "/journal/$tradeId",
+			params: { tradeId: String(trade.id) },
+		});
 	};
 
 	return (
@@ -200,12 +201,7 @@ function JournalPage() {
 				<FilterBar filters={filters} onFiltersChange={handleFiltersChange} />
 
 				{isLoading ? (
-					<div className="empty-field">
-						<Spinner />{" "}
-						<div className="mt-3 text-sm text-muted-foreground">
-							Reading the trade ledger…
-						</div>
-					</div>
+					<JournalTableSkeleton />
 				) : (
 					<>
 						<JournalTable data={tradeList} onRowClick={handleRowClick} />
@@ -242,12 +238,6 @@ function JournalPage() {
 						)}
 					</>
 				)}
-
-				<TradeDetailSheet
-					trade={selectedTrade}
-					open={detailOpen}
-					onOpenChange={setDetailOpen}
-				/>
 			</main>
 		</div>
 	);

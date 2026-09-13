@@ -18,6 +18,10 @@ import { auth } from "@/lib/auth";
 
 const PAGE_SIZE = 50;
 
+const tradeByIdSchema = z.object({
+	id: z.coerce.number().int().positive(),
+});
+
 const filterSchema = z
 	.object({
 		portfolioId: z.number().optional(),
@@ -84,3 +88,21 @@ export const getTrades = createServerFn({ method: "GET" }).handler(
 		};
 	},
 );
+
+export const getTradeById = createServerFn({ method: "GET" })
+	.validator(tradeByIdSchema)
+	.handler(async ({ data }) => {
+		const session = await auth.api.getSession({ headers: getRequestHeaders() });
+		if (!session) throw new Error("Unauthorized");
+
+		const [trade] = await db
+			.select()
+			.from(trades)
+			.where(and(eq(trades.id, data.id), eq(trades.userId, session.user.id)));
+
+		if (!trade) return null;
+		return {
+			...trade,
+			screenshots: (trade.screenshots as string[] | null) ?? [],
+		};
+	});

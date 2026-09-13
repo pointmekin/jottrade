@@ -84,7 +84,7 @@
   --chart-3: oklch(0.55 0.19 27);
   --chart-4: oklch(0.67 0.16 70);
   --chart-5: oklch(0.55 0.16 300);
-  --radius: 0.5rem;
+  --radius: 0.4rem;
   --sidebar: oklch(0.985 0.002 260);
   --sidebar-foreground: oklch(0.22 0.01 260);
   --sidebar-primary: oklch(0.55 0.17 256);
@@ -173,7 +173,7 @@ a {
 
 @layer components {
   .app-page {
-    @apply min-h-screen w-full px-4 pb-24 pt-4 md:px-6 lg:px-8 lg:pb-8 lg:pt-6;
+    @apply min-h-screen w-full px-4 pb-24 pt-4 md:px-6 lg:px-6 lg:pb-8 lg:pt-6;
   }
 
   .page-frame {
@@ -208,7 +208,7 @@ a {
   }
 
   .metric-row {
-    @apply grid gap-x-6 gap-y-5;
+    @apply grid gap-x-5 gap-y-4;
   }
 
   .metric-cell {

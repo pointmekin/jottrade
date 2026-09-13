@@ -21,6 +21,7 @@ import { Route as UnauthenticatedSignInRouteImport } from './routes/_unauthentic
 import { Route as UnauthenticatedSignUpRouteImport } from './routes/_unauthenticated/sign-up'
 import { Route as DemoNeonRouteImport } from './routes/demo/neon'
 import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-query'
+import { Route as AuthenticatedJournalTradeIdRouteImport } from './routes/_authenticated/journal_.$tradeId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as DemoApiNamesRouteImport } from './routes/demo/api.names'
 import { Route as DemoApiTqTodosRouteImport } from './routes/demo/api.tq-todos'
@@ -90,6 +91,12 @@ const DemoTanstackQueryRoute = DemoTanstackQueryRouteImport.update({
   path: '/demo/tanstack-query',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedJournalTradeIdRoute =
+  AuthenticatedJournalTradeIdRouteImport.update({
+    id: '/journal_/$tradeId',
+    path: '/journal/$tradeId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -148,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/sign-up': typeof UnauthenticatedSignUpRoute
   '/demo/neon': typeof DemoNeonRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/journal/$tradeId': typeof AuthenticatedJournalTradeIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
@@ -170,6 +178,7 @@ export interface FileRoutesByTo {
   '/sign-up': typeof UnauthenticatedSignUpRoute
   '/demo/neon': typeof DemoNeonRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/journal/$tradeId': typeof AuthenticatedJournalTradeIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
@@ -194,6 +203,7 @@ export interface FileRoutesById {
   '/_unauthenticated/sign-up': typeof UnauthenticatedSignUpRoute
   '/demo/neon': typeof DemoNeonRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/_authenticated/journal_/$tradeId': typeof AuthenticatedJournalTradeIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
@@ -218,6 +228,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/demo/neon'
     | '/demo/tanstack-query'
+    | '/journal/$tradeId'
     | '/api/auth/$'
     | '/demo/api/names'
     | '/demo/api/tq-todos'
@@ -240,6 +251,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/demo/neon'
     | '/demo/tanstack-query'
+    | '/journal/$tradeId'
     | '/api/auth/$'
     | '/demo/api/names'
     | '/demo/api/tq-todos'
@@ -263,6 +275,7 @@ export interface FileRouteTypes {
     | '/_unauthenticated/sign-up'
     | '/demo/neon'
     | '/demo/tanstack-query'
+    | '/_authenticated/journal_/$tradeId'
     | '/api/auth/$'
     | '/demo/api/names'
     | '/demo/api/tq-todos'
@@ -379,6 +392,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoTanstackQueryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/journal_/$tradeId': {
+      id: '/_authenticated/journal_/$tradeId'
+      path: '/journal/$tradeId'
+      fullPath: '/journal/$tradeId'
+      preLoaderRoute: typeof AuthenticatedJournalTradeIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -451,6 +471,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedJournalRoute: typeof AuthenticatedJournalRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStrategiesRoute: typeof AuthenticatedStrategiesRoute
+  AuthenticatedJournalTradeIdRoute: typeof AuthenticatedJournalTradeIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -459,6 +480,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedJournalRoute: AuthenticatedJournalRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStrategiesRoute: AuthenticatedStrategiesRoute,
+  AuthenticatedJournalTradeIdRoute: AuthenticatedJournalTradeIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

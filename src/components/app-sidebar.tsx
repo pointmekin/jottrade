@@ -50,14 +50,16 @@ export function AppSidebar() {
 	return (
 		<Sidebar collapsible="icon" className="border-r border-sidebar-border">
 			<div className="border-b border-sidebar-border">
-				<div className="flex h-14 items-center gap-2 px-2">
-					<div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-						<Crosshair className="size-4" strokeWidth={2} />
-					</div>
+				<div className="flex h-14 items-center justify-center gap-2 px-2">
 					{!isCollapsed && (
-						<p className="min-w-0 flex-1 truncate text-sm font-semibold">
-							JotTrade
-						</p>
+						<>
+							<div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+								<Crosshair className="size-4" strokeWidth={2} />
+							</div>
+							<p className="min-w-0 flex-1 truncate text-sm font-semibold">
+								JotTrade
+							</p>
+						</>
 					)}
 					<button
 						type="button"
@@ -131,7 +133,7 @@ export function AppSidebar() {
 										tooltip={session.data.user.name || "Account"}
 										className="h-12"
 									>
-										<div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-xs font-semibold">
+										<div className="flex size-3.5 shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-xs font-semibold">
 											{(session.data.user.name?.charAt(0) || "U").toUpperCase()}
 										</div>
 										{!isCollapsed && (

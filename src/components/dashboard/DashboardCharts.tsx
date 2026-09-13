@@ -44,8 +44,8 @@ export function EquityCurveChart({
 					data={data}
 					margin={{
 						top: 5,
-						right: 30,
-						left: 20,
+						right: 10,
+						left: 8,
 						bottom: 5,
 					}}
 				>
@@ -53,16 +53,24 @@ export function EquityCurveChart({
 					<XAxis
 						dataKey="date"
 						stroke="var(--border)"
-						tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+						tick={{
+							fill: "var(--muted-foreground)",
+							fontFamily: "var(--font-mono)",
+							fontSize: 11,
+						}}
 						tickLine={false}
-						minTickGap={56}
+						minTickGap={36}
 						tickFormatter={formatAxisDate}
 					/>
 					<YAxis
 						stroke="var(--border)"
-						tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+						tick={{
+							fill: "var(--muted-foreground)",
+							fontFamily: "var(--font-mono)",
+							fontSize: 11,
+						}}
 						tickLine={false}
-						width={84}
+						width={70}
 						domain={["auto", "auto"]}
 						tickFormatter={formatBalance}
 					/>
@@ -73,6 +81,7 @@ export function EquityCurveChart({
 							borderRadius: 8,
 							color: "var(--popover-foreground)",
 						}}
+						labelStyle={{ color: "var(--popover-foreground)" }}
 						itemStyle={{ color: "var(--ring)" }}
 						formatter={(value) => [
 							`${formatMoney(Number(value), currency)} ${currency}`,
@@ -130,10 +139,12 @@ export function WinLossPie({ winRate }: WinLossPieProps) {
 					</Pie>
 					<Tooltip
 						contentStyle={{
-							backgroundColor: "#18181b",
-							borderColor: "#27272a",
-							color: "#f4f4f5",
+							backgroundColor: "var(--popover)",
+							borderColor: "var(--border)",
+							color: "var(--popover-foreground)",
 						}}
+						labelStyle={{ color: "var(--popover-foreground)" }}
+						itemStyle={{ color: "var(--popover-foreground)" }}
 					/>
 				</PieChart>
 			</ResponsiveContainer>

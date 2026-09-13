@@ -36,20 +36,34 @@ function PnLBar({
 	name: string;
 }) {
 	return (
-		<div className="surface p-4">
+		<div className="surface p-3 sm:p-4">
 			<p className="mb-4 text-sm font-semibold">{name}</p>
 			<ResponsiveContainer width="100%" height={200}>
-				<BarChart data={data} margin={{ left: -20, right: 10 }}>
+				<BarChart
+					data={data}
+					margin={{ top: 4, right: 4, bottom: 4, left: -12 }}
+					barCategoryGap="18%"
+				>
 					<XAxis
 						dataKey="name"
-						tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+						tick={{
+							fontFamily: "var(--font-mono)",
+							fontSize: 11,
+							fill: "var(--muted-foreground)",
+						}}
 						tickLine={false}
 						axisLine={{ stroke: "var(--border)" }}
+						minTickGap={12}
 					/>
 					<YAxis
-						tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+						tick={{
+							fontFamily: "var(--font-mono)",
+							fontSize: 11,
+							fill: "var(--muted-foreground)",
+						}}
 						tickLine={false}
-						axisLine={false}
+						axisLine={{ stroke: "var(--border)" }}
+						width={42}
 					/>
 					<Tooltip
 						cursor={{ fill: "var(--accent)" }}
@@ -59,9 +73,17 @@ function PnLBar({
 							borderRadius: 8,
 							color: "var(--popover-foreground)",
 						}}
-						formatter={(val: number | undefined) =>
+						labelStyle={{
+							color: "var(--popover-foreground)",
+							fontFamily: "var(--font-sans)",
+						}}
+						itemStyle={{
+							color: "var(--popover-foreground)",
+							fontFamily: "var(--font-mono)",
+						}}
+						formatter={(val) =>
 							val !== undefined
-								? [`$${val.toFixed(2)}`, "Avg P&L"]
+								? [`$${Number(val).toFixed(2)}`, "Avg P&L"]
 								: ["", "Avg P&L"]
 						}
 					/>

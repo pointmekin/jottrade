@@ -8,9 +8,10 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { z } from "zod";
 import { AppPageHeader } from "@/components/app-page-header";
 import { CalendarGrid } from "@/components/calendar/CalendarGrid";
+import { CalendarSkeleton } from "@/components/calendar/CalendarSkeleton";
 import { Button } from "@/components/ui/button";
 import { useCurrency } from "@/hooks/use-currency";
-import { getCalendarData } from "@/server/calendarActions";
+import { type CalendarDay, getCalendarData } from "@/server/calendarActions";
 
 const calendarSearchSchema = z.object({
 	year: z.number().default(() => new Date().getFullYear()),
@@ -27,10 +28,11 @@ function CalendarPage() {
 	const { year, month } = useSearch({ from: "/_authenticated/calendar" });
 	const currency = useCurrency();
 
-	const { data: calendarData = {}, isLoading } = useQuery({
-		queryKey: ["calendar", year, month],
-		queryFn: () => getCalendarData({ data: { year, month } }),
-	});
+	const { data: calendarData = {} as Record<string, CalendarDay>, isLoading } =
+		useQuery({
+			queryKey: ["calendar", year, month],
+			queryFn: () => getCalendarData({ data: { year, month } }),
+		});
 
 	const goTo = (y: number, m: number) => {
 		let nm = m;
@@ -50,6 +52,13 @@ function CalendarPage() {
 		month: "long",
 		year: "numeric",
 	});
+	const monthControlName = new Date(year, month - 1, 1).toLocaleDateString(
+		"en-US",
+		{
+			month: "short",
+			year: "numeric",
+		},
+	);
 
 	return (
 		<div className="app-page">
@@ -59,22 +68,25 @@ function CalendarPage() {
 					description="Read performance in the rhythm it happened, one trading day at a time."
 					meta={`${monthName} · ${currency}`}
 					actions={
-						<div className="flex items-center gap-2">
+						<div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
 							<Button
 								variant="outline"
 								size="icon"
 								className="border-border h-8 w-8"
+								aria-label="Previous month"
 								onClick={() => goTo(year, month - 1)}
 							>
 								<ChevronLeft className="h-4 w-4" />
 							</Button>
-							<span className="text-foreground font-medium min-w-36 text-center">
-								{monthName}
+							<span className="min-w-0 flex-1 text-center text-sm font-medium text-foreground sm:min-w-36">
+								<span className="sm:hidden">{monthControlName}</span>
+								<span className="hidden sm:inline">{monthName}</span>
 							</span>
 							<Button
 								variant="outline"
 								size="icon"
 								className="border-border h-8 w-8"
+								aria-label="Next month"
 								onClick={() => goTo(year, month + 1)}
 							>
 								<ChevronRight className="h-4 w-4" />
@@ -82,7 +94,7 @@ function CalendarPage() {
 							<Button
 								variant="outline"
 								size="sm"
-								className="border-border text-foreground ml-2"
+								className="border-border text-foreground"
 								onClick={() =>
 									goTo(new Date().getFullYear(), new Date().getMonth() + 1)
 								}
@@ -94,11 +106,9 @@ function CalendarPage() {
 				/>
 
 				{isLoading ? (
-					<div className="empty-field h-96 text-muted-foreground">
-						Reading calendar section…
-					</div>
+					<CalendarSkeleton />
 				) : (
-					<CalendarGrid year={year} month={month} data={calendarData as any} />
+					<CalendarGrid year={year} month={month} data={calendarData} />
 				)}
 			</main>
 		</div>

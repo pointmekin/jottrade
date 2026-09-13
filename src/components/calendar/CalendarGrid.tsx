@@ -33,13 +33,13 @@ export function CalendarGrid({ year, month, data }: CalendarGridProps) {
 	}, [year, month]);
 
 	return (
-		<div className="surface overflow-hidden">
+		<div className="surface min-w-0 overflow-hidden">
 			{/* Day of week header */}
-			<div className="grid grid-cols-7 border-b border-border bg-background">
+			<div className="grid min-w-0 grid-cols-7 border-b border-border bg-background">
 				{DOW.map((d) => (
 					<div
 						key={d}
-						className="py-2 text-center font-data text-xs font-semibold text-muted-foreground"
+						className="min-w-0 overflow-hidden px-0.5 py-2 text-center font-data text-xs font-semibold text-muted-foreground"
 					>
 						{d}
 					</div>
@@ -47,7 +47,7 @@ export function CalendarGrid({ year, month, data }: CalendarGridProps) {
 			</div>
 
 			{/* Grid */}
-			<div className="grid grid-cols-7">
+			<div className="grid min-w-0 grid-cols-7">
 				{days.map(({ date, currentMonth }) => {
 					const day = data[date];
 					const isSelected = selectedDate === date;
@@ -78,7 +78,6 @@ export function CalendarGrid({ year, month, data }: CalendarGridProps) {
 							date={date}
 							day={undefined}
 							isCurrentMonth={currentMonth}
-							onClick={() => {}}
 						/>
 					);
 				})}

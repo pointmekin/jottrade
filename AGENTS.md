@@ -87,8 +87,8 @@ Use the `@/*` alias for imports from `src/`.
 Local database access requires these variables in `.env`:
 
 ```dotenv
-VITE_DATABASE_URL=
-VITE_DATABASE_URL_POOLER=
+DATABASE_URL=
+DATABASE_URL_POOLER=
 ```
 
 Google OAuth also requires `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in the Cloudflare Workers environment.

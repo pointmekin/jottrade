@@ -32,13 +32,13 @@ export function PeriodPicker({ value, onChange }: PeriodPickerProps) {
 	};
 
 	return (
-		<div className="flex flex-wrap items-center gap-2">
+		<div className="flex min-w-0 flex-wrap items-center gap-2">
 			<Select
 				value={preset}
 				onValueChange={(next) => selectPreset(next as PeriodPreset)}
 			>
 				<SelectTrigger
-					className="h-8 w-44 text-sm"
+					className="h-9 w-44 border-input bg-background text-sm dark:bg-background"
 					aria-label="Reporting period"
 				>
 					<CalendarRange className="size-3.5 text-muted-foreground" />
@@ -54,7 +54,7 @@ export function PeriodPicker({ value, onChange }: PeriodPickerProps) {
 			</Select>
 
 			{isCustom && (
-				<div className="flex items-center gap-2">
+				<div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:flex sm:w-auto">
 					<Input
 						type="date"
 						aria-label="Period start"
@@ -63,7 +63,7 @@ export function PeriodPicker({ value, onChange }: PeriodPickerProps) {
 						onChange={(e) =>
 							onChange({ ...value, from: e.target.value || undefined })
 						}
-						className="h-8 w-40 text-sm"
+						className="h-9 min-w-0 w-full text-sm sm:w-40"
 					/>
 					<span className="text-xs text-muted-foreground">to</span>
 					<Input
@@ -74,7 +74,7 @@ export function PeriodPicker({ value, onChange }: PeriodPickerProps) {
 						onChange={(e) =>
 							onChange({ ...value, to: e.target.value || undefined })
 						}
-						className="h-8 w-40 text-sm"
+						className="h-9 min-w-0 w-full text-sm sm:w-40"
 					/>
 				</div>
 			)}

@@ -80,7 +80,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 
 	return (
 		<div className="space-y-3">
-			<div className="flex flex-wrap items-center gap-2">
+			<div className="surface flex min-w-0 flex-wrap items-center gap-2 p-2">
 				<PeriodPicker
 					value={{
 						preset: period,
@@ -98,7 +98,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 				<Button
 					variant="outline"
 					size="sm"
-					className="border-border"
+					className="h-9 border-border bg-background"
 					aria-expanded={expanded}
 					onClick={() => setExpanded(!expanded)}
 				>
@@ -114,7 +114,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 					<Button
 						variant="ghost"
 						size="sm"
-						className="h-8 text-muted-foreground"
+						className="h-9 text-muted-foreground"
 						onClick={clearAll}
 					>
 						<X className="h-3.5 w-3.5 mr-1" /> Clear all
@@ -123,7 +123,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 			</div>
 
 			{expanded && (
-				<div className="surface grid grid-cols-2 gap-3 p-4 md:grid-cols-4">
+				<div className="surface grid grid-cols-2 gap-3 p-3 md:grid-cols-4 md:p-4">
 					{/* Symbol */}
 					<div>
 						<p className="field-label mb-1">Symbol</p>
@@ -131,7 +131,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 							value={symbolInput}
 							onChange={(e) => setSymbolInput(e.target.value)}
 							placeholder="AAPL"
-							className="h-8 text-sm"
+							className="h-9 bg-background text-sm"
 						/>
 					</div>
 
@@ -144,7 +144,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 									key={s}
 									size="sm"
 									variant="outline"
-									className={`h-8 flex-1 text-xs ${filters.side === s ? "border-ring bg-accent text-accent-foreground" : "text-muted-foreground"}`}
+									className={`h-9 flex-1 text-xs ${filters.side === s ? "border-ring bg-accent text-accent-foreground" : "text-muted-foreground"}`}
 									aria-pressed={filters.side === s}
 									onClick={() =>
 										update({ side: filters.side === s ? undefined : s })
@@ -165,7 +165,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 								update({ status: v === "__all__" ? undefined : (v as any) })
 							}
 						>
-							<SelectTrigger className="h-8 text-sm">
+							<SelectTrigger className="h-9 bg-background text-sm">
 								<SelectValue placeholder="All" />
 							</SelectTrigger>
 							<SelectContent>
@@ -186,7 +186,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 							value={filters.setupId ?? ""}
 							onValueChange={(v) => update({ setupId: v || undefined })}
 						>
-							<SelectTrigger className="h-8 text-sm">
+							<SelectTrigger className="h-9 bg-background text-sm">
 								<SelectValue placeholder="All" />
 							</SelectTrigger>
 							<SelectContent>
@@ -224,7 +224,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 										key={c}
 										size="sm"
 										variant="outline"
-										className={`h-8 flex-1 text-xs ${active ? "border-ring bg-accent text-accent-foreground" : "text-muted-foreground"}`}
+										className={`h-9 flex-1 text-xs ${active ? "border-ring bg-accent text-accent-foreground" : "text-muted-foreground"}`}
 										aria-pressed={active}
 										onClick={toggle}
 									>
