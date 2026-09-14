@@ -6,6 +6,7 @@ import {
 	PanelLeft,
 	PanelLeftClose,
 } from "lucide-react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -31,6 +32,16 @@ import { Spinner } from "./ui/spinner";
 const mainItems = navItems.slice(0, 4);
 const footerNavItems = navItems.slice(4);
 
+function isPlainPrimaryMouseEvent(event: ReactMouseEvent<HTMLAnchorElement>) {
+	const target = event.currentTarget.getAttribute("target");
+	return (
+		event.button === 0 &&
+		!(event.metaKey || event.altKey || event.ctrlKey || event.shiftKey) &&
+		!event.defaultPrevented &&
+		(!target || target === "_self")
+	);
+}
+
 export function AppSidebar() {
 	const session = authClient.useSession();
 	const router = useRouter();
@@ -46,6 +57,19 @@ export function AppSidebar() {
 
 	const isActive = (url: string) =>
 		location.pathname === url || location.pathname.startsWith(`${url}/`);
+
+	const getMouseDownNavigationProps = (url: string) => ({
+		onMouseDown: (event: ReactMouseEvent<HTMLAnchorElement>) => {
+			if (isPlainPrimaryMouseEvent(event)) {
+				router.navigate({ to: url });
+			}
+		},
+		onClick: (event: ReactMouseEvent<HTMLAnchorElement>) => {
+			if (event.detail > 0 && isPlainPrimaryMouseEvent(event)) {
+				event.preventDefault();
+			}
+		},
+	});
 
 	return (
 		<Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -88,7 +112,10 @@ export function AppSidebar() {
 										tooltip={item.title}
 										className="h-9 font-medium"
 									>
-										<Link to={item.url}>
+										<Link
+											to={item.url}
+											{...getMouseDownNavigationProps(item.url)}
+										>
 											<item.icon className="size-4" />
 											<span>{item.title}</span>
 										</Link>
@@ -110,7 +137,7 @@ export function AppSidebar() {
 								tooltip={item.title}
 								className="h-9"
 							>
-								<Link to={item.url}>
+								<Link to={item.url} {...getMouseDownNavigationProps(item.url)}>
 									<item.icon className="size-4" />
 									<span>{item.title}</span>
 								</Link>
