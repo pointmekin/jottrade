@@ -7,26 +7,38 @@
 // But for "StonkJournal" clone, simple JS math `toFixed(2)` is often typically accepted unless crypto high precision.
 // Let's strictly use safe floating point math helper or standard JS with care.
 
+export function shouldRecalculatePnl(importHash: string | null): boolean {
+	return importHash === null;
+}
+
+// Exness XAUUSD symbols use 100 troy ounces per standard lot.
+const XAUUSD_CONTRACT_SIZE = 100;
+
 export function calculatePnL(
 	side: "LONG" | "SHORT",
 	entryPrice: string | number,
 	exitPrice: string | number,
 	quantity: string | number,
 	fees: string | number = 0,
+	symbol?: string,
 ) {
 	const entry = Number(entryPrice);
 	const exit = Number(exitPrice);
 	const qty = Number(quantity);
 	const fee = Number(fees);
+	const normalizedSymbol = symbol?.toUpperCase().replace(/[^A-Z0-9]/g, "");
+	const contractSize = normalizedSymbol?.startsWith("XAUUSD")
+		? XAUUSD_CONTRACT_SIZE
+		: 1;
 
-	if (isNaN(entry) || isNaN(exit) || isNaN(qty))
+	if (Number.isNaN(entry) || Number.isNaN(exit) || Number.isNaN(qty))
 		return { netPnl: "0", returnPercent: "0" };
 
 	let grossPnl = 0;
 	if (side === "LONG") {
-		grossPnl = (exit - entry) * qty;
+		grossPnl = (exit - entry) * qty * contractSize;
 	} else {
-		grossPnl = (entry - exit) * qty;
+		grossPnl = (entry - exit) * qty * contractSize;
 	}
 
 	const netPnl = grossPnl - fee;
@@ -34,7 +46,7 @@ export function calculatePnL(
 	// Return Percent: (Net PnL / Cost Basis) * 100 ?
 	// Or (Exit - Entry)/Entry * 100?
 	// Usually PnL % is on the invested capital.
-	const costBasis = entry * qty;
+	const costBasis = entry * qty * contractSize;
 	const returnPercent = costBasis !== 0 ? (netPnl / costBasis) * 100 : 0;
 
 	return {

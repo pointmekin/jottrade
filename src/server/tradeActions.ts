@@ -6,7 +6,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { trades } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { calculatePnL } from "@/lib/finance";
+import { calculatePnL, shouldRecalculatePnl } from "@/lib/finance";
 
 const tradeSchema = z.object({
 	symbol: z.string().min(1),
@@ -70,6 +70,7 @@ export const createTrade = createServerFn({ method: "POST" }).handler(
 				validatedData.exitPrice,
 				validatedData.quantity,
 				validatedData.fees,
+				validatedData.symbol,
 			);
 			netPnl = pnl.netPnl;
 			returnPercent = pnl.returnPercent;
@@ -137,13 +138,19 @@ export const updateTrade = createServerFn({ method: "POST" }).handler(
 		let returnPercent = existingTrade.returnPercent;
 		let status = validatedData.status || existingTrade.status;
 
-		if (exitPrice && entryPrice && quantity) {
+		if (
+			shouldRecalculatePnl(existingTrade.importHash) &&
+			exitPrice &&
+			entryPrice &&
+			quantity
+		) {
 			const pnl = calculatePnL(
 				side,
 				entryPrice,
 				exitPrice,
 				quantity,
 				fees || "0",
+				validatedData.symbol || existingTrade.symbol,
 			); // Ensure fees is string
 			netPnl = pnl.netPnl;
 			returnPercent = pnl.returnPercent;

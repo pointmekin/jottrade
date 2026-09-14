@@ -104,6 +104,7 @@ export const importTrades = createServerFn({ method: "POST" }).handler(
 						exitPriceStr,
 						quantityStr,
 						feesStr,
+						item.symbol,
 					);
 					netPnl = pnl.netPnl;
 					if (!returnPercent) returnPercent = pnl.returnPercent;
