@@ -24,6 +24,7 @@ import {
 } from "@/server/imageActions";
 import { getStrategies } from "@/server/strategyActions";
 import { updateTrade } from "@/server/tradeActions";
+import { DeleteTradeDialog } from "./DeleteTradeDialog";
 import type { Trade } from "./JournalTable";
 
 const MISTAKE_OPTIONS = [
@@ -49,9 +50,13 @@ type OverviewValues = z.infer<typeof overviewSchema>;
 
 interface TradeDetailContentProps {
 	trade: Trade;
+	onDeleted: () => void;
 }
 
-export function TradeDetailContent({ trade }: TradeDetailContentProps) {
+export function TradeDetailContent({
+	trade,
+	onDeleted,
+}: TradeDetailContentProps) {
 	const qc = useQueryClient();
 	const [uploading, setUploading] = useState(false);
 
@@ -340,6 +345,18 @@ export function TradeDetailContent({ trade }: TradeDetailContentProps) {
 							))}
 						</div>
 					)}
+				</div>
+
+				<div className="h-px bg-border" />
+
+				<div className="flex items-center justify-between gap-4 pb-2">
+					<div>
+						<p className="text-sm font-medium">Delete this trade</p>
+						<p className="text-xs text-muted-foreground">
+							Permanently remove it from your journal.
+						</p>
+					</div>
+					<DeleteTradeDialog trade={trade} onDeleted={onDeleted} />
 				</div>
 			</div>
 		</div>

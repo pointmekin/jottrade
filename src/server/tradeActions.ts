@@ -194,9 +194,9 @@ export const updateTrade = createServerFn({ method: "POST" }).handler(
 	},
 );
 
-export const deleteTrade = createServerFn({ method: "POST" }).handler(
-	async (ctx: any) => {
-		const data = ctx.data as z.infer<typeof deleteTradeSchema>;
+export const deleteTrade = createServerFn({ method: "POST" })
+	.validator(deleteTradeSchema)
+	.handler(async ({ data }) => {
 		const session = await auth.api.getSession({
 			headers: getRequestHeaders(),
 		});
@@ -207,5 +207,4 @@ export const deleteTrade = createServerFn({ method: "POST" }).handler(
 			.where(and(eq(trades.id, data.id), eq(trades.userId, session.user.id)));
 
 		return { success: true };
-	},
-);
+	});

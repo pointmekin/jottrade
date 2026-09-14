@@ -87,7 +87,7 @@ function JournalEntryPage() {
 				)}
 
 				{!isLoading && trade && !isError && (
-					<TradeDetailContent trade={trade} />
+					<TradeDetailContent trade={trade} onDeleted={goBack} />
 				)}
 			</main>
 		</div>
