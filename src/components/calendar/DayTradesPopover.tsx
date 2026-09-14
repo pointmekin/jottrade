@@ -8,14 +8,10 @@ import {
 	DrawerTitle,
 	DrawerTrigger,
 } from "@/components/ui/drawer";
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from "@/components/ui/popover";
 import { useCurrency } from "@/hooks/use-currency";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { formatMoney } from "@/lib/currency";
+import { cn } from "@/lib/utils";
 import type { CalendarDay } from "@/server/calendarActions";
 
 interface DayTradesPopoverProps {
@@ -34,32 +30,6 @@ function formatDate(date: string) {
 		day: "numeric",
 		year: "numeric",
 	});
-}
-
-function DayTradesSummary({
-	date,
-	day,
-}: Pick<DayTradesPopoverProps, "date" | "day">) {
-	const currency = useCurrency();
-	const netPnlClass =
-		day.netPnl > 0
-			? "text-success"
-			: day.netPnl < 0
-				? "text-destructive"
-				: "text-muted-foreground";
-
-	return (
-		<div className="min-w-0">
-			<p className="truncate text-sm font-semibold">{formatDate(date)}</p>
-			<p className="mt-1 text-xs text-muted-foreground">
-				{day.tradeCount} trade{day.tradeCount !== 1 ? "s" : ""}
-				<span className="px-1.5">·</span>
-				<span className={netPnlClass}>
-					net P&amp;L {formatMoney(day.netPnl, currency, { signed: true })}
-				</span>
-			</p>
-		</div>
-	);
 }
 
 function TradeList({
@@ -112,24 +82,6 @@ function TradeList({
 		</div>
 	);
 }
-
-function DayTradesContent({
-	date,
-	day,
-	onTradeClick,
-}: Pick<DayTradesPopoverProps, "date" | "day" | "onTradeClick">) {
-	return (
-		<>
-			<div className="border-b border-border px-2 pb-3">
-				<DayTradesSummary date={date} day={day} />
-			</div>
-			<div className="max-h-[60vh] overflow-y-auto pt-1">
-				<TradeList day={day} onTradeClick={onTradeClick} />
-			</div>
-		</>
-	);
-}
-
 export function DayTradesPopover({
 	date,
 	day,
@@ -141,52 +93,54 @@ export function DayTradesPopover({
 	const isMobile = useIsMobile();
 	const currency = useCurrency();
 
-	if (isMobile) {
-		return (
-			<Drawer open={open} onOpenChange={onOpenChange} direction="bottom">
-				<DrawerTrigger asChild>{children}</DrawerTrigger>
-				<DrawerContent className="inset-x-0 bottom-0 top-auto max-h-[92vh] rounded-t-lg border-t border-border bg-popover text-popover-foreground">
-					<div className="h-px w-full shrink-0 bg-ring" />
+	return (
+		<Drawer
+			open={open}
+			onOpenChange={onOpenChange}
+			direction={isMobile ? "bottom" : "right"}
+		>
+			<DrawerTrigger asChild>{children}</DrawerTrigger>
+			<DrawerContent
+				className={cn(
+					"border-border bg-popover text-popover-foreground",
+					isMobile
+						? "inset-x-0 bottom-0 top-auto max-h-[92vh] rounded-t-lg border-t"
+						: "inset-y-0 left-auto right-0 mt-0 h-screen w-[440px] max-w-[90vw] rounded-l-lg border-l",
+				)}
+			>
+				<div className="h-px w-full shrink-0 bg-ring" />
+				{isMobile && (
 					<div className="flex shrink-0 justify-center pb-1 pt-3">
 						<div className="h-1 w-10 rounded-full bg-border" />
 					</div>
-					<DrawerHeader className="shrink-0 border-b border-border px-5 pb-3 pt-2">
-						<DrawerTitle>{formatDate(date)}</DrawerTitle>
-						<DrawerDescription>
-							{day.tradeCount} trade{day.tradeCount !== 1 ? "s" : ""} · net
-							P&amp;L{" "}
-							<span
-								className={
-									day.netPnl > 0
-										? "text-success"
-										: day.netPnl < 0
-											? "text-destructive"
-											: "text-muted-foreground"
-								}
-							>
-								{formatMoney(day.netPnl, currency, { signed: true })}
-							</span>
-						</DrawerDescription>
-					</DrawerHeader>
-					<div className="min-h-0 overflow-y-auto px-3 pb-5 pt-3">
-						<TradeList day={day} onTradeClick={onTradeClick} />
-					</div>
-				</DrawerContent>
-			</Drawer>
-		);
-	}
-
-	return (
-		<Popover open={open} onOpenChange={onOpenChange}>
-			<PopoverTrigger asChild>{children}</PopoverTrigger>
-			<PopoverContent
-				className="w-80 rounded-sm border-border bg-popover p-3 text-popover-foreground"
-				side="bottom"
-				align="start"
-				collisionPadding={12}
-			>
-				<DayTradesContent date={date} day={day} onTradeClick={onTradeClick} />
-			</PopoverContent>
-		</Popover>
+				)}
+				<DrawerHeader
+					className={cn(
+						"shrink-0 border-b border-border px-5 pb-3",
+						isMobile ? "pt-2" : "pt-5",
+					)}
+				>
+					<DrawerTitle>{formatDate(date)}</DrawerTitle>
+					<DrawerDescription>
+						{day.tradeCount} trade{day.tradeCount !== 1 ? "s" : ""} · net
+						P&amp;L{" "}
+						<span
+							className={
+								day.netPnl > 0
+									? "text-success"
+									: day.netPnl < 0
+										? "text-destructive"
+										: "text-muted-foreground"
+							}
+						>
+							{formatMoney(day.netPnl, currency, { signed: true })}
+						</span>
+					</DrawerDescription>
+				</DrawerHeader>
+				<div className="min-h-0 flex-1 overflow-y-auto px-3 pb-5 pt-3">
+					<TradeList day={day} onTradeClick={onTradeClick} />
+				</div>
+			</DrawerContent>
+		</Drawer>
 	);
 }
