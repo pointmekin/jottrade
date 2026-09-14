@@ -7,6 +7,7 @@ import {
 	useLocation,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { Toaster } from "sonner";
 import { AppSidebar } from "@/components/app-sidebar";
 import { BottomNav } from "@/components/bottom-nav";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -95,6 +96,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 						</div>
 					</ThemeProvider>
 				</SidebarProvider>
+				<Toaster richColors closeButton />
 				<TanStackDevtools
 					config={{ position: "bottom-right" }}
 					plugins={[

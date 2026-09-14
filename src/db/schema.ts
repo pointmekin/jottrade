@@ -99,9 +99,7 @@ export const portfolios = pgTable("portfolios", {
 	createdAt: timestamp("created_at").defaultNow(),
 });
 
-// 2b. Cash flows (deposits and withdrawals). A negative amount is a withdrawal.
-// The account balance is the sum of these flows plus realized P&L, so a later
-// deposit raises the equity curve without reading as a profit.
+// 2b. Account entries that change balance outside a closed trade.
 export const cashFlows = pgTable(
 	"cash_flows",
 	{
@@ -114,7 +112,9 @@ export const cashFlows = pgTable(
 		}),
 		occurredAt: timestamp("occurred_at").notNull(),
 		amount: numeric("amount").notNull(),
+		kind: text("kind").default("DEPOSIT").notNull(),
 		note: text("note"),
+		importHash: text("import_hash").unique(),
 		createdAt: timestamp("created_at").defaultNow(),
 	},
 	(t) => [

@@ -3,6 +3,7 @@ import { AlertCircle, Loader2, UploadCloud } from "lucide-react";
 import Papa from "papaparse";
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
 	Table,
@@ -30,6 +31,7 @@ type ImportedTrade = {
 };
 
 type CsvRow = Record<string, string | undefined>;
+const MAX_CSV_SIZE = 5 * 1024 * 1024;
 
 // Exness names the money columns `profit`/`commission`/`swap`; some MT4/5
 // exports suffix them with `_usd`. Both spellings map to the same field.
@@ -137,7 +139,10 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 			const file = acceptedFiles[0];
 			if (!file) return;
 
-			if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
+			if (
+				file.type !== "text/csv" &&
+				!file.name.toLowerCase().endsWith(".csv")
+			) {
 				setError("Please upload a CSV file.");
 				return;
 			}
@@ -205,11 +210,15 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 
 	const { getRootProps, getInputProps, isDragActive } = useDropzone({
 		onDrop,
+		onDropRejected: () => setError("Choose one CSV file smaller than 5 MB."),
 		multiple: false,
+		maxSize: MAX_CSV_SIZE,
+		accept: { "text/csv": [".csv"] },
 	});
 
 	const { mutate: doImport, isPending } = useMutation({
-		mutationFn: (trades: ImportedTrade[]) => importTrades({ data: { trades } }),
+		mutationFn: (trades: ImportedTrade[]) =>
+			importTrades({ data: { trades } } as never),
 		onSuccess: (res) => {
 			queryClient.invalidateQueries({ queryKey: ["trades"] });
 			setParsedData([]);
@@ -218,7 +227,7 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 			const duplicates = res.skipped
 				? ` ${res.skipped} duplicate(s) skipped.`
 				: "";
-			alert(`Success! Imported ${res.count} trades.${duplicates}`);
+			toast.success(`Imported ${res.count} trades.${duplicates}`);
 			if (onSuccess) onSuccess();
 		},
 		onError: (err) => {

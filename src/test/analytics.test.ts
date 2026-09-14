@@ -135,6 +135,11 @@ describe("summarizeTrades", () => {
 		occurredAt: new Date(occurredISO),
 		amount,
 	});
+	const adjustment = (occurredISO: string, amount: number) => ({
+		occurredAt: new Date(occurredISO),
+		amount,
+		kind: "ADJUSTMENT" as const,
+	});
 
 	it("returns an empty curve and a zero balance with no trades or deposits", () => {
 		const { stats, equityCurve } = summarizeTrades([]);
@@ -273,6 +278,25 @@ describe("summarizeTrades", () => {
 		);
 		expect(stats.netDeposits).toBe(3000);
 		expect(stats.totalBalance).toBe(3000);
+	});
+
+	it("counts an account adjustment as P&L without changing trade statistics", () => {
+		const { stats, equityCurve } = summarizeTrades(
+			[closed("2026-09-14T09:00:00Z", "2026-09-14T10:00:00Z", 100)],
+			[
+				{ ...flow("2026-09-01T00:00:00Z", 1000), kind: "DEPOSIT" },
+				adjustment("2026-09-14T21:00:00Z", -4.5),
+			],
+		);
+
+		expect(stats.netDeposits).toBe(1000);
+		expect(stats.totalPnL).toBe(95.5);
+		expect(stats.totalTrades).toBe(1);
+		expect(stats.winningTrades).toBe(1);
+		expect(equityCurve.at(-1)).toEqual({
+			date: "2026-09-14",
+			balance: 1095.5,
+		});
 	});
 
 	it("carries earlier deposits and P&L into the opening balance of a window", () => {

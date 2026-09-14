@@ -87,6 +87,7 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" }).handler(
 			userCashFlows.map((flow) => ({
 				occurredAt: flow.occurredAt,
 				amount: Number(flow.amount),
+				kind: flow.kind,
 			})),
 			range,
 			input.timeZone,

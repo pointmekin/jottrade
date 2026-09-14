@@ -4,6 +4,7 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { cashFlows, portfolios } from "@/db/schema";
+import { AccountEntryKind, type AccountEntryRecord } from "@/lib/account-entry";
 import { auth } from "@/lib/auth";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 
@@ -83,12 +84,7 @@ export const updatePortfolio = createServerFn({ method: "POST" }).handler(
 	},
 );
 
-export type CashFlowRecord = {
-	id: number;
-	occurredAt: string;
-	amount: number;
-	note: string | null;
-};
+export type CashFlowRecord = AccountEntryRecord;
 
 export const getCashFlows = createServerFn({ method: "GET" }).handler(
 	async (): Promise<CashFlowRecord[]> => {
@@ -104,24 +100,34 @@ export const getCashFlows = createServerFn({ method: "GET" }).handler(
 			id: row.id,
 			occurredAt: row.occurredAt.toISOString(),
 			amount: Number(row.amount),
+			kind: row.kind as AccountEntryRecord["kind"],
 			note: row.note,
 		}));
 	},
 );
 
-const addCashFlowSchema = z.object({
-	// A day string keeps the ledger aligned with the UTC day used by the equity curve.
+const accountEntryKindSchema = z.enum([
+	AccountEntryKind.Deposit,
+	AccountEntryKind.Withdrawal,
+	AccountEntryKind.Adjustment,
+]);
+
+const accountEntrySchema = z.object({
 	occurredAt: z.string().min(1),
-	amount: z.number().refine((value) => value !== 0, {
-		message: "Amount must not be zero.",
-	}),
-	note: z.string().trim().max(140).optional(),
+	amount: z
+		.number()
+		.finite()
+		.refine((value) => value !== 0, {
+			message: "Amount must not be zero.",
+		}),
+	kind: accountEntryKindSchema,
+	note: z.string().trim().max(280).optional(),
 });
 
 export const addCashFlow = createServerFn({ method: "POST" }).handler(
 	async (ctx: any) => {
 		const userId = await requireUserId();
-		const input = addCashFlowSchema.parse(ctx.data);
+		const input = accountEntrySchema.parse(ctx.data);
 		const portfolio = await resolveDefaultPortfolio(userId);
 
 		const occurredAt = new Date(
@@ -141,11 +147,115 @@ export const addCashFlow = createServerFn({ method: "POST" }).handler(
 				portfolioId: portfolio.id,
 				occurredAt,
 				amount: input.amount.toFixed(2),
+				kind: input.kind,
 				note: input.note || null,
 			})
 			.returning();
 
 		return { id: created.id };
+	},
+);
+
+export const updateCashFlow = createServerFn({ method: "POST" }).handler(
+	async (ctx: any) => {
+		const userId = await requireUserId();
+		const input = accountEntrySchema
+			.extend({ id: z.number().int().positive() })
+			.parse(ctx.data);
+		const occurredAt = new Date(input.occurredAt);
+
+		if (Number.isNaN(occurredAt.getTime())) {
+			throw new Error("Invalid date.");
+		}
+
+		const updated = await db
+			.update(cashFlows)
+			.set({
+				occurredAt,
+				amount: input.amount.toFixed(2),
+				kind: input.kind,
+				note: input.note || null,
+			})
+			.where(and(eq(cashFlows.id, input.id), eq(cashFlows.userId, userId)))
+			.returning({ id: cashFlows.id });
+
+		if (!updated.length) throw new Error("Account entry not found.");
+		return { id: input.id };
+	},
+);
+
+const importedAdjustmentSchema = z.object({
+	symbol: z.string().max(40),
+	type: z.string().max(40),
+	lots: z.string().max(40),
+	positionId: z.string().max(80),
+	exDate: z.string().max(80),
+	adjustmentDay: z.string().max(80),
+	occurredAt: z.string().min(1).max(80),
+	dividendRate: z.string().max(80),
+	amount: z
+		.number()
+		.finite()
+		.refine((value) => value !== 0),
+	note: z.string().trim().min(1).max(280),
+});
+
+async function buildAdjustmentHash(parts: string[]) {
+	const digest = await crypto.subtle.digest(
+		"SHA-256",
+		new TextEncoder().encode(parts.join("|")),
+	);
+	return Array.from(new Uint8Array(digest))
+		.map((byte) => byte.toString(16).padStart(2, "0"))
+		.join("");
+}
+
+export const importAdjustments = createServerFn({ method: "POST" }).handler(
+	async (ctx: any) => {
+		const userId = await requireUserId();
+		const input = z
+			.object({
+				adjustments: z.array(importedAdjustmentSchema).min(1).max(5000),
+			})
+			.parse(ctx.data);
+		const portfolio = await resolveDefaultPortfolio(userId);
+		const values: (typeof cashFlows.$inferInsert)[] = [];
+
+		for (const adjustment of input.adjustments) {
+			const occurredAt = new Date(adjustment.occurredAt);
+			if (Number.isNaN(occurredAt.getTime())) continue;
+
+			values.push({
+				userId,
+				portfolioId: portfolio.id,
+				occurredAt,
+				amount: adjustment.amount.toFixed(2),
+				kind: AccountEntryKind.Adjustment,
+				note: adjustment.note,
+				importHash: await buildAdjustmentHash([
+					userId,
+					adjustment.symbol,
+					adjustment.type,
+					adjustment.lots,
+					adjustment.positionId,
+					adjustment.exDate,
+					adjustment.occurredAt,
+					adjustment.dividendRate,
+					adjustment.amount.toFixed(2),
+				]),
+			});
+		}
+
+		const inserted = await db
+			.insert(cashFlows)
+			.values(values)
+			.onConflictDoNothing({ target: cashFlows.importHash })
+			.returning({ id: cashFlows.id });
+
+		return {
+			count: inserted.length,
+			skipped: values.length - inserted.length,
+		};
 	},
 );
 

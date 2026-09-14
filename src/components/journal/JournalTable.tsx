@@ -3,12 +3,11 @@ import {
 	type ColumnDef,
 	flexRender,
 	getCoreRowModel,
-	getSortedRowModel,
-	type SortingState,
 	useReactTable,
 } from "@tanstack/react-table";
 import { format } from "date-fns";
-import { useMemo, useState } from "react";
+import { SlidersHorizontal } from "lucide-react";
+import { type ReactNode, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
@@ -19,7 +18,9 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { useCurrency } from "@/hooks/use-currency";
+import type { AccountEntryRecord } from "@/lib/account-entry";
 import { formatMoney } from "@/lib/currency";
+import type { JournalEntry } from "@/lib/journal-entries";
 
 export type Trade = {
 	id: number;
@@ -41,121 +42,168 @@ export type Trade = {
 	screenshots?: string[] | null;
 };
 
-const buildColumns = (currency: string): ColumnDef<Trade>[] => [
+type JournalRow = JournalEntry<Trade>;
+
+/**
+ * One column renders both entry kinds so trades and adjustments stay in the
+ * same grid. A column without an `adjustment` renderer shows a dash instead.
+ */
+type JournalColumn = {
+	id: string;
+	header: string;
+	trade: (trade: Trade) => ReactNode;
+	adjustment?: (adjustment: AccountEntryRecord) => ReactNode;
+};
+
+const Dash = () => <span className="text-muted-foreground">—</span>;
+
+function formatEntryDate(value: Date | string | null | undefined) {
+	if (!value) return "—";
+	try {
+		return format(new Date(value), "MMM dd, HH:mm");
+	} catch {
+		return "Invalid date";
+	}
+}
+
+function SidePill({ side }: { side: string }) {
+	return (
+		<span
+			className={`status-pill ${side === "LONG" ? "border-success/35 bg-success/10 text-success" : "border-destructive/35 bg-destructive/10 text-destructive"}`}
+		>
+			{side}
+		</span>
+	);
+}
+
+function AdjustmentPill() {
+	return (
+		<span className="status-pill border-border bg-muted text-muted-foreground">
+			<SlidersHorizontal className="size-3" />
+			Adjustment
+		</span>
+	);
+}
+
+function Money({
+	value,
+	currency,
+	signed,
+}: {
+	value: number | null;
+	currency: string;
+	signed?: boolean;
+}) {
+	if (value === null) return <Dash />;
+	const color = value >= 0 ? "text-success" : "text-destructive";
+	return (
+		<span className={`font-data font-medium ${signed ? color : ""}`}>
+			{formatMoney(value, currency, { signed })}
+		</span>
+	);
+}
+
+const toNumber = (value: string | null | undefined) =>
+	value ? Number(value) : null;
+
+const buildJournalColumns = (currency: string): JournalColumn[] => [
 	{
-		accessorKey: "entryDate",
+		id: "date",
 		header: "Date",
-		cell: ({ row }) => {
-			try {
-				return format(new Date(row.getValue("entryDate")), "MMM dd, HH:mm");
-			} catch (e) {
-				return "Invalid Date";
-			}
-		},
+		trade: (trade) => formatEntryDate(trade.entryDate),
+		adjustment: (adjustment) => formatEntryDate(adjustment.occurredAt),
 	},
 	{
-		accessorKey: "symbol",
+		id: "symbol",
 		header: "Symbol",
-		cell: ({ row }) => (
-			<span className="font-bold">{row.getValue("symbol")}</span>
-		),
-	},
-	{
-		accessorKey: "side",
-		header: "Side",
-		cell: ({ row }) => {
-			const side = row.getValue("side") as string;
-			return (
-				<span
-					className={`status-pill ${side === "LONG" ? "border-success/35 bg-success/10 text-success" : "border-destructive/35 bg-destructive/10 text-destructive"}`}
-				>
-					{side}
-				</span>
-			);
-		},
-	},
-	{
-		accessorKey: "entryPrice",
-		header: `Entry (${currency})`,
-		cell: ({ row }) => {
-			const val = parseFloat(row.getValue("entryPrice") || "0");
-			return formatMoney(val, currency);
-		},
-	},
-	{
-		accessorKey: "exitPrice",
-		header: `Exit (${currency})`,
-		cell: ({ row }) => {
-			const valStr = row.getValue("exitPrice");
-			if (!valStr) return "-";
-			return formatMoney(parseFloat(valStr as string), currency);
-		},
-	},
-	{
-		accessorKey: "quantity",
-		header: "Qty",
-	},
-	{
-		accessorKey: "exitDate",
-		header: "Exit Date",
-		cell: ({ row }) => {
-			const val = row.getValue("exitDate");
-			if (!val) return <span className="text-muted-foreground">—</span>;
-			try {
-				return format(new Date(val as Date), "MMM dd, HH:mm");
-			} catch (e) {
-				return "-";
-			}
-		},
-	},
-	{
-		accessorKey: "status",
-		header: "Status",
-		cell: ({ row }) => (
-			<span className="text-xs uppercase text-muted-foreground">
-				{row.getValue("status")}
+		trade: (trade) => <span className="font-bold">{trade.symbol}</span>,
+		adjustment: (adjustment) => (
+			<span className="text-muted-foreground">
+				{adjustment.note || "Account adjustment"}
 			</span>
 		),
 	},
 	{
-		accessorKey: "fees",
+		id: "side",
+		header: "Side",
+		trade: (trade) => <SidePill side={trade.side} />,
+		adjustment: () => <AdjustmentPill />,
+	},
+	{
+		id: "entryPrice",
+		header: `Entry (${currency})`,
+		trade: (trade) => (
+			<Money value={toNumber(trade.entryPrice)} currency={currency} />
+		),
+	},
+	{
+		id: "exitPrice",
+		header: `Exit (${currency})`,
+		trade: (trade) => (
+			<Money value={toNumber(trade.exitPrice)} currency={currency} />
+		),
+	},
+	{
+		id: "quantity",
+		header: "Qty",
+		trade: (trade) => trade.quantity || <Dash />,
+	},
+	{
+		id: "exitDate",
+		header: "Exit Date",
+		trade: (trade) =>
+			trade.exitDate ? formatEntryDate(trade.exitDate) : <Dash />,
+	},
+	{
+		id: "status",
+		header: "Status",
+		trade: (trade) => (
+			<span className="text-xs uppercase text-muted-foreground">
+				{trade.status ?? "—"}
+			</span>
+		),
+	},
+	{
+		id: "fees",
 		header: "Fees",
-		cell: ({ row }) => {
-			const val = parseFloat(row.getValue("fees") || "0");
-			return (
-				<span className="text-muted-foreground">
-					{val > 0 ? val.toFixed(2) : "—"}
-				</span>
-			);
+		trade: (trade) => {
+			const fees = toNumber(trade.fees);
+			if (!fees) return <Dash />;
+			return <span className="text-muted-foreground">{fees.toFixed(2)}</span>;
 		},
 	},
 	{
 		id: "pnl",
 		header: `Net P&L (${currency})`,
-		cell: ({ row }) => {
-			const val = row.original.netPnl;
-			if (!val) return <span className="text-muted-foreground">—</span>;
-			const num = parseFloat(val);
-			const color = num >= 0 ? "text-success" : "text-destructive";
-			return (
-				<span className={`font-medium ${color}`}>
-					{formatMoney(num, currency, { signed: true })}
-				</span>
-			);
-		},
+		trade: (trade) => (
+			<Money value={toNumber(trade.netPnl)} currency={currency} signed />
+		),
+		adjustment: (adjustment) => (
+			<Money value={adjustment.amount} currency={currency} signed />
+		),
 	},
 	{
 		id: "roi",
 		header: "ROI",
-		cell: ({ row }) => {
-			const val = row.original.returnPercent;
-			if (!val) return <span className="text-muted-foreground">—</span>;
-			const num = parseFloat(val);
-			const color = num >= 0 ? "text-success" : "text-destructive";
-			return <span className={`font-medium ${color}`}>{num.toFixed(2)}%</span>;
+		trade: (trade) => {
+			const roi = toNumber(trade.returnPercent);
+			if (roi === null) return <Dash />;
+			const color = roi >= 0 ? "text-success" : "text-destructive";
+			return <span className={`font-medium ${color}`}>{roi.toFixed(2)}%</span>;
 		},
 	},
 ];
+
+const toColumnDefs = (columns: JournalColumn[]): ColumnDef<JournalRow>[] =>
+	columns.map((column) => ({
+		id: column.id,
+		header: column.header,
+		cell: ({ row }) => {
+			const entry = row.original;
+			if (entry.kind === "trade") return column.trade(entry.trade);
+			return column.adjustment?.(entry.adjustment) ?? <Dash />;
+		},
+	}));
 
 const MOBILE_SKELETON_KEYS = [
 	"mobile-1",
@@ -174,33 +222,16 @@ const DESKTOP_SKELETON_KEYS = [
 	"desktop-7",
 ];
 
-interface JournalTableProps {
-	data: Trade[];
-	onRowClick?: (trade: Trade) => void;
-}
-
-function formatTradeDate(value: Date | string | null | undefined) {
-	if (!value) return "—";
-	try {
-		return format(new Date(value), "MMM dd, HH:mm");
-	} catch {
-		return "Invalid date";
-	}
-}
-
 function TradeCard({ trade, currency }: { trade: Trade; currency: string }) {
-	const netPnl = trade.netPnl ? Number(trade.netPnl) : null;
-	const returnPercent = trade.returnPercent
-		? Number(trade.returnPercent)
-		: null;
-	const isLong = trade.side === "LONG";
+	const netPnl = toNumber(trade.netPnl);
+	const returnPercent = toNumber(trade.returnPercent);
 
 	return (
 		<Link
 			to="/journal/$tradeId"
 			params={{ tradeId: String(trade.id) }}
-			className="surface block min-h-11 p-3 transition-colors hover:bg-accent/45 focus-visible:border-ring focus-visible:ring-ring/35 focus-visible:ring-[3px]"
-			aria-label={`Review ${trade.symbol} ${trade.side} trade from ${formatTradeDate(trade.entryDate)}`}
+			className="surface block min-h-11 border-l-2 border-l-ring p-3 transition-colors hover:bg-accent/45 focus-visible:border-ring focus-visible:ring-ring/35 focus-visible:ring-[3px]"
+			aria-label={`Review ${trade.symbol} ${trade.side} trade from ${formatEntryDate(trade.entryDate)}`}
 		>
 			<div className="flex items-start justify-between gap-3">
 				<div className="min-w-0">
@@ -208,26 +239,18 @@ function TradeCard({ trade, currency }: { trade: Trade; currency: string }) {
 						<span className="font-semibold tracking-tight text-foreground">
 							{trade.symbol}
 						</span>
-						<span
-							className={`status-pill ${isLong ? "border-success/35 bg-success/10 text-success" : "border-destructive/35 bg-destructive/10 text-destructive"}`}
-						>
-							{trade.side}
-						</span>
+						<SidePill side={trade.side} />
 						<span className="status-pill bg-muted text-muted-foreground">
 							{trade.status ?? "—"}
 						</span>
 					</div>
 					<p className="mt-1 text-xs text-muted-foreground">
-						{formatTradeDate(trade.entryDate)}
+						{formatEntryDate(trade.entryDate)}
 					</p>
 				</div>
-				<div
-					className={`shrink-0 text-right ${netPnl === null ? "text-muted-foreground" : netPnl >= 0 ? "text-success" : "text-destructive"}`}
-				>
-					<p className="font-data text-sm font-semibold">
-						{netPnl === null
-							? "—"
-							: formatMoney(netPnl, currency, { signed: true })}
+				<div className="shrink-0 text-right">
+					<p className="text-sm">
+						<Money value={netPnl} currency={currency} signed />
 					</p>
 					<p className="text-xs text-muted-foreground">net P&amp;L</p>
 				</div>
@@ -269,6 +292,43 @@ function TradeCard({ trade, currency }: { trade: Trade; currency: string }) {
 	);
 }
 
+function AdjustmentCard({
+	adjustment,
+	currency,
+}: {
+	adjustment: AccountEntryRecord;
+	currency: string;
+}) {
+	return (
+		<div className="surface block min-h-11 border-l-2 border-l-border bg-muted/35 p-3">
+			<div className="flex items-start justify-between gap-3">
+				<div className="min-w-0">
+					<div className="flex flex-wrap items-center gap-2">
+						<span className="font-semibold tracking-tight text-foreground">
+							Account adjustment
+						</span>
+						<AdjustmentPill />
+					</div>
+					<p className="mt-1 text-xs text-muted-foreground">
+						{formatEntryDate(adjustment.occurredAt)}
+					</p>
+				</div>
+				<div className="shrink-0 text-right">
+					<p className="text-sm">
+						<Money value={adjustment.amount} currency={currency} signed />
+					</p>
+					<p className="text-xs text-muted-foreground">balance change</p>
+				</div>
+			</div>
+			{adjustment.note && (
+				<p className="mt-3 truncate border-t border-border pt-2.5 text-xs text-muted-foreground">
+					{adjustment.note}
+				</p>
+			)}
+		</div>
+	);
+}
+
 export function JournalTableSkeleton() {
 	return (
 		<>
@@ -298,35 +358,50 @@ export function JournalTableSkeleton() {
 	);
 }
 
-export function JournalTable({ data, onRowClick }: JournalTableProps) {
+interface JournalTableProps {
+	entries: JournalRow[];
+	emptyMessage?: string;
+	onTradeClick?: (trade: Trade) => void;
+}
+
+export function JournalTable({
+	entries,
+	emptyMessage = "No entries match this section.",
+	onTradeClick,
+}: JournalTableProps) {
 	const currency = useCurrency();
-	const columns = useMemo(() => buildColumns(currency), [currency]);
-	const [sorting, setSorting] = useState<SortingState>([
-		{ id: "entryDate", desc: true }, // Default sort
-	]);
+	const columns = useMemo(
+		() => toColumnDefs(buildJournalColumns(currency)),
+		[currency],
+	);
 
 	const table = useReactTable({
-		data,
+		data: entries,
 		columns,
 		getCoreRowModel: getCoreRowModel(),
-		onSortingChange: setSorting,
-		getSortedRowModel: getSortedRowModel(),
-		state: {
-			sorting,
-		},
 	});
 
 	return (
 		<>
 			<div className="space-y-2 md:hidden">
-				{data.length ? (
-					data.map((trade) => (
-						<TradeCard key={trade.id} trade={trade} currency={currency} />
-					))
+				{entries.length ? (
+					entries.map((entry) =>
+						entry.kind === "trade" ? (
+							<TradeCard
+								key={entry.key}
+								trade={entry.trade}
+								currency={currency}
+							/>
+						) : (
+							<AdjustmentCard
+								key={entry.key}
+								adjustment={entry.adjustment}
+								currency={currency}
+							/>
+						),
+					)
 				) : (
-					<div className="empty-field min-h-36 text-sm">
-						No trades match this section.
-					</div>
+					<div className="empty-field min-h-36 text-sm">{emptyMessage}</div>
 				)}
 			</div>
 			<div className="surface hidden overflow-hidden md:block">
@@ -337,55 +412,66 @@ export function JournalTable({ data, onRowClick }: JournalTableProps) {
 								key={headerGroup.id}
 								className="border-border bg-background hover:bg-background"
 							>
-								{headerGroup.headers.map((header) => {
-									return (
-										<TableHead key={header.id}>
-											{header.isPlaceholder
-												? null
-												: flexRender(
-														header.column.columnDef.header,
-														header.getContext(),
-													)}
-										</TableHead>
-									);
-								})}
+								{headerGroup.headers.map((header) => (
+									<TableHead key={header.id}>
+										{header.isPlaceholder
+											? null
+											: flexRender(
+													header.column.columnDef.header,
+													header.getContext(),
+												)}
+									</TableHead>
+								))}
 							</TableRow>
 						))}
 					</TableHeader>
 					<TableBody>
-						{table.getRowModel().rows?.length ? (
-							table.getRowModel().rows.map((row) => (
-								<TableRow
-									key={row.id}
-									data-state={row.getIsSelected() && "selected"}
-									className="cursor-pointer border-border hover:bg-accent/55 focus-visible:bg-accent/55"
-									tabIndex={onRowClick ? 0 : undefined}
-									role={onRowClick ? "link" : undefined}
-									onClick={() => onRowClick?.(row.original)}
-									onKeyDown={(event) => {
-										if (event.key === "Enter" || event.key === " ") {
-											event.preventDefault();
-											onRowClick?.(row.original);
+						{table.getRowModel().rows.length ? (
+							table.getRowModel().rows.map((row) => {
+								const entry = row.original;
+								const isTrade = entry.kind === "trade";
+								const openTrade = () => {
+									if (isTrade) onTradeClick?.(entry.trade);
+								};
+								const isClickable = isTrade && Boolean(onTradeClick);
+
+								return (
+									<TableRow
+										key={row.id}
+										className={
+											isTrade
+												? "cursor-pointer border-border border-l-2 border-l-ring hover:bg-accent/55 focus-visible:bg-accent/55"
+												: "border-border border-l-2 border-l-border bg-muted/35 hover:bg-muted/35"
 										}
-									}}
-								>
-									{row.getVisibleCells().map((cell) => (
-										<TableCell key={cell.id}>
-											{flexRender(
-												cell.column.columnDef.cell,
-												cell.getContext(),
-											)}
-										</TableCell>
-									))}
-								</TableRow>
-							))
+										tabIndex={isClickable ? 0 : undefined}
+										role={isClickable ? "link" : undefined}
+										onClick={openTrade}
+										onKeyDown={(event) => {
+											if (!isClickable) return;
+											if (event.key === "Enter" || event.key === " ") {
+												event.preventDefault();
+												openTrade();
+											}
+										}}
+									>
+										{row.getVisibleCells().map((cell) => (
+											<TableCell key={cell.id}>
+												{flexRender(
+													cell.column.columnDef.cell,
+													cell.getContext(),
+												)}
+											</TableCell>
+										))}
+									</TableRow>
+								);
+							})
 						) : (
 							<TableRow>
 								<TableCell
 									colSpan={columns.length}
 									className="h-36 text-center text-muted-foreground"
 								>
-									No trades match this section.
+									{emptyMessage}
 								</TableCell>
 							</TableRow>
 						)}

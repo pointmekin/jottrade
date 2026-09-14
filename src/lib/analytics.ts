@@ -10,6 +10,7 @@ export type ClosedTrade = {
 export type CashFlow = {
 	occurredAt: Date;
 	amount: number;
+	kind?: string;
 };
 
 /** A reporting window. `null` on a side means unbounded. */
@@ -93,6 +94,8 @@ export function summarizeTrades(
 	let openingBalance = 0;
 	let netDeposits = 0;
 	const dailyFlow = new Map<string, number>();
+	const dailyAdjustment = new Map<string, number>();
+	let adjustmentPnl = 0;
 
 	for (const flow of cashFlows) {
 		const amount = Number.isFinite(flow.amount) ? flow.amount : 0;
@@ -101,9 +104,14 @@ export function summarizeTrades(
 			openingBalance += amount;
 			continue;
 		}
-		netDeposits += amount;
 		const day = toDayKey(flow.occurredAt, timeZone);
-		dailyFlow.set(day, (dailyFlow.get(day) ?? 0) + amount);
+		if (flow.kind === "ADJUSTMENT") {
+			adjustmentPnl += amount;
+			dailyAdjustment.set(day, (dailyAdjustment.get(day) ?? 0) + amount);
+		} else {
+			netDeposits += amount;
+			dailyFlow.set(day, (dailyFlow.get(day) ?? 0) + amount);
+		}
 	}
 
 	let totalPnL = 0;
@@ -143,6 +151,7 @@ export function summarizeTrades(
 		const day = toDayKey(at, timeZone);
 		dailyPnl.set(day, (dailyPnl.get(day) ?? 0) + pnl);
 	}
+	totalPnL += adjustmentPnl;
 
 	// An open position entered after the window has not been taken yet.
 	const activeTrades = records.filter(
@@ -151,7 +160,11 @@ export function summarizeTrades(
 	).length;
 
 	const days = Array.from(
-		new Set([...dailyPnl.keys(), ...dailyFlow.keys()]),
+		new Set([
+			...dailyPnl.keys(),
+			...dailyFlow.keys(),
+			...dailyAdjustment.keys(),
+		]),
 	).sort();
 
 	const equityCurve: EquityPoint[] = [];
@@ -165,7 +178,10 @@ export function summarizeTrades(
 	}
 
 	for (const day of days) {
-		balance += (dailyPnl.get(day) ?? 0) + (dailyFlow.get(day) ?? 0);
+		balance +=
+			(dailyPnl.get(day) ?? 0) +
+			(dailyFlow.get(day) ?? 0) +
+			(dailyAdjustment.get(day) ?? 0);
 		equityCurve.push({ date: day, balance: round2(balance) });
 	}
 
