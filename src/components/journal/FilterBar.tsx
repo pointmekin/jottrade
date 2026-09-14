@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Filter, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { PeriodPicker } from "@/components/period-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,10 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 	const [expanded, setExpanded] = useState(false);
 	const [symbolInput, setSymbolInput] = useState(filters.symbol ?? "");
 	const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+	const filterFieldsId = useId();
+	const symbolInputId = `${filterFieldsId}-symbol`;
+	const statusLabelId = `${filterFieldsId}-status`;
+	const strategyLabelId = `${filterFieldsId}-strategy`;
 
 	const { data: strategies = [] } = useQuery({
 		queryKey: ["strategies"],
@@ -79,8 +83,8 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 	};
 
 	return (
-		<div className="space-y-3">
-			<div className="surface flex min-w-0 flex-wrap items-center gap-2 p-2">
+		<section aria-label="Journal filters" className="border-y border-border">
+			<div className="flex min-w-0 flex-wrap items-center gap-2 py-2.5">
 				<PeriodPicker
 					value={{
 						preset: period,
@@ -100,9 +104,10 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 					size="sm"
 					className="h-9 border-border bg-background"
 					aria-expanded={expanded}
+					aria-controls={filterFieldsId}
 					onClick={() => setExpanded(!expanded)}
 				>
-					<Filter className="h-3.5 w-3.5 mr-2" />
+					<Filter className="mr-2 h-3.5 w-3.5" />
 					Filters
 					{activeCount > 0 && (
 						<Badge className="ml-2 h-4 rounded-md bg-ring px-1.5 font-data text-xs text-background">
@@ -114,20 +119,26 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 					<Button
 						variant="ghost"
 						size="sm"
-						className="h-9 text-muted-foreground"
+						className="h-9 text-muted-foreground sm:ml-auto"
 						onClick={clearAll}
 					>
-						<X className="h-3.5 w-3.5 mr-1" /> Clear all
+						<X className="mr-1 h-3.5 w-3.5" /> Clear all
 					</Button>
 				)}
 			</div>
 
 			{expanded && (
-				<div className="surface grid grid-cols-2 gap-3 p-3 md:grid-cols-4 md:p-4">
+				<div
+					id={filterFieldsId}
+					className="grid grid-cols-2 gap-x-3 gap-y-3 border-t border-border bg-muted/25 py-3 md:grid-cols-4 md:py-4"
+				>
 					{/* Symbol */}
 					<div>
-						<p className="field-label mb-1">Symbol</p>
+						<label htmlFor={symbolInputId} className="field-label mb-1 block">
+							Symbol
+						</label>
 						<Input
+							id={symbolInputId}
 							value={symbolInput}
 							onChange={(e) => setSymbolInput(e.target.value)}
 							placeholder="AAPL"
@@ -136,8 +147,8 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 					</div>
 
 					{/* Side */}
-					<div>
-						<p className="field-label mb-1">Side</p>
+					<fieldset className="min-w-0">
+						<legend className="field-label mb-1">Side</legend>
 						<div className="flex gap-1">
 							{(["LONG", "SHORT"] as const).map((s) => (
 								<Button
@@ -154,18 +165,23 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 								</Button>
 							))}
 						</div>
-					</div>
+					</fieldset>
 
 					{/* Status */}
 					<div>
-						<p className="field-label mb-1">Status</p>
+						<p id={statusLabelId} className="field-label mb-1">
+							Status
+						</p>
 						<Select
 							value={filters.status ?? ""}
 							onValueChange={(v) =>
 								update({ status: v === "__all__" ? undefined : (v as any) })
 							}
 						>
-							<SelectTrigger className="h-9 bg-background text-sm">
+							<SelectTrigger
+								className="h-9 bg-background text-sm"
+								aria-labelledby={statusLabelId}
+							>
 								<SelectValue placeholder="All" />
 							</SelectTrigger>
 							<SelectContent>
@@ -181,12 +197,17 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 
 					{/* Strategy */}
 					<div>
-						<p className="field-label mb-1">Strategy</p>
+						<p id={strategyLabelId} className="field-label mb-1">
+							Strategy
+						</p>
 						<Select
 							value={filters.setupId ?? ""}
 							onValueChange={(v) => update({ setupId: v || undefined })}
 						>
-							<SelectTrigger className="h-9 bg-background text-sm">
+							<SelectTrigger
+								className="h-9 bg-background text-sm"
+								aria-labelledby={strategyLabelId}
+							>
 								<SelectValue placeholder="All" />
 							</SelectTrigger>
 							<SelectContent>
@@ -202,8 +223,8 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 					</div>
 
 					{/* Confidence */}
-					<div>
-						<p className="field-label mb-1">Confidence</p>
+					<fieldset className="min-w-0">
+						<legend className="field-label mb-1">Confidence</legend>
 						<div className="flex gap-1">
 							{(["HIGH", "MEDIUM", "LOW"] as const).map((c) => {
 								const active = (filters.confidence ?? "")
@@ -226,6 +247,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 										variant="outline"
 										className={`h-9 flex-1 text-xs ${active ? "border-ring bg-accent text-accent-foreground" : "text-muted-foreground"}`}
 										aria-pressed={active}
+										aria-label={`${c[0]}${c.slice(1).toLowerCase()} confidence`}
 										onClick={toggle}
 									>
 										{c[0]}
@@ -233,25 +255,27 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 								);
 							})}
 						</div>
-					</div>
+					</fieldset>
 				</div>
 			)}
 
 			{/* Active filter chips */}
 			{(activeCount > 0 || period !== PeriodPreset.All) && (
-				<div className="flex flex-wrap gap-2">
+				<div className="flex flex-wrap gap-2 border-t border-border py-2">
 					{period !== PeriodPreset.All && (
 						<Badge
 							variant="outline"
-							className="gap-1 rounded-md border-border font-data text-xs uppercase"
+							className="gap-1 rounded-md border-border font-data text-xs font-normal"
 						>
 							{describePeriod({
 								preset: period,
 								from: filters.dateFrom,
 								to: filters.dateTo,
 							})}
-							<X
-								className="h-3 w-3 cursor-pointer"
+							<button
+								type="button"
+								className="rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+								aria-label="Clear period filter"
 								onClick={() =>
 									update({
 										period: PeriodPreset.All,
@@ -259,47 +283,61 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 										dateTo: undefined,
 									})
 								}
-							/>
+							>
+								<X className="h-3 w-3" />
+							</button>
 						</Badge>
 					)}
 					{filters.symbol && (
 						<Badge
 							variant="outline"
-							className="gap-1 rounded-md border-border font-data text-xs uppercase"
+							className="gap-1 rounded-md border-border font-data text-xs font-normal"
 						>
 							Symbol: {filters.symbol}
-							<X
-								className="h-3 w-3 cursor-pointer"
+							<button
+								type="button"
+								className="rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+								aria-label="Clear symbol filter"
 								onClick={() => update({ symbol: undefined })}
-							/>
+							>
+								<X className="h-3 w-3" />
+							</button>
 						</Badge>
 					)}
 					{filters.side && (
 						<Badge
 							variant="outline"
-							className="gap-1 rounded-md border-border font-data text-xs uppercase"
+							className="gap-1 rounded-md border-border font-data text-xs font-normal"
 						>
 							{filters.side}
-							<X
-								className="h-3 w-3 cursor-pointer"
+							<button
+								type="button"
+								className="rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+								aria-label="Clear side filter"
 								onClick={() => update({ side: undefined })}
-							/>
+							>
+								<X className="h-3 w-3" />
+							</button>
 						</Badge>
 					)}
 					{filters.status && (
 						<Badge
 							variant="outline"
-							className="gap-1 rounded-md border-border font-data text-xs uppercase"
+							className="gap-1 rounded-md border-border font-data text-xs font-normal"
 						>
 							{filters.status}
-							<X
-								className="h-3 w-3 cursor-pointer"
+							<button
+								type="button"
+								className="rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+								aria-label="Clear status filter"
 								onClick={() => update({ status: undefined })}
-							/>
+							>
+								<X className="h-3 w-3" />
+							</button>
 						</Badge>
 					)}
 				</div>
 			)}
-		</div>
+		</section>
 	);
 }
