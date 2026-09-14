@@ -20,6 +20,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { localDateTimeToIso, toDateTimeLocalValue } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { createTrade } from "@/server/tradeActions";
 
@@ -58,7 +59,7 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 		defaultValues: {
 			symbol: "",
 			side: "LONG",
-			entryDate: new Date().toISOString().slice(0, 16),
+			entryDate: toDateTimeLocalValue(new Date()),
 			entryPrice: "",
 			quantity: "",
 			notes: "",
@@ -73,7 +74,15 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 
 	const { mutate: logTrade, isPending } = useMutation({
 		mutationFn: (values: z.infer<typeof formSchema>) =>
-			createTrade({ data: values }),
+			createTrade({
+				data: {
+					...values,
+					entryDate: localDateTimeToIso(values.entryDate),
+					exitDate: values.exitDate
+						? localDateTimeToIso(values.exitDate)
+						: undefined,
+				},
+			}),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["trades"] });
 			form.reset();

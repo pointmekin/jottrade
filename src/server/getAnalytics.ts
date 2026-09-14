@@ -18,7 +18,8 @@ export const getAnalytics = createServerFn({ method: "GET" }).handler(
 		}
 
 		const userId = session.user.id;
-		const range = toDateRange(rangeSchema.parse(ctx.data ?? {}));
+		const input = rangeSchema.parse(ctx.data ?? {});
+		const range = toDateRange(input);
 
 		// The whole history is loaded because the window needs the balance carried into it.
 		const [userTrades, userCashFlows] = await Promise.all([
@@ -38,6 +39,7 @@ export const getAnalytics = createServerFn({ method: "GET" }).handler(
 				amount: Number(flow.amount),
 			})),
 			range,
+			input.timeZone,
 		);
 	},
 );

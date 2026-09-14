@@ -1,10 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
-import { and, eq, gte, isNull, lte } from "drizzle-orm";
+import { and, eq, gte, isNull, lt } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { trades } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { isValidTimeZone, toDayKey } from "@/lib/date";
 
 export type CalendarTrade = {
 	id: number;
@@ -25,12 +26,18 @@ export const getCalendarData = createServerFn({ method: "GET" }).handler(
 		const session = await auth.api.getSession({ headers: getRequestHeaders() });
 		if (!session) throw new Error("Unauthorized");
 
-		const { year, month } = z
-			.object({ year: z.number(), month: z.number() })
+		const { from, to, timeZone } = z
+			.object({
+				year: z.number(),
+				month: z.number(),
+				from: z.string().datetime(),
+				to: z.string().datetime(),
+				timeZone: z.string().refine(isValidTimeZone, "Invalid IANA timezone"),
+			})
 			.parse(ctx.data);
 
-		const startDate = new Date(year, month - 1, 1);
-		const endDate = new Date(year, month, 0, 23, 59, 59, 999); // last ms of month
+		const startDate = new Date(from);
+		const endDate = new Date(to);
 
 		// Closed trades: grouped by exitDate
 		const closedTrades = await db
@@ -47,7 +54,7 @@ export const getCalendarData = createServerFn({ method: "GET" }).handler(
 				and(
 					eq(trades.userId, session.user.id),
 					gte(trades.exitDate, startDate),
-					lte(trades.exitDate, endDate),
+					lt(trades.exitDate, endDate),
 				),
 			);
 
@@ -65,7 +72,7 @@ export const getCalendarData = createServerFn({ method: "GET" }).handler(
 				and(
 					eq(trades.userId, session.user.id),
 					gte(trades.entryDate, startDate),
-					lte(trades.entryDate, endDate),
+					lt(trades.entryDate, endDate),
 					isNull(trades.exitDate),
 				),
 			);
@@ -78,7 +85,7 @@ export const getCalendarData = createServerFn({ method: "GET" }).handler(
 
 		for (const t of closedTrades) {
 			if (!t.exitDate) continue;
-			const key = new Date(t.exitDate).toISOString().slice(0, 10);
+			const key = toDayKey(new Date(t.exitDate), timeZone);
 			ensureDay(key);
 			result[key].netPnl += Number(t.netPnl ?? 0);
 			result[key].tradeCount += 1;
@@ -93,7 +100,7 @@ export const getCalendarData = createServerFn({ method: "GET" }).handler(
 
 		for (const t of openTrades) {
 			if (!t.entryDate) continue;
-			const key = new Date(t.entryDate).toISOString().slice(0, 10);
+			const key = toDayKey(new Date(t.entryDate), timeZone);
 			ensureDay(key);
 			result[key].tradeCount += 1;
 			result[key].trades.push({

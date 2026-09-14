@@ -14,6 +14,7 @@ import {
 	TradeStatus,
 } from "@/lib/analytics";
 import { auth } from "@/lib/auth";
+import { zonedDayOfWeek, zonedHour } from "@/lib/date";
 import { rangeSchema, toDateRange } from "./rangeInput";
 
 function aggregateGroup(pnls: number[]) {
@@ -44,7 +45,8 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" }).handler(
 		if (!session) throw new Error("Unauthorized");
 
 		const userId = session.user.id;
-		const range = toDateRange(rangeSchema.parse(ctx.data ?? {}));
+		const input = rangeSchema.parse(ctx.data ?? {});
+		const range = toDateRange(input);
 
 		const windowConditions = [
 			eq(trades.userId, userId),
@@ -72,7 +74,7 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" }).handler(
 			netPnl: Number(t.netPnl ?? 0),
 		}));
 
-		const dailyPnl = groupByDay(analyticsInput);
+		const dailyPnl = groupByDay(analyticsInput, input.timeZone);
 
 		// Drawdown reads the account value, so it needs deposits and the carried-in balance.
 		const { equityCurve } = summarizeTrades(
@@ -87,6 +89,7 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" }).handler(
 				amount: Number(flow.amount),
 			})),
 			range,
+			input.timeZone,
 		);
 
 		// Risk metrics
@@ -123,7 +126,7 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" }).handler(
 			.sort((a, b) => b.count - a.count)
 			.slice(0, 10);
 
-		// By day of week. UTC keeps these buckets aligned with groupByDay.
+		// Use the same local day as the daily P&L and equity curve.
 		const dowGroups: Record<number, number[]> = {
 			0: [],
 			1: [],
@@ -134,7 +137,7 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" }).handler(
 			6: [],
 		};
 		for (const t of allTrades) {
-			const dow = new Date(t.exitDate as Date).getUTCDay();
+			const dow = zonedDayOfWeek(new Date(t.exitDate as Date), input.timeZone);
 			dowGroups[dow].push(Number(t.netPnl ?? 0));
 		}
 		const byDayOfWeek = DOW_ORDER.map((d) => ({
@@ -145,7 +148,7 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" }).handler(
 		// By entry hour
 		const hourGroups: Record<string, number[]> = {};
 		for (const t of allTrades) {
-			const hour = new Date(t.entryDate).getUTCHours();
+			const hour = zonedHour(new Date(t.entryDate), input.timeZone);
 			const key = `${String(hour).padStart(2, "0")}:00`;
 			if (!hourGroups[key]) hourGroups[key] = [];
 			hourGroups[key].push(Number(t.netPnl ?? 0));

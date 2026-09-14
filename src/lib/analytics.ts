@@ -1,3 +1,5 @@
+import { previousDayKey, toDayKey } from "./date";
+
 export type ClosedTrade = {
 	exitDate: Date;
 	entryDate: Date;
@@ -50,16 +52,6 @@ export type TradeStats = {
 	breakevenTrades: number;
 };
 
-export function toUtcDay(date: Date): string {
-	return date.toISOString().slice(0, 10);
-}
-
-function previousUtcDay(day: string): string {
-	const date = new Date(`${day}T00:00:00Z`);
-	date.setUTCDate(date.getUTCDate() - 1);
-	return toUtcDay(date);
-}
-
 function round2(value: number): number {
 	return Math.round(value * 100) / 100;
 }
@@ -94,6 +86,7 @@ export function summarizeTrades(
 	records: TradeRecord[],
 	cashFlows: CashFlow[] = [],
 	range: DateRange = UNBOUNDED,
+	timeZone = "UTC",
 ): { stats: TradeStats; equityCurve: EquityPoint[] } {
 	const { from, to } = range;
 
@@ -109,7 +102,7 @@ export function summarizeTrades(
 			continue;
 		}
 		netDeposits += amount;
-		const day = toUtcDay(flow.occurredAt);
+		const day = toDayKey(flow.occurredAt, timeZone);
 		dailyFlow.set(day, (dailyFlow.get(day) ?? 0) + amount);
 	}
 
@@ -147,7 +140,7 @@ export function summarizeTrades(
 			breakevenTrades++;
 		}
 
-		const day = toUtcDay(at);
+		const day = toDayKey(at, timeZone);
 		dailyPnl.set(day, (dailyPnl.get(day) ?? 0) + pnl);
 	}
 
@@ -166,7 +159,7 @@ export function summarizeTrades(
 
 	if (days.length > 0) {
 		equityCurve.push({
-			date: previousUtcDay(days[0]),
+			date: previousDayKey(days[0]),
 			balance: round2(openingBalance),
 		});
 	}
@@ -197,13 +190,15 @@ export function summarizeTrades(
 }
 
 /**
- * Groups closed trades by exit date (YYYY-MM-DD UTC). Returns date → sum of netPnl.
- * Note: uses UTC date from exitDate — trades stored with UTC timestamps will group correctly.
+ * Groups closed trades by local exit date. Returns date → sum of netPnl.
  */
-export function groupByDay(trades: ClosedTrade[]): Map<string, number> {
+export function groupByDay(
+	trades: ClosedTrade[],
+	timeZone = "UTC",
+): Map<string, number> {
 	const map = new Map<string, number>();
 	for (const trade of trades) {
-		const key = trade.exitDate.toISOString().slice(0, 10);
+		const key = toDayKey(trade.exitDate, timeZone);
 		map.set(key, (map.get(key) ?? 0) + trade.netPnl);
 	}
 	return map;

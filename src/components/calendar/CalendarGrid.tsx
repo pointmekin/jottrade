@@ -16,18 +16,18 @@ export function CalendarGrid({ year, month, data }: CalendarGridProps) {
 
 	// Build grid: 6-week grid starting from Sunday before month start
 	const days = useMemo(() => {
-		const firstDay = new Date(year, month - 1, 1);
+		const firstDay = new Date(Date.UTC(year, month - 1, 1));
 		const start = new Date(firstDay);
-		start.setDate(start.getDate() - start.getDay()); // back to Sunday
+		start.setUTCDate(start.getUTCDate() - start.getUTCDay()); // back to Sunday
 
 		const cells: { date: string; currentMonth: boolean }[] = [];
 		const cursor = new Date(start);
 		for (let i = 0; i < 42; i++) {
 			cells.push({
 				date: cursor.toISOString().slice(0, 10),
-				currentMonth: cursor.getMonth() === month - 1,
+				currentMonth: cursor.getUTCMonth() === month - 1,
 			});
-			cursor.setDate(cursor.getDate() + 1);
+			cursor.setUTCDate(cursor.getUTCDate() + 1);
 		}
 		return cells;
 	}, [year, month]);

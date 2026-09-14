@@ -26,6 +26,18 @@ describe("groupByDay", () => {
 		expect(result.get("2025-01-01")).toBe(150);
 		expect(result.get("2025-01-02")).toBe(-30);
 	});
+
+	it("groups UTC instants by the user's local day", () => {
+		const trades = [
+			t("2025-01-03T16:30:00Z", "2025-01-03T15:00:00Z", 100),
+			t("2025-01-03T18:00:00Z", "2025-01-03T17:00:00Z", 50),
+		];
+		const result = groupByDay(trades, "Asia/Bangkok");
+		expect(Array.from(result.entries())).toEqual([
+			["2025-01-03", 100],
+			["2025-01-04", 50],
+		]);
+	});
 });
 
 describe("computeSharpe", () => {
@@ -181,6 +193,19 @@ describe("summarizeTrades", () => {
 			{ date: "2025-01-03", balance: 10000 },
 			{ date: "2025-01-04", balance: 10500 },
 			{ date: "2025-01-05", balance: 10300 },
+		]);
+	});
+
+	it("labels equity points with the user's local day", () => {
+		const { equityCurve } = summarizeTrades(
+			[closed("2025-01-03T15:00:00Z", "2025-01-03T16:30:00Z", 100)],
+			[],
+			undefined,
+			"Asia/Bangkok",
+		);
+		expect(equityCurve).toEqual([
+			{ date: "2025-01-02", balance: 0 },
+			{ date: "2025-01-03", balance: 100 },
 		]);
 	});
 

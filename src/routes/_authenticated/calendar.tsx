@@ -5,6 +5,7 @@ import {
 	useSearch,
 } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useMemo } from "react";
 import { z } from "zod";
 import { AppPageHeader } from "@/components/app-page-header";
 import { CalendarGrid } from "@/components/calendar/CalendarGrid";
@@ -27,11 +28,20 @@ function CalendarPage() {
 	const navigate = useNavigate({ from: "/calendar" });
 	const { year, month } = useSearch({ from: "/_authenticated/calendar" });
 	const currency = useCurrency();
+	const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+	const range = useMemo(
+		() => ({
+			from: new Date(year, month - 1, 1).toISOString(),
+			to: new Date(year, month, 1).toISOString(),
+		}),
+		[year, month],
+	);
 
 	const { data: calendarData = {} as Record<string, CalendarDay>, isLoading } =
 		useQuery({
-			queryKey: ["calendar", year, month],
-			queryFn: () => getCalendarData({ data: { year, month } }),
+			queryKey: ["calendar", year, month, timeZone],
+			queryFn: () =>
+				getCalendarData({ data: { year, month, timeZone, ...range } } as never),
 		});
 
 	const goTo = (y: number, m: number) => {

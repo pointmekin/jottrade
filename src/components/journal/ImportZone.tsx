@@ -12,6 +12,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { parseUtcDate } from "@/lib/date";
 import { importTrades } from "@/server/importActions";
 
 type ImportedTrade = {
@@ -81,20 +82,6 @@ function parseNumber(value: string | undefined): number | null {
 	if (!trimmed) return null;
 	const parsed = Number(trimmed.replace(/[\s,]/g, ""));
 	return Number.isFinite(parsed) ? parsed : null;
-}
-
-/**
- * The `*_time_utc` columns carry no zone suffix, so `new Date(value)` would read
- * them as local time and shift every timestamp by the machine offset.
- */
-function parseUtcDate(value: string | undefined): string | undefined {
-	const trimmed = value?.trim();
-	if (!trimmed) return undefined;
-	const normalized = /(Z|[+-]\d{2}:?\d{2})$/.test(trimmed)
-		? trimmed
-		: `${trimmed.replace(" ", "T")}Z`;
-	const parsed = new Date(normalized);
-	return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
 }
 
 export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { describePeriod, PeriodPreset, resolvePeriod } from "../lib/period";
+import { rangeSchema, toDateRange } from "../server/rangeInput";
 
 // A fixed clock keeps the preset windows deterministic.
 const NOW = new Date(2025, 4, 15, 13, 30); // 15 May 2025, local time
@@ -81,5 +82,21 @@ describe("describePeriod", () => {
 				NOW,
 			),
 		).toBe("Feb 1, 2025 – Feb 10, 2025");
+	});
+});
+
+describe("reporting range input", () => {
+	it("preserves browser-resolved Bangkok day boundaries and timezone", () => {
+		const input = rangeSchema.parse({
+			from: "2025-01-02T17:00:00.000Z",
+			to: "2025-01-03T16:59:59.999Z",
+			timeZone: "Asia/Bangkok",
+		});
+
+		expect(toDateRange(input)).toEqual({
+			from: new Date("2025-01-02T17:00:00.000Z"),
+			to: new Date("2025-01-03T16:59:59.999Z"),
+		});
+		expect(input.timeZone).toBe("Asia/Bangkok");
 	});
 });

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { DateRange } from "@/lib/analytics";
+import { isValidTimeZone } from "@/lib/date";
 
 /**
  * The client resolves a preset against its own clock, then sends absolute
@@ -8,6 +9,10 @@ import type { DateRange } from "@/lib/analytics";
 export const rangeSchema = z.object({
 	from: z.string().datetime().optional(),
 	to: z.string().datetime().optional(),
+	timeZone: z
+		.string()
+		.refine(isValidTimeZone, "Invalid IANA timezone")
+		.default("UTC"),
 });
 
 export type RangeInput = z.infer<typeof rangeSchema>;

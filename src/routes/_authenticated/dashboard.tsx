@@ -61,6 +61,7 @@ function Dashboard() {
 	const navigate = useNavigate({ from: "/dashboard" });
 	const search = useSearch({ from: "/_authenticated/dashboard" });
 	const currency = useCurrency();
+	const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 	const selection: PeriodSelection = useMemo(
 		() => ({ preset: search.period, from: search.from, to: search.to }),
@@ -74,8 +75,9 @@ function Dashboard() {
 		return {
 			from: from?.toISOString(),
 			to: to?.toISOString(),
+			timeZone,
 		};
-	}, [selection]);
+	}, [selection, timeZone]);
 
 	const { data: analytics, isLoading } = useQuery({
 		queryKey: ["analytics", rangeInput],
