@@ -9,6 +9,7 @@ import {
 	FormControl,
 	FormField,
 	FormItem,
+	FormLabel,
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { accountsQueryKey, useAccounts } from "@/hooks/use-accounts";
 import { localDateTimeToIso, toDateTimeLocalValue } from "@/lib/date";
+import { resolveInstrumentSpec } from "@/lib/instruments";
 import { cn } from "@/lib/utils";
 import { createTrade } from "@/server/tradeActions";
 
@@ -73,7 +75,16 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 	});
 
 	const side = form.watch("side");
+	const instrument = resolveInstrumentSpec(form.watch("symbol"));
 	const isLong = side === "LONG";
+	const quantityLabel =
+		instrument.quantityUnit === "LOTS" ? "Quantity (lots)" : "Quantity";
+	const quantityHelper =
+		instrument.kind === "FOREX"
+			? "1 standard lot = 100,000 units"
+			: instrument.kind === "METAL"
+				? "1 lot = 100 oz"
+				: null;
 
 	const { mutate: logTrade, isPending } = useMutation({
 		mutationFn: (values: z.infer<typeof formSchema>) => {
@@ -118,7 +129,7 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 					name="symbol"
 					render={({ field }) => (
 						<FormItem className="space-y-1.5">
-							<Label className={labelCls}>Symbol</Label>
+							<FormLabel className={labelCls}>Symbol</FormLabel>
 							<FormControl>
 								<Input
 									placeholder="AAPL"
@@ -208,16 +219,21 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 						name="quantity"
 						render={({ field }) => (
 							<FormItem className="space-y-1.5">
-								<Label className={labelCls}>Quantity</Label>
+								<FormLabel className={labelCls}>{quantityLabel}</FormLabel>
 								<FormControl>
 									<Input
 										type="number"
-										step="0.0001"
+										step="any"
 										placeholder="10"
 										className={inputCls}
 										{...field}
 									/>
 								</FormControl>
+								{quantityHelper && (
+									<p className="text-xs text-muted-foreground">
+										{quantityHelper}
+									</p>
+								)}
 								<FormMessage className="text-xs text-destructive" />
 							</FormItem>
 						)}

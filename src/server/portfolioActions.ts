@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
-import { and, asc, count, desc, eq } from "drizzle-orm";
+import { and, asc, count, countDistinct, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { cashFlows, portfolios, trades } from "@/db/schema";
@@ -24,6 +24,7 @@ export type AccountRecord = {
 	currency: string;
 	isDefault: boolean;
 	tradeCount: number;
+	cashFlowCount: number;
 };
 
 /**
@@ -83,7 +84,11 @@ type AccountFields = Pick<
 	"id" | "name" | "description" | "kind" | "currency" | "isDefault"
 >;
 
-function toAccountRecord(row: AccountFields, tradeCount = 0): AccountRecord {
+function toAccountRecord(
+	row: AccountFields,
+	tradeCount = 0,
+	cashFlowCount = 0,
+): AccountRecord {
 	return {
 		id: row.id,
 		name: row.name,
@@ -92,6 +97,7 @@ function toAccountRecord(row: AccountFields, tradeCount = 0): AccountRecord {
 		currency: row.currency ?? DEFAULT_CURRENCY,
 		isDefault: row.isDefault ?? false,
 		tradeCount,
+		cashFlowCount,
 	};
 }
 
@@ -107,10 +113,12 @@ export const getAccounts = createServerFn({ method: "GET" }).handler(
 				kind: portfolios.kind,
 				currency: portfolios.currency,
 				isDefault: portfolios.isDefault,
-				tradeCount: count(trades.id),
+				tradeCount: countDistinct(trades.id),
+				cashFlowCount: countDistinct(cashFlows.id),
 			})
 			.from(portfolios)
 			.leftJoin(trades, eq(trades.portfolioId, portfolios.id))
+			.leftJoin(cashFlows, eq(cashFlows.portfolioId, portfolios.id))
 			.where(eq(portfolios.userId, userId))
 			.groupBy(portfolios.id)
 			.orderBy(desc(portfolios.isDefault), asc(portfolios.id));
@@ -131,11 +139,14 @@ export const getAccounts = createServerFn({ method: "GET" }).handler(
 				toAccountRecord(
 					{ ...row, isDefault: row.id === oldest.id },
 					row.tradeCount,
+					row.cashFlowCount,
 				),
 			);
 		}
 
-		return rows.map((row) => toAccountRecord(row, row.tradeCount));
+		return rows.map((row) =>
+			toAccountRecord(row, row.tradeCount, row.cashFlowCount),
+		);
 	},
 );
 

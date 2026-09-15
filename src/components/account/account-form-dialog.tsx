@@ -18,6 +18,7 @@ import {
 	FormControl,
 	FormField,
 	FormItem,
+	FormLabel,
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -102,12 +103,20 @@ export function AccountFormDialog({
 			currency: account?.currency ?? DEFAULT_CURRENCY,
 		});
 	}, [open, account, form]);
+	const currencyLocked =
+		account !== null &&
+		account !== undefined &&
+		(account.tradeCount > 0 || account.cashFlowCount > 0);
 
 	const saveMutation = useMutation({
-		mutationFn: (values: AccountFormValues) =>
-			account
-				? updateAccount({ data: { id: account.id, ...values } })
-				: createAccount({ data: values }),
+		mutationFn: (values: AccountFormValues) => {
+			if (!account) return createAccount({ data: values });
+			if (!currencyLocked) {
+				return updateAccount({ data: { id: account.id, ...values } });
+			}
+			const { currency: _currency, ...editableValues } = values;
+			return updateAccount({ data: { id: account.id, ...editableValues } });
+		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: accountsQueryKey });
 			toast.success(account ? "Account updated" : "Account created");
@@ -226,9 +235,13 @@ export function AccountFormDialog({
 							name="currency"
 							render={({ field }) => (
 								<FormItem className="space-y-1.5">
-									<Label className={labelCls}>Reporting currency</Label>
+									<FormLabel className={labelCls}>Reporting currency</FormLabel>
 									<FormControl>
-										<Select value={field.value} onValueChange={field.onChange}>
+										<Select
+											value={field.value}
+											onValueChange={field.onChange}
+											disabled={currencyLocked}
+										>
 											<SelectTrigger
 												className="h-9 w-full"
 												aria-label="Reporting currency"
@@ -244,6 +257,12 @@ export function AccountFormDialog({
 											</SelectContent>
 										</Select>
 									</FormControl>
+									{currencyLocked && (
+										<p className="text-xs text-muted-foreground">
+											Account currency cannot be changed after trading activity
+											exists.
+										</p>
+									)}
 									<FormMessage className="text-xs text-destructive" />
 								</FormItem>
 							)}

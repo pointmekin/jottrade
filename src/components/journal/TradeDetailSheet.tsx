@@ -16,6 +16,10 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+	getQuantityDisplay,
+	getTradeConversionDisplay,
+} from "@/lib/trade-display";
 import { cn } from "@/lib/utils";
 import {
 	deleteTradeImage,
@@ -156,6 +160,14 @@ export function TradeDetailContent({
 
 	const screenshots = trade.screenshots ?? [];
 	const isLong = trade.side === "LONG";
+	const quantityDisplay = getQuantityDisplay(trade);
+	const conversionDisplay = getTradeConversionDisplay(trade);
+	const quantityLabel =
+		trade.quantityUnit === "LOTS"
+			? "Quantity (lots)"
+			: trade.quantityUnit === "UNITS"
+				? "Quantity (units)"
+				: "Quantity";
 
 	return (
 		<div className="surface overflow-hidden bg-popover text-popover-foreground">
@@ -186,7 +198,7 @@ export function TradeDetailContent({
 								className="border-input bg-background font-data text-sm"
 							/>
 						</FieldGroup>
-						<FieldGroup label="Quantity">
+						<FieldGroup label={quantityLabel}>
 							<Input
 								{...register("quantity")}
 								className="border-input bg-background font-data text-sm"
@@ -277,6 +289,50 @@ export function TradeDetailContent({
 					</Button>
 				</form>
 
+				<div className="h-px bg-border" />
+
+				<section className="space-y-3" aria-label="P&L calculation">
+					<p className="text-sm font-medium">P&amp;L calculation</p>
+					<dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+						<CalculationItem
+							label="Quantity"
+							value={quantityDisplay.quantity}
+						/>
+						{quantityDisplay.positionUnits && (
+							<CalculationItem
+								label="Position units"
+								value={quantityDisplay.positionUnits}
+							/>
+						)}
+						{conversionDisplay && "pnlCurrency" in conversionDisplay && (
+							<>
+								<CalculationItem
+									label="P&L currency"
+									value={conversionDisplay.pnlCurrency}
+								/>
+								<CalculationItem
+									label="Account currency"
+									value={conversionDisplay.accountCurrency}
+								/>
+								<CalculationItem
+									label="Exit FX"
+									value={`${conversionDisplay.pair} · ${conversionDisplay.rate}`}
+								/>
+							</>
+						)}
+						{conversionDisplay && (
+							<CalculationItem
+								label={
+									conversionDisplay.source === "Broker reported"
+										? "P&L source"
+										: "Source"
+								}
+								value={conversionDisplay.source}
+							/>
+						)}
+					</dl>
+				</section>
+
 				{/* Divider */}
 				<div className="h-px bg-border" />
 
@@ -359,6 +415,15 @@ export function TradeDetailContent({
 					<DeleteTradeDialog trade={trade} onDeleted={onDeleted} />
 				</div>
 			</div>
+		</div>
+	);
+}
+
+function CalculationItem({ label, value }: { label: string; value: string }) {
+	return (
+		<div className="min-w-0">
+			<dt className="field-label">{label}</dt>
+			<dd className="mt-1 break-words font-data tabular-nums">{value}</dd>
 		</div>
 	);
 }

@@ -40,6 +40,17 @@ export type Trade = {
 	setupId?: number | null;
 	notes?: string | null;
 	screenshots?: string[] | null;
+	quantityUnit?: string | null;
+	contractSize?: string | null;
+	baseCurrency?: string | null;
+	quoteCurrency?: string | null;
+	pnlCurrency?: string | null;
+	entryConversionRate?: string | null;
+	entryConversionSource?: string | null;
+	entryConversionAsOf?: Date | null;
+	exitConversionRate?: string | null;
+	exitConversionSource?: string | null;
+	exitConversionAsOf?: Date | null;
 };
 
 type JournalRow = JournalEntry<Trade>;

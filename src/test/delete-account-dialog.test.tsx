@@ -44,6 +44,7 @@ const account = {
 	currency: "USD",
 	isDefault: false,
 	tradeCount: 12,
+	cashFlowCount: 0,
 };
 
 function renderDialog(onOpenChange = vi.fn()) {
