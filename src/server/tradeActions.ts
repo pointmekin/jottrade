@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { trades } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { calculatePnL, shouldRecalculatePnl } from "@/lib/finance";
+import { resolveInstrumentSpec } from "@/lib/instruments";
 
 const tradeSchema = z.object({
 	symbol: z.string().min(1),
@@ -69,14 +70,17 @@ export const createTrade = createServerFn({ method: "POST" }).handler(
 		let status = validatedData.status || "OPEN";
 
 		if (validatedData.exitPrice && validatedData.entryPrice) {
-			const pnl = calculatePnL(
-				validatedData.side,
-				validatedData.entryPrice,
-				validatedData.exitPrice,
-				validatedData.quantity,
-				validatedData.fees,
-				validatedData.symbol,
-			);
+			const instrument = resolveInstrumentSpec(validatedData.symbol);
+			const pnl = calculatePnL({
+				side: validatedData.side,
+				entryPrice: Number(validatedData.entryPrice),
+				exitPrice: Number(validatedData.exitPrice),
+				quantity: Number(validatedData.quantity),
+				contractSize: instrument.contractSize,
+				entryQuoteToAccountRate: 1,
+				exitQuoteToAccountRate: 1,
+				feesAccount: Number(validatedData.fees),
+			});
 			netPnl = pnl.netPnl;
 			returnPercent = pnl.returnPercent;
 			if (!validatedData.status) status = "CLOSED";
@@ -149,14 +153,19 @@ export const updateTrade = createServerFn({ method: "POST" }).handler(
 			entryPrice &&
 			quantity
 		) {
-			const pnl = calculatePnL(
-				side,
-				entryPrice,
-				exitPrice,
-				quantity,
-				fees || "0",
+			const instrument = resolveInstrumentSpec(
 				validatedData.symbol || existingTrade.symbol,
-			); // Ensure fees is string
+			);
+			const pnl = calculatePnL({
+				side,
+				entryPrice: Number(entryPrice),
+				exitPrice: Number(exitPrice),
+				quantity: Number(quantity),
+				contractSize: instrument.contractSize,
+				entryQuoteToAccountRate: 1,
+				exitQuoteToAccountRate: 1,
+				feesAccount: Number(fees || "0"),
+			});
 			netPnl = pnl.netPnl;
 			returnPercent = pnl.returnPercent;
 			// Auto-close if exit details filled?

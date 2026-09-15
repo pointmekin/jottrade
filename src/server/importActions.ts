@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { trades } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { calculatePnL } from "@/lib/finance";
+import { resolveInstrumentSpec } from "@/lib/instruments";
 
 // Schema that matches our DB structure mostly, but allows for bulk array
 const importTradeSchema = z.object({
@@ -97,15 +98,17 @@ export const importTrades = createServerFn({ method: "POST" })
 
 				if (!netPnl) {
 					// Only calculate manual PnL if NOT provided by CSV.
-					// This fallback assumes stock-like math (Qty * PriceDiff).
-					const pnl = calculatePnL(
+					const instrument = resolveInstrumentSpec(item.symbol);
+					const pnl = calculatePnL({
 						side,
-						entryPriceStr,
-						exitPriceStr,
-						quantityStr,
-						feesStr,
-						item.symbol,
-					);
+						entryPrice: Number(entryPriceStr),
+						exitPrice: Number(exitPriceStr),
+						quantity: Number(quantityStr),
+						contractSize: instrument.contractSize,
+						entryQuoteToAccountRate: 1,
+						exitQuoteToAccountRate: 1,
+						feesAccount: Number(feesStr),
+					});
 					netPnl = pnl.netPnl;
 					if (!returnPercent) returnPercent = pnl.returnPercent;
 				}
