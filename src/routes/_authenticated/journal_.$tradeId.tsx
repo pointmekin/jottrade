@@ -10,6 +10,7 @@ import type { Trade } from "@/components/journal/JournalTable";
 import { TradeDetailContent } from "@/components/journal/TradeDetailSheet";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAccounts } from "@/hooks/use-accounts";
 import { useCurrency } from "@/hooks/use-currency";
 import { formatMoney } from "@/lib/currency";
 import { getTradeById } from "@/server/getTrades";
@@ -22,13 +23,18 @@ function JournalEntryPage() {
 	const navigate = useNavigate({ from: "/journal/$tradeId" });
 	const { tradeId } = useParams({ from: "/_authenticated/journal_/$tradeId" });
 	const currency = useCurrency();
+	const { activeAccount } = useAccounts();
 	const numericTradeId = Number(tradeId);
 	const isValidId = Number.isInteger(numericTradeId) && numericTradeId > 0;
 
+	const portfolioId = activeAccount?.id;
 	const { data, isLoading, isError, refetch } = useQuery({
-		queryKey: ["trade", numericTradeId],
-		queryFn: () => getTradeById({ data: { id: numericTradeId } }),
-		enabled: isValidId,
+		queryKey: ["trade", portfolioId, numericTradeId],
+		queryFn: () =>
+			portfolioId === undefined
+				? Promise.resolve(null)
+				: getTradeById({ data: { portfolioId, id: numericTradeId } }),
+		enabled: isValidId && portfolioId !== undefined,
 	});
 
 	const trade = data as Trade | null | undefined;

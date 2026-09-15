@@ -94,7 +94,7 @@ export function TradeDetailContent({
 			} as any),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ["trades"] });
-			qc.invalidateQueries({ queryKey: ["trade", trade.id] });
+			qc.invalidateQueries({ queryKey: ["trade"] });
 		},
 	});
 
@@ -103,7 +103,7 @@ export function TradeDetailContent({
 			updateTrade({ data: { id: trade.id, notes } } as any),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ["trades"] });
-			qc.invalidateQueries({ queryKey: ["trade", trade.id] });
+			qc.invalidateQueries({ queryKey: ["trade"] });
 		},
 	});
 
@@ -112,7 +112,7 @@ export function TradeDetailContent({
 			deleteTradeImage({ data: { tradeId: trade.id, url } } as any),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ["trades"] });
-			qc.invalidateQueries({ queryKey: ["trade", trade.id] });
+			qc.invalidateQueries({ queryKey: ["trade"] });
 		},
 	});
 
@@ -139,7 +139,7 @@ export function TradeDetailContent({
 					} as any);
 				}
 				qc.invalidateQueries({ queryKey: ["trades"] });
-				qc.invalidateQueries({ queryKey: ["trade", trade.id] });
+				qc.invalidateQueries({ queryKey: ["trade"] });
 			} finally {
 				setUploading(false);
 			}

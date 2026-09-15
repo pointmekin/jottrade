@@ -7,6 +7,7 @@ import { isValidTimeZone } from "@/lib/date";
  * bounds. That keeps "this month" aligned with the user's timezone.
  */
 export const rangeSchema = z.object({
+	portfolioId: z.number().int().positive(),
 	from: z.string().datetime().optional(),
 	to: z.string().datetime().optional(),
 	timeZone: z

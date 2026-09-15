@@ -15,15 +15,21 @@ const tradeSchema = z.object({
 	entryPrice: z.string(), // Ensure string for numeric
 	quantity: z.string(),
 	notes: z.string().optional(),
-	portfolioId: z.number().optional(),
+	portfolioId: z.number().int().positive(),
 
 	// Optional Exit fields for "Closed" entry or updates
 	exitDate: z
 		.string()
 		.optional()
 		.transform((str) => (str ? new Date(str) : undefined)),
-	exitPrice: z.string().optional(),
-	fees: z.string().optional().default("0"),
+	exitPrice: z
+		.string()
+		.optional()
+		.transform((str) => (str?.trim() ? str : undefined)),
+	fees: z
+		.string()
+		.optional()
+		.transform((str) => (str?.trim() ? str : "0")),
 	status: z.string().optional(), // OPEN, CLOSED, PENDING
 });
 
@@ -55,7 +61,6 @@ export const createTrade = createServerFn({ method: "POST" }).handler(
 			throw new Error("Unauthorized");
 		}
 
-		// Default portfolio handling (placeholder)
 		const portfolioId = validatedData.portfolioId;
 
 		// Calculate P&L if exit exists

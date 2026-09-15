@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useAccounts } from "@/hooks/use-accounts";
 import { getTrades } from "@/server/getTrades";
 import { createStrategy, updateStrategy } from "@/server/strategyActions";
 
@@ -49,11 +50,14 @@ export function StrategyForm({ strategy, onSaved }: StrategyFormProps) {
 		},
 	});
 
+	const { activeAccount } = useAccounts();
+	const portfolioId = activeAccount?.id;
+
 	// Performance summary for existing strategy
 	const { data: allTrades } = useQuery({
-		queryKey: ["trades"],
-		queryFn: () => getTrades({ data: undefined }),
-		enabled: !!strategy,
+		queryKey: ["trades", portfolioId],
+		queryFn: () => getTrades({ data: { portfolioId } } as never),
+		enabled: !!strategy && portfolioId !== undefined,
 	});
 	// getTrades returns { trades, total, page, pageSize } — destructure accordingly
 	const stratTrades =

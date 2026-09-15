@@ -13,6 +13,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { accountsQueryKey, useAccounts } from "@/hooks/use-accounts";
 import { parseUtcDate } from "@/lib/date";
 import { importTrades } from "@/server/importActions";
 
@@ -216,11 +217,20 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 		accept: { "text/csv": [".csv"] },
 	});
 
+	const { activeAccount } = useAccounts();
+
 	const { mutate: doImport, isPending } = useMutation({
-		mutationFn: (trades: ImportedTrade[]) =>
-			importTrades({ data: { trades } } as never),
+		mutationFn: (trades: ImportedTrade[]) => {
+			if (!activeAccount) {
+				return Promise.reject(new Error("No active account."));
+			}
+			return importTrades({
+				data: { trades, portfolioId: activeAccount.id },
+			} as never);
+		},
 		onSuccess: (res) => {
 			queryClient.invalidateQueries({ queryKey: ["trades"] });
+			queryClient.invalidateQueries({ queryKey: accountsQueryKey });
 			setParsedData([]);
 			setPreviewOpen(false);
 			// Toast success?

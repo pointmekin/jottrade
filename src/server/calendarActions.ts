@@ -26,8 +26,9 @@ export const getCalendarData = createServerFn({ method: "GET" }).handler(
 		const session = await auth.api.getSession({ headers: getRequestHeaders() });
 		if (!session) throw new Error("Unauthorized");
 
-		const { from, to, timeZone } = z
+		const { from, to, timeZone, portfolioId } = z
 			.object({
+				portfolioId: z.number().int().positive(),
 				year: z.number(),
 				month: z.number(),
 				from: z.string().datetime(),
@@ -53,6 +54,7 @@ export const getCalendarData = createServerFn({ method: "GET" }).handler(
 			.where(
 				and(
 					eq(trades.userId, session.user.id),
+					eq(trades.portfolioId, portfolioId),
 					gte(trades.exitDate, startDate),
 					lt(trades.exitDate, endDate),
 				),
@@ -71,6 +73,7 @@ export const getCalendarData = createServerFn({ method: "GET" }).handler(
 			.where(
 				and(
 					eq(trades.userId, session.user.id),
+					eq(trades.portfolioId, portfolioId),
 					gte(trades.entryDate, startDate),
 					lt(trades.entryDate, endDate),
 					isNull(trades.exitDate),

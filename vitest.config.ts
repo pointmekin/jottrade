@@ -12,5 +12,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // React's act() only exists in development builds; NODE_ENV=test resolves production.
+    env: { NODE_ENV: 'development' },
   },
 });

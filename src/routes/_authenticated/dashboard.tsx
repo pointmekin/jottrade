@@ -17,6 +17,7 @@ import { PeriodPicker } from "@/components/period-picker";
 import { SetupCalculator } from "@/components/tools/SetupCalculator";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAccounts } from "@/hooks/use-accounts";
 import { useCurrency } from "@/hooks/use-currency";
 import type { TradeStats } from "@/lib/analytics";
 import { formatMoney, formatMoneyWithCode } from "@/lib/currency";
@@ -61,6 +62,7 @@ function Dashboard() {
 	const navigate = useNavigate({ from: "/dashboard" });
 	const search = useSearch({ from: "/_authenticated/dashboard" });
 	const currency = useCurrency();
+	const { activeAccount } = useAccounts();
 	const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 	const selection: PeriodSelection = useMemo(
@@ -73,20 +75,23 @@ function Dashboard() {
 	const rangeInput = useMemo(() => {
 		const { from, to } = resolvePeriod(selection);
 		return {
+			portfolioId: activeAccount?.id,
 			from: from?.toISOString(),
 			to: to?.toISOString(),
 			timeZone,
 		};
-	}, [selection, timeZone]);
+	}, [selection, timeZone, activeAccount?.id]);
 
 	const { data: analytics, isLoading } = useQuery({
 		queryKey: ["analytics", rangeInput],
 		queryFn: () => getAnalytics({ data: rangeInput } as never),
+		enabled: rangeInput.portfolioId !== undefined,
 	});
 	const { data: advanced, isLoading: isAdvancedLoading } = useQuery({
 		queryKey: ["advanced-analytics", rangeInput],
 		queryFn: () => getAdvancedAnalytics({ data: rangeInput } as never),
 		staleTime: 5 * 60 * 1000,
+		enabled: rangeInput.portfolioId !== undefined,
 	});
 
 	if (session.isPending) {

@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { cashFlows, trades } from "@/db/schema";
 import { summarizeTrades } from "@/lib/analytics";
@@ -23,8 +23,24 @@ export const getAnalytics = createServerFn({ method: "GET" }).handler(
 
 		// The whole history is loaded because the window needs the balance carried into it.
 		const [userTrades, userCashFlows] = await Promise.all([
-			db.select().from(trades).where(eq(trades.userId, userId)),
-			db.select().from(cashFlows).where(eq(cashFlows.userId, userId)),
+			db
+				.select()
+				.from(trades)
+				.where(
+					and(
+						eq(trades.userId, userId),
+						eq(trades.portfolioId, input.portfolioId),
+					),
+				),
+			db
+				.select()
+				.from(cashFlows)
+				.where(
+					and(
+						eq(cashFlows.userId, userId),
+						eq(cashFlows.portfolioId, input.portfolioId),
+					),
+				),
 		]);
 
 		return summarizeTrades(

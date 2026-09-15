@@ -50,6 +50,7 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" }).handler(
 
 		const windowConditions = [
 			eq(trades.userId, userId),
+			eq(trades.portfolioId, input.portfolioId),
 			eq(trades.status, TradeStatus.Closed),
 			isNotNull(trades.exitDate),
 		];
@@ -64,8 +65,24 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" }).handler(
 					.where(and(...windowConditions))
 					.orderBy(asc(trades.exitDate)),
 				db.select().from(strategies).where(eq(strategies.userId, userId)),
-				db.select().from(trades).where(eq(trades.userId, userId)),
-				db.select().from(cashFlows).where(eq(cashFlows.userId, userId)),
+				db
+					.select()
+					.from(trades)
+					.where(
+						and(
+							eq(trades.userId, userId),
+							eq(trades.portfolioId, input.portfolioId),
+						),
+					),
+				db
+					.select()
+					.from(cashFlows)
+					.where(
+						and(
+							eq(cashFlows.userId, userId),
+							eq(cashFlows.portfolioId, input.portfolioId),
+						),
+					),
 			]);
 
 		const analyticsInput: ClosedTrade[] = allTrades.map((t) => ({

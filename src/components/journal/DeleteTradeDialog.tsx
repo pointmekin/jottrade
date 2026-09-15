@@ -14,6 +14,7 @@ import {
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { accountsQueryKey } from "@/hooks/use-accounts";
 import { deleteTrade } from "@/server/tradeActions";
 import type { Trade } from "./JournalTable";
 
@@ -32,10 +33,11 @@ export function DeleteTradeDialog({
 		mutationFn: () => deleteTrade({ data: { id: trade.id } }),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["trades"] });
-			queryClient.invalidateQueries({ queryKey: ["trade", trade.id] });
+			queryClient.invalidateQueries({ queryKey: ["trade"] });
 			queryClient.invalidateQueries({ queryKey: ["calendar"] });
 			queryClient.invalidateQueries({ queryKey: ["analytics"] });
 			queryClient.invalidateQueries({ queryKey: ["advanced-analytics"] });
+			queryClient.invalidateQueries({ queryKey: accountsQueryKey });
 			setOpen(false);
 			onDeleted();
 		},

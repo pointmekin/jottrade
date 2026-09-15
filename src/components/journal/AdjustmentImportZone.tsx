@@ -18,6 +18,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { useAccounts } from "@/hooks/use-accounts";
 import {
 	type ImportedAdjustment,
 	parseAdjustmentCsv,
@@ -87,9 +88,17 @@ export function AdjustmentImportZone({
 		accept: { "text/csv": [".csv"] },
 	});
 
+	const { activeAccount } = useAccounts();
+
 	const importMutation = useMutation({
-		mutationFn: (adjustments: ImportedAdjustment[]) =>
-			importAdjustments({ data: { adjustments } } as never),
+		mutationFn: (adjustments: ImportedAdjustment[]) => {
+			if (!activeAccount) {
+				return Promise.reject(new Error("No active account."));
+			}
+			return importAdjustments({
+				data: { adjustments, portfolioId: activeAccount.id },
+			} as never);
+		},
 		onSuccess: (result) => {
 			queryClient.invalidateQueries({ queryKey: ["cash-flows"] });
 			queryClient.invalidateQueries({ queryKey: ["analytics"] });

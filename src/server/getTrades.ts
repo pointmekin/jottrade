@@ -19,12 +19,13 @@ import { auth } from "@/lib/auth";
 const PAGE_SIZE = 50;
 
 const tradeByIdSchema = z.object({
+	portfolioId: z.number().int().positive(),
 	id: z.coerce.number().int().positive(),
 });
 
 const filterSchema = z
 	.object({
-		portfolioId: z.number().optional(),
+		portfolioId: z.number().int().positive(),
 		symbol: z.string().optional(),
 		side: z.enum(["LONG", "SHORT"]).optional(),
 		status: z.enum(["OPEN", "CLOSED", "PENDING"]).optional(),
@@ -98,7 +99,13 @@ export const getTradeById = createServerFn({ method: "GET" })
 		const [trade] = await db
 			.select()
 			.from(trades)
-			.where(and(eq(trades.id, data.id), eq(trades.userId, session.user.id)));
+			.where(
+				and(
+					eq(trades.id, data.id),
+					eq(trades.portfolioId, data.portfolioId),
+					eq(trades.userId, session.user.id),
+				),
+			);
 
 		if (!trade) return null;
 		return {

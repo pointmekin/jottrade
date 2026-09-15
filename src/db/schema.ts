@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
 	boolean,
 	index,
@@ -9,7 +9,10 @@ import {
 	serial,
 	text,
 	timestamp,
+	uniqueIndex,
 } from "drizzle-orm/pg-core";
+
+import { AccountKind } from "@/lib/account";
 
 // --- Auth Schema (BetterAuth) ---
 
@@ -87,17 +90,27 @@ export const verification = pgTable(
 
 // --- Application Schema ---
 
-// 2. Portfolios (Multiple broker accounts per user)
-export const portfolios = pgTable("portfolios", {
-	id: serial("id").primaryKey(),
-	userId: text("user_id")
-		.notNull()
-		.references(() => user.id, { onDelete: "cascade" }), // Foreign key to users
-	name: text("name").notNull(), // e.g., "Robinhood", "Binance"
-	currency: text("currency").default("USD"),
-	isDefault: boolean("is_default").default(false),
-	createdAt: timestamp("created_at").defaultNow(),
-});
+// 2. Portfolios (Multiple trading accounts per user)
+export const portfolios = pgTable(
+	"portfolios",
+	{
+		id: serial("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }), // Foreign key to users
+		name: text("name").notNull(), // e.g., "Robinhood", "Binance"
+		description: text("description"),
+		kind: text("kind").default(AccountKind.Real).notNull(),
+		currency: text("currency").default("USD"),
+		isDefault: boolean("is_default").default(false),
+		createdAt: timestamp("created_at").defaultNow(),
+	},
+	(table) => [
+		uniqueIndex("portfolios_user_default_unique")
+			.on(table.userId)
+			.where(sql`is_default`),
+	],
+);
 
 // 2b. Account entries that change balance outside a closed trade.
 export const cashFlows = pgTable(
@@ -107,9 +120,11 @@ export const cashFlows = pgTable(
 		userId: text("user_id")
 			.notNull()
 			.references(() => user.id, { onDelete: "cascade" }),
-		portfolioId: integer("portfolio_id").references(() => portfolios.id, {
-			onDelete: "cascade",
-		}),
+		portfolioId: integer("portfolio_id")
+			.notNull()
+			.references(() => portfolios.id, {
+				onDelete: "cascade",
+			}),
 		occurredAt: timestamp("occurred_at").notNull(),
 		amount: numeric("amount").notNull(),
 		kind: text("kind").default("DEPOSIT").notNull(),
@@ -120,6 +135,7 @@ export const cashFlows = pgTable(
 	(t) => [
 		index("idx_cash_flows_user").on(t.userId),
 		index("idx_cash_flows_date").on(t.occurredAt),
+		index("idx_cash_flows_portfolio").on(t.portfolioId),
 	],
 );
 
@@ -128,9 +144,11 @@ export const trades = pgTable(
 	"trades",
 	{
 		id: serial("id").primaryKey(),
-		portfolioId: integer("portfolio_id").references(() => portfolios.id, {
-			onDelete: "cascade",
-		}),
+		portfolioId: integer("portfolio_id")
+			.notNull()
+			.references(() => portfolios.id, {
+				onDelete: "cascade",
+			}),
 		userId: text("user_id")
 			.notNull()
 			.references(() => user.id, { onDelete: "cascade" }),
@@ -165,6 +183,7 @@ export const trades = pgTable(
 	(t) => [
 		index("idx_trades_user").on(t.userId),
 		index("idx_trades_date").on(t.entryDate),
+		index("idx_trades_portfolio").on(t.portfolioId),
 	],
 );
 

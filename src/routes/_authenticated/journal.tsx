@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/drawer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAccountEntries } from "@/hooks/use-account-entries";
+import { useAccounts } from "@/hooks/use-accounts";
 import { AccountEntryKind } from "@/lib/account-entry";
 import { mergeJournalEntries } from "@/lib/journal-entries";
 import { describePeriod, PeriodPreset, resolvePeriod } from "@/lib/period";
@@ -82,6 +83,7 @@ function JournalPage() {
 	const [importOpen, setImportOpen] = useState(false);
 
 	const filters: JournalFilters = search;
+	const { activeAccount } = useAccounts();
 	const isJournalView = search.view === "all" || search.view === "trades";
 
 	const handleFiltersChange = (newFilters: JournalFilters) => {
@@ -113,12 +115,16 @@ function JournalPage() {
 		page: filters.page ?? 1,
 	};
 
+	const portfolioId = activeAccount?.id;
+
 	const { data: result, isLoading } = useQuery({
-		queryKey: ["trades", queryParams],
-		queryFn: () => getTrades({ data: queryParams } as any),
+		queryKey: ["trades", portfolioId, queryParams],
+		queryFn: () =>
+			getTrades({ data: { ...queryParams, portfolioId } } as never),
+		enabled: portfolioId !== undefined,
 	});
 	const { data: accountEntries = [], isLoading: accountEntriesLoading } =
-		useAccountEntries();
+		useAccountEntries(portfolioId);
 
 	const tradeList: Trade[] = (result as any)?.trades ?? [];
 	const total = (result as any)?.total ?? 0;

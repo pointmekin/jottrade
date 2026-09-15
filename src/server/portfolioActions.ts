@@ -1,9 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { cashFlows, portfolios } from "@/db/schema";
+import { cashFlows, portfolios, trades } from "@/db/schema";
+import { AccountKind } from "@/lib/account";
 import { AccountEntryKind, type AccountEntryRecord } from "@/lib/account-entry";
 import { auth } from "@/lib/auth";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
@@ -13,6 +14,16 @@ async function requireUserId(): Promise<string> {
 	if (!session) throw new Error("Unauthorized");
 	return session.user.id;
 }
+
+export type AccountRecord = {
+	id: number;
+	name: string;
+	description: string | null;
+	kind: AccountKind;
+	currency: string;
+	isDefault: boolean;
+	tradeCount: number;
+};
 
 /**
  * The default portfolio for a user, created on first read.
@@ -32,6 +43,8 @@ async function resolveDefaultPortfolio(userId: string) {
 
 	if (existing) return existing;
 
+	// A parallel read can provision the same default first; the partial unique
+	// index on (user_id) WHERE is_default turns the loser into a no-op.
 	const [created] = await db
 		.insert(portfolios)
 		.values({
@@ -40,60 +53,210 @@ async function resolveDefaultPortfolio(userId: string) {
 			currency: DEFAULT_CURRENCY,
 			isDefault: true,
 		})
+		.onConflictDoNothing()
 		.returning();
 
-	return created;
+	if (created) return created;
+
+	const [winner] = await db
+		.select()
+		.from(portfolios)
+		.where(eq(portfolios.userId, userId))
+		.orderBy(asc(portfolios.id))
+		.limit(1);
+
+	return winner;
 }
 
-export const getPortfolio = createServerFn({ method: "GET" }).handler(
-	async () => {
+async function requireOwnedPortfolio(userId: string, portfolioId: number) {
+	const [portfolio] = await db
+		.select({ id: portfolios.id })
+		.from(portfolios)
+		.where(and(eq(portfolios.id, portfolioId), eq(portfolios.userId, userId)));
+	if (!portfolio) throw new Error("Account not found.");
+	return portfolio;
+}
+
+type AccountFields = Pick<
+	typeof portfolios.$inferSelect,
+	"id" | "name" | "description" | "kind" | "currency" | "isDefault"
+>;
+
+function toAccountRecord(row: AccountFields, tradeCount = 0): AccountRecord {
+	return {
+		id: row.id,
+		name: row.name,
+		description: row.description,
+		kind: row.kind === AccountKind.Demo ? AccountKind.Demo : AccountKind.Real,
+		currency: row.currency ?? DEFAULT_CURRENCY,
+		isDefault: row.isDefault ?? false,
+		tradeCount,
+	};
+}
+
+export const getAccounts = createServerFn({ method: "GET" }).handler(
+	async (): Promise<AccountRecord[]> => {
 		const userId = await requireUserId();
-		const portfolio = await resolveDefaultPortfolio(userId);
-		return {
-			id: portfolio.id,
-			name: portfolio.name,
-			currency: portfolio.currency ?? DEFAULT_CURRENCY,
-		};
+
+		const rows = await db
+			.select({
+				id: portfolios.id,
+				name: portfolios.name,
+				description: portfolios.description,
+				kind: portfolios.kind,
+				currency: portfolios.currency,
+				isDefault: portfolios.isDefault,
+				tradeCount: count(trades.id),
+			})
+			.from(portfolios)
+			.leftJoin(trades, eq(trades.portfolioId, portfolios.id))
+			.where(eq(portfolios.userId, userId))
+			.groupBy(portfolios.id)
+			.orderBy(desc(portfolios.isDefault), asc(portfolios.id));
+
+		if (rows.length === 0) {
+			const created = await resolveDefaultPortfolio(userId);
+			return [toAccountRecord(created)];
+		}
+
+		if (!rows.some((row) => row.isDefault)) {
+			// Self-heal the single-default invariant after out-of-band data changes.
+			const oldest = rows[0];
+			await db
+				.update(portfolios)
+				.set({ isDefault: true })
+				.where(eq(portfolios.id, oldest.id));
+			return rows.map((row) =>
+				toAccountRecord(
+					{ ...row, isDefault: row.id === oldest.id },
+					row.tradeCount,
+				),
+			);
+		}
+
+		return rows.map((row) => toAccountRecord(row, row.tradeCount));
 	},
 );
 
-const updatePortfolioSchema = z.object({
-	name: z.string().trim().min(1).max(64).optional(),
-	currency: z.string().trim().length(3).toUpperCase().optional(),
+const accountDetailsSchema = z.object({
+	name: z.string().trim().min(1).max(64),
+	description: z.string().trim().max(500),
+	kind: z.enum([AccountKind.Real, AccountKind.Demo]),
+	currency: z.string().trim().length(3).toUpperCase(),
 });
 
-export const updatePortfolio = createServerFn({ method: "POST" }).handler(
-	async (ctx: any) => {
+export const createAccount = createServerFn({ method: "POST" })
+	.validator(accountDetailsSchema)
+	.handler(async ({ data }): Promise<AccountRecord> => {
 		const userId = await requireUserId();
-		const patch = updatePortfolioSchema.parse(ctx.data);
-		const portfolio = await resolveDefaultPortfolio(userId);
+
+		const [created] = await db
+			.insert(portfolios)
+			.values({
+				userId,
+				name: data.name,
+				description: data.description || null,
+				kind: data.kind,
+				currency: data.currency,
+				isDefault: false,
+			})
+			.returning();
+
+		return toAccountRecord(created);
+	});
+
+const updateAccountSchema = accountDetailsSchema
+	.partial()
+	.extend({ id: z.number().int().positive() });
+
+export const updateAccount = createServerFn({ method: "POST" })
+	.validator(updateAccountSchema)
+	.handler(async ({ data }): Promise<AccountRecord> => {
+		const userId = await requireUserId();
+
+		const patch: Partial<typeof portfolios.$inferInsert> = {};
+		if (data.name !== undefined) patch.name = data.name;
+		if (data.description !== undefined)
+			patch.description = data.description || null;
+		if (data.kind !== undefined) patch.kind = data.kind;
+		if (data.currency !== undefined) patch.currency = data.currency;
 
 		const [updated] = await db
 			.update(portfolios)
 			.set(patch)
-			.where(
-				and(eq(portfolios.id, portfolio.id), eq(portfolios.userId, userId)),
-			)
+			.where(and(eq(portfolios.id, data.id), eq(portfolios.userId, userId)))
 			.returning();
 
-		return {
-			id: updated.id,
-			name: updated.name,
-			currency: updated.currency ?? DEFAULT_CURRENCY,
-		};
-	},
-);
+		if (!updated) throw new Error("Account not found.");
+
+		return toAccountRecord(updated);
+	});
+
+const deleteAccountSchema = z.object({
+	id: z.number().int().positive(),
+	confirmName: z.string().min(1),
+});
+
+export const deleteAccount = createServerFn({ method: "POST" })
+	.validator(deleteAccountSchema)
+	.handler(async ({ data }) => {
+		const userId = await requireUserId();
+
+		const [account] = await db
+			.select()
+			.from(portfolios)
+			.where(and(eq(portfolios.id, data.id), eq(portfolios.userId, userId)));
+
+		if (!account) throw new Error("Account not found.");
+		if (account.name !== data.confirmName) {
+			throw new Error("Account name does not match.");
+		}
+
+		await db
+			.delete(portfolios)
+			.where(and(eq(portfolios.id, data.id), eq(portfolios.userId, userId)));
+
+		// Keep exactly one default whenever one still exists. neon-http has no
+		// transaction support, so promote after the delete; a failure here leaves
+		// no default, which the getAccounts read path self-heals.
+		if (account.isDefault) {
+			const [next] = await db
+				.select({ id: portfolios.id })
+				.from(portfolios)
+				.where(eq(portfolios.userId, userId))
+				.orderBy(asc(portfolios.id))
+				.limit(1);
+			if (next) {
+				await db
+					.update(portfolios)
+					.set({ isDefault: true })
+					.where(eq(portfolios.id, next.id));
+			}
+		}
+
+		return { success: true };
+	});
 
 export type CashFlowRecord = AccountEntryRecord;
 
-export const getCashFlows = createServerFn({ method: "GET" }).handler(
-	async (): Promise<CashFlowRecord[]> => {
+const cashFlowScopeSchema = z.object({
+	portfolioId: z.number().int().positive(),
+});
+
+export const getCashFlows = createServerFn({ method: "GET" })
+	.validator(cashFlowScopeSchema)
+	.handler(async ({ data }): Promise<CashFlowRecord[]> => {
 		const userId = await requireUserId();
 
 		const rows = await db
 			.select()
 			.from(cashFlows)
-			.where(eq(cashFlows.userId, userId))
+			.where(
+				and(
+					eq(cashFlows.userId, userId),
+					eq(cashFlows.portfolioId, data.portfolioId),
+				),
+			)
 			.orderBy(desc(cashFlows.occurredAt), desc(cashFlows.id));
 
 		return rows.map((row) => ({
@@ -103,8 +266,7 @@ export const getCashFlows = createServerFn({ method: "GET" }).handler(
 			kind: row.kind as AccountEntryRecord["kind"],
 			note: row.note,
 		}));
-	},
-);
+	});
 
 const accountEntryKindSchema = z.enum([
 	AccountEntryKind.Deposit,
@@ -124,16 +286,18 @@ const accountEntrySchema = z.object({
 	note: z.string().trim().max(280).optional(),
 });
 
-export const addCashFlow = createServerFn({ method: "POST" }).handler(
-	async (ctx: any) => {
+export const addCashFlow = createServerFn({ method: "POST" })
+	.validator(
+		accountEntrySchema.extend({ portfolioId: z.number().int().positive() }),
+	)
+	.handler(async ({ data }) => {
 		const userId = await requireUserId();
-		const input = accountEntrySchema.parse(ctx.data);
-		const portfolio = await resolveDefaultPortfolio(userId);
+		await requireOwnedPortfolio(userId, data.portfolioId);
 
 		const occurredAt = new Date(
-			input.occurredAt.length === 10
-				? `${input.occurredAt}T00:00:00Z`
-				: input.occurredAt,
+			data.occurredAt.length === 10
+				? `${data.occurredAt}T00:00:00Z`
+				: data.occurredAt,
 		);
 
 		if (Number.isNaN(occurredAt.getTime())) {
@@ -144,25 +308,22 @@ export const addCashFlow = createServerFn({ method: "POST" }).handler(
 			.insert(cashFlows)
 			.values({
 				userId,
-				portfolioId: portfolio.id,
+				portfolioId: data.portfolioId,
 				occurredAt,
-				amount: input.amount.toFixed(2),
-				kind: input.kind,
-				note: input.note || null,
+				amount: data.amount.toFixed(2),
+				kind: data.kind,
+				note: data.note || null,
 			})
 			.returning();
 
 		return { id: created.id };
-	},
-);
+	});
 
-export const updateCashFlow = createServerFn({ method: "POST" }).handler(
-	async (ctx: any) => {
+export const updateCashFlow = createServerFn({ method: "POST" })
+	.validator(accountEntrySchema.extend({ id: z.number().int().positive() }))
+	.handler(async ({ data }) => {
 		const userId = await requireUserId();
-		const input = accountEntrySchema
-			.extend({ id: z.number().int().positive() })
-			.parse(ctx.data);
-		const occurredAt = new Date(input.occurredAt);
+		const occurredAt = new Date(data.occurredAt);
 
 		if (Number.isNaN(occurredAt.getTime())) {
 			throw new Error("Invalid date.");
@@ -172,17 +333,16 @@ export const updateCashFlow = createServerFn({ method: "POST" }).handler(
 			.update(cashFlows)
 			.set({
 				occurredAt,
-				amount: input.amount.toFixed(2),
-				kind: input.kind,
-				note: input.note || null,
+				amount: data.amount.toFixed(2),
+				kind: data.kind,
+				note: data.note || null,
 			})
-			.where(and(eq(cashFlows.id, input.id), eq(cashFlows.userId, userId)))
+			.where(and(eq(cashFlows.id, data.id), eq(cashFlows.userId, userId)))
 			.returning({ id: cashFlows.id });
 
 		if (!updated.length) throw new Error("Account entry not found.");
-		return { id: input.id };
-	},
-);
+		return { id: data.id };
+	});
 
 const importedAdjustmentSchema = z.object({
 	symbol: z.string().max(40),
@@ -210,24 +370,25 @@ async function buildAdjustmentHash(parts: string[]) {
 		.join("");
 }
 
-export const importAdjustments = createServerFn({ method: "POST" }).handler(
-	async (ctx: any) => {
+export const importAdjustments = createServerFn({ method: "POST" })
+	.validator(
+		z.object({
+			portfolioId: z.number().int().positive(),
+			adjustments: z.array(importedAdjustmentSchema).min(1).max(5000),
+		}),
+	)
+	.handler(async ({ data }) => {
 		const userId = await requireUserId();
-		const input = z
-			.object({
-				adjustments: z.array(importedAdjustmentSchema).min(1).max(5000),
-			})
-			.parse(ctx.data);
-		const portfolio = await resolveDefaultPortfolio(userId);
+		await requireOwnedPortfolio(userId, data.portfolioId);
 		const values: (typeof cashFlows.$inferInsert)[] = [];
 
-		for (const adjustment of input.adjustments) {
+		for (const adjustment of data.adjustments) {
 			const occurredAt = new Date(adjustment.occurredAt);
 			if (Number.isNaN(occurredAt.getTime())) continue;
 
 			values.push({
 				userId,
-				portfolioId: portfolio.id,
+				portfolioId: data.portfolioId,
 				occurredAt,
 				amount: adjustment.amount.toFixed(2),
 				kind: AccountEntryKind.Adjustment,
@@ -256,20 +417,18 @@ export const importAdjustments = createServerFn({ method: "POST" }).handler(
 			count: inserted.length,
 			skipped: values.length - inserted.length,
 		};
-	},
-);
+	});
 
-export const deleteCashFlow = createServerFn({ method: "POST" }).handler(
-	async (ctx: any) => {
+export const deleteCashFlow = createServerFn({ method: "POST" })
+	.validator(z.object({ id: z.number() }))
+	.handler(async ({ data }) => {
 		const userId = await requireUserId();
-		const { id } = z.object({ id: z.number() }).parse(ctx.data);
 
 		const deleted = await db
 			.delete(cashFlows)
-			.where(and(eq(cashFlows.id, id), eq(cashFlows.userId, userId)))
+			.where(and(eq(cashFlows.id, data.id), eq(cashFlows.userId, userId)))
 			.returning({ id: cashFlows.id });
 
 		if (!deleted.length) throw new Error("Cash flow not found.");
-		return { id };
-	},
-);
+		return { id: data.id };
+	});

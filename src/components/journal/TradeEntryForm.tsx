@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +21,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { accountsQueryKey, useAccounts } from "@/hooks/use-accounts";
 import { localDateTimeToIso, toDateTimeLocalValue } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { createTrade } from "@/server/tradeActions";
@@ -53,6 +55,7 @@ const labelCls = "field-label";
 
 export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 	const queryClient = useQueryClient();
+	const { activeAccount } = useAccounts();
 
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
@@ -73,20 +76,33 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 	const isLong = side === "LONG";
 
 	const { mutate: logTrade, isPending } = useMutation({
-		mutationFn: (values: z.infer<typeof formSchema>) =>
-			createTrade({
+		mutationFn: (values: z.infer<typeof formSchema>) => {
+			if (!activeAccount) {
+				return Promise.reject(new Error("No active account."));
+			}
+			return createTrade({
 				data: {
 					...values,
+					portfolioId: activeAccount.id,
 					entryDate: localDateTimeToIso(values.entryDate),
 					exitDate: values.exitDate
 						? localDateTimeToIso(values.exitDate)
 						: undefined,
 				},
-			}),
+			} as never);
+		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["trades"] });
+			queryClient.invalidateQueries({ queryKey: accountsQueryKey });
 			form.reset();
 			onSuccess?.();
+		},
+		onError: (cause) => {
+			toast.error(
+				cause instanceof Error
+					? cause.message
+					: "The trade could not be saved.",
+			);
 		},
 	});
 

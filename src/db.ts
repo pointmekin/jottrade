@@ -28,9 +28,7 @@ import * as schema from "./db/schema";
 
 const url = databaseUrl();
 if (!url) {
-	throw new Error(
-		"No database URL. Set DATABASE_URL.",
-	);
+	throw new Error("No database URL. Set DATABASE_URL.");
 }
 
 const sql = neon(url);

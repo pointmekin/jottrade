@@ -17,6 +17,10 @@ vi.mock("@/server/tradeActions", () => ({
 	deleteTrade: vi.fn(),
 }));
 
+vi.mock("@/hooks/use-accounts", () => ({
+	accountsQueryKey: ["accounts"],
+}));
+
 const trade = {
 	id: 42,
 	symbol: "AAPL",
@@ -81,10 +85,11 @@ describe("DeleteTradeDialog", () => {
 		expect(invalidate.mock.calls.map(([filters]) => filters?.queryKey)).toEqual(
 			[
 				["trades"],
-				["trade", trade.id],
+				["trade"],
 				["calendar"],
 				["analytics"],
 				["advanced-analytics"],
+				["accounts"],
 			],
 		);
 	});

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAccountEntries } from "@/hooks/use-account-entries";
+import { useAccounts } from "@/hooks/use-accounts";
 import { useCurrency } from "@/hooks/use-currency";
 import { AccountEntryKind, type AccountEntryRecord } from "@/lib/account-entry";
 import { formatMoney } from "@/lib/currency";
@@ -70,7 +71,10 @@ export function AccountEntriesPanel({ mode }: { mode: PanelMode }) {
 	const dateId = useId();
 	const noteId = useId();
 
-	const { data: entries = [], isLoading } = useAccountEntries();
+	const { activeAccount } = useAccounts();
+	const { data: entries = [], isLoading } = useAccountEntries(
+		activeAccount?.id,
+	);
 	const visibleEntries = entries.filter((entry) =>
 		isAdjustment
 			? entry.kind === AccountEntryKind.Adjustment
@@ -101,10 +105,16 @@ export function AccountEntriesPanel({ mode }: { mode: PanelMode }) {
 			amount: number;
 			kind: AccountEntryRecord["kind"];
 			note?: string;
-		}) =>
-			input.id
+		}) => {
+			if (!activeAccount) {
+				return Promise.reject(new Error("No active account."));
+			}
+			return input.id
 				? updateCashFlow({ data: { ...input, id: input.id } } as never)
-				: addCashFlow({ data: input } as never),
+				: addCashFlow({
+						data: { ...input, portfolioId: activeAccount.id },
+					} as never);
+		},
 		onSuccess: () => {
 			invalidate();
 			toast.success(

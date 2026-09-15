@@ -1,6 +1,8 @@
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
-import { Crosshair, LogOut, Settings } from "lucide-react";
+import { Check, Crosshair, LogOut, Plus, Settings } from "lucide-react";
 import { useState } from "react";
+import { AccountFormDialog } from "@/components/account/account-form-dialog";
+import { AccountKindBadge } from "@/components/account/account-kind-badge";
 import { Separator } from "@/components/ui/separator";
 import {
 	Sheet,
@@ -8,6 +10,7 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@/components/ui/sheet";
+import { useAccounts } from "@/hooks/use-accounts";
 import { authClient } from "@/lib/auth-client";
 import { navItems } from "@/lib/nav-items";
 import { cn } from "@/lib/utils";
@@ -19,6 +22,8 @@ export function BottomNav() {
 	const router = useRouter();
 	const session = authClient.useSession();
 	const [sheetOpen, setSheetOpen] = useState(false);
+	const [accountFormOpen, setAccountFormOpen] = useState(false);
+	const { accounts, activeAccount, setActiveAccount } = useAccounts();
 
 	const isActive = (url: string) =>
 		location.pathname === url || location.pathname.startsWith(`${url}/`);
@@ -90,6 +95,44 @@ export function BottomNav() {
 								</div>
 							</div>
 						</SheetHeader>
+						<div className="border-b border-border py-3">
+							<p className="field-label px-3 pb-2">Trading accounts</p>
+							<div className="grid gap-1">
+								{accounts.map((account) => {
+									const isActive = account.id === activeAccount?.id;
+									return (
+										<button
+											key={account.id}
+											type="button"
+											onClick={() => {
+												setActiveAccount(account.id);
+												setSheetOpen(false);
+											}}
+											className={cn(
+												"flex items-center gap-3 border border-transparent px-3 py-2 text-left text-sm hover:border-border hover:bg-sidebar-accent",
+												isActive && "border-border bg-sidebar-accent",
+											)}
+										>
+											<span className="min-w-0 flex-1 truncate font-medium">
+												{account.name}
+											</span>
+											<AccountKindBadge kind={account.kind} />
+											{isActive && <Check className="size-4 shrink-0" />}
+										</button>
+									);
+								})}
+								<button
+									type="button"
+									onClick={() => {
+										setSheetOpen(false);
+										setAccountFormOpen(true);
+									}}
+									className="flex items-center gap-3 border border-transparent px-3 py-2 text-left text-sm text-muted-foreground hover:border-border hover:bg-sidebar-accent hover:text-foreground"
+								>
+									<Plus className="size-4" /> New account
+								</button>
+							</div>
+						</div>
 						<div className="grid gap-1 py-3">
 							<Link
 								to="/settings"
@@ -119,6 +162,10 @@ export function BottomNav() {
 					</div>
 				</SheetContent>
 			</Sheet>
+			<AccountFormDialog
+				open={accountFormOpen}
+				onOpenChange={setAccountFormOpen}
+			/>
 		</>
 	);
 }

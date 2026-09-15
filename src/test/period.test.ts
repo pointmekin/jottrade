@@ -88,6 +88,7 @@ describe("describePeriod", () => {
 describe("reporting range input", () => {
 	it("preserves browser-resolved Bangkok day boundaries and timezone", () => {
 		const input = rangeSchema.parse({
+			portfolioId: 1,
 			from: "2025-01-02T17:00:00.000Z",
 			to: "2025-01-03T16:59:59.999Z",
 			timeZone: "Asia/Bangkok",

@@ -37,15 +37,15 @@ async function buildImportHash(parts: (string | null | undefined)[]) {
 		.join("");
 }
 
-// @ts-expect-error
-export const importTrades = createServerFn({ method: "POST" }).handler(
-	async (ctx: any) => {
-		const rawData = ctx.data;
-		// We expect rawData to be the array directly? or object { trades: [...] }?
-		// Let's assume passed as { trades: [...] }
-		const input = (rawData?.trades || rawData) as z.infer<
-			typeof importTradeSchema
-		>[];
+export const importTrades = createServerFn({ method: "POST" })
+	.validator(
+		z.object({
+			portfolioId: z.number().int().positive(),
+			trades: z.array(importTradeSchema).min(1).max(5000),
+		}),
+	)
+	.handler(async ({ data }) => {
+		const input = data.trades;
 
 		const session = await auth.api.getSession({
 			headers: getRequestHeaders(),
@@ -116,6 +116,7 @@ export const importTrades = createServerFn({ method: "POST" }).handler(
 
 			valuesToInsert.push({
 				userId: session.user.id,
+				portfolioId: data.portfolioId,
 				symbol,
 				side,
 				entryDate,
@@ -158,5 +159,4 @@ export const importTrades = createServerFn({ method: "POST" }).handler(
 			count: inserted,
 			skipped: valuesToInsert.length - inserted,
 		};
-	},
-);
+	});

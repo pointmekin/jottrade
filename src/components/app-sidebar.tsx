@@ -7,6 +7,7 @@ import {
 	PanelLeftClose,
 } from "lucide-react";
 import type { MouseEvent as ReactMouseEvent } from "react";
+import { AccountSwitcher } from "@/components/account/account-switcher";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -102,6 +103,11 @@ export function AppSidebar() {
 
 			<SidebarContent>
 				<SidebarGroup className="px-2 pt-3">
+					<SidebarGroupContent>
+						<AccountSwitcher />
+					</SidebarGroupContent>
+				</SidebarGroup>
+				<SidebarGroup className="px-2 pt-1">
 					<SidebarGroupContent>
 						<SidebarMenu className="gap-1">
 							{mainItems.map((item) => (

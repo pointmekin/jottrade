@@ -11,6 +11,7 @@ import { AppPageHeader } from "@/components/app-page-header";
 import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 import { CalendarSkeleton } from "@/components/calendar/CalendarSkeleton";
 import { Button } from "@/components/ui/button";
+import { useAccounts } from "@/hooks/use-accounts";
 import { useCurrency } from "@/hooks/use-currency";
 import { type CalendarDay, getCalendarData } from "@/server/calendarActions";
 
@@ -28,6 +29,7 @@ function CalendarPage() {
 	const navigate = useNavigate({ from: "/calendar" });
 	const { year, month } = useSearch({ from: "/_authenticated/calendar" });
 	const currency = useCurrency();
+	const { activeAccount } = useAccounts();
 	const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 	const range = useMemo(
 		() => ({
@@ -39,9 +41,18 @@ function CalendarPage() {
 
 	const { data: calendarData = {} as Record<string, CalendarDay>, isLoading } =
 		useQuery({
-			queryKey: ["calendar", year, month, timeZone],
+			queryKey: ["calendar", activeAccount?.id, year, month, timeZone],
 			queryFn: () =>
-				getCalendarData({ data: { year, month, timeZone, ...range } } as never),
+				getCalendarData({
+					data: {
+						year,
+						month,
+						timeZone,
+						portfolioId: activeAccount?.id,
+						...range,
+					},
+				} as never),
+			enabled: activeAccount !== undefined,
 		});
 
 	const goTo = (y: number, m: number) => {
