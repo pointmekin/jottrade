@@ -1,11 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { trades } from "@/db/schema";
+import { portfolios, trades } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { calculatePnL } from "@/lib/finance";
-import { resolveInstrumentSpec } from "@/lib/instruments";
+import { prepareImportedTradeCalculation } from "@/server/import-calculation";
 
 // Schema that matches our DB structure mostly, but allows for bulk array
 const importTradeSchema = z.object({
@@ -55,8 +55,19 @@ export const importTrades = createServerFn({ method: "POST" })
 		if (!session) {
 			throw new Error("Unauthorized");
 		}
+		const [portfolio] = await db
+			.select({ id: portfolios.id, currency: portfolios.currency })
+			.from(portfolios)
+			.where(
+				and(
+					eq(portfolios.id, data.portfolioId),
+					eq(portfolios.userId, session.user.id),
+				),
+			);
+		if (!portfolio) throw new Error("Account not found.");
 
 		const valuesToInsert: (typeof trades.$inferInsert)[] = [];
+		const warnings = new Set<string>();
 
 		for (const item of input) {
 			// Map fields
@@ -72,8 +83,9 @@ export const importTrades = createServerFn({ method: "POST" })
 			// A reported net P&L of exactly 0 is a scratch trade, not a missing value.
 			const rawNetPnl =
 				item.netPnl === undefined ? "" : String(item.netPnl).trim();
-			let netPnl = rawNetPnl === "" ? undefined : rawNetPnl;
-			let returnPercent;
+			const brokerNetPnl = rawNetPnl === "" ? undefined : rawNetPnl;
+			let netPnl = brokerNetPnl;
+			let returnPercent: string | undefined;
 			let status = "OPEN";
 			const exitDate = item.exitDate ? new Date(item.exitDate) : null;
 
@@ -87,7 +99,7 @@ export const importTrades = createServerFn({ method: "POST" })
 				const en = parseFloat(entryPriceStr);
 				const ex = parseFloat(exitPriceStr);
 
-				if (!isNaN(en) && !isNaN(ex) && en !== 0) {
+				if (!Number.isNaN(en) && !Number.isNaN(ex) && en !== 0) {
 					// (Exit - Entry) / Entry
 					let diffPct = ((ex - en) / en) * 100;
 					// If SHORT, Entry > Exit is good. (Entry - Exit) / Entry = -((Exit - Entry)/Entry)
@@ -95,27 +107,27 @@ export const importTrades = createServerFn({ method: "POST" })
 					if (side === "SHORT") diffPct = -diffPct;
 					returnPercent = diffPct.toFixed(2);
 				}
-
-				if (!netPnl) {
-					// Only calculate manual PnL if NOT provided by CSV.
-					const instrument = resolveInstrumentSpec(item.symbol);
-					const pnl = calculatePnL({
-						side,
-						entryPrice: Number(entryPriceStr),
-						exitPrice: Number(exitPriceStr),
-						quantity: Number(quantityStr),
-						contractSize: instrument.contractSize,
-						entryQuoteToAccountRate: 1,
-						exitQuoteToAccountRate: 1,
-						feesAccount: Number(feesStr),
-					});
-					netPnl = pnl.netPnl;
-					if (!returnPercent) returnPercent = pnl.returnPercent;
-				}
 			}
 
 			const entryDate = new Date(item.entryDate);
 			const symbol = item.symbol.toUpperCase();
+			const calculation = prepareImportedTradeCalculation({
+				symbol,
+				side,
+				entryDate,
+				exitDate,
+				entryPrice: Number(entryPriceStr),
+				exitPrice: exitPriceStr === null ? null : Number(exitPriceStr),
+				quantity: Number(quantityStr),
+				fees: Number(feesStr),
+				accountCurrency: portfolio.currency ?? "USD",
+				brokerNetPnl,
+			});
+			netPnl = calculation.netPnl;
+			if (calculation.returnPercent !== undefined) {
+				returnPercent = calculation.returnPercent;
+			}
+			if (calculation.warning) warnings.add(calculation.warning);
 
 			valuesToInsert.push({
 				userId: session.user.id,
@@ -134,6 +146,7 @@ export const importTrades = createServerFn({ method: "POST" })
 				netPnl,
 				returnPercent,
 				notes: item.notes,
+				...calculation.snapshot,
 				importHash: await buildImportHash([
 					session.user.id,
 					symbol,
@@ -161,5 +174,6 @@ export const importTrades = createServerFn({ method: "POST" })
 			success: true,
 			count: inserted,
 			skipped: valuesToInsert.length - inserted,
+			warnings: [...warnings],
 		};
 	});

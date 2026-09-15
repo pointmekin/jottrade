@@ -169,6 +169,17 @@ export const trades = pgTable(
 		// Calculations (Computed on insert/update usually, but stored for speed)
 		netPnl: numeric("net_pnl"),
 		returnPercent: numeric("return_percent"),
+		quantityUnit: text("quantity_unit"),
+		contractSize: numeric("contract_size"),
+		baseCurrency: text("base_currency"),
+		quoteCurrency: text("quote_currency"),
+		pnlCurrency: text("pnl_currency"),
+		entryConversionRate: numeric("entry_conversion_rate"),
+		entryConversionSource: text("entry_conversion_source"),
+		entryConversionAsOf: timestamp("entry_conversion_as_of"),
+		exitConversionRate: numeric("exit_conversion_rate"),
+		exitConversionSource: text("exit_conversion_source"),
+		exitConversionAsOf: timestamp("exit_conversion_as_of"),
 
 		// Analysis & Psychology (StonkJournal Features)
 		setupId: integer("setup_id"), // Link to specific strategy (will add relation below if needed, or keeping loose for now based on spec)
@@ -184,6 +195,29 @@ export const trades = pgTable(
 		index("idx_trades_user").on(t.userId),
 		index("idx_trades_date").on(t.entryDate),
 		index("idx_trades_portfolio").on(t.portfolioId),
+	],
+);
+
+export const fxRateCache = pgTable(
+	"fx_rate_cache",
+	{
+		id: serial("id").primaryKey(),
+		provider: text("provider").notNull(),
+		fromCurrency: text("from_currency").notNull(),
+		toCurrency: text("to_currency").notNull(),
+		rateKey: text("rate_key").notNull(),
+		rate: numeric("rate").notNull(),
+		asOf: timestamp("as_of").notNull(),
+		precision: text("precision").notNull(),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+	},
+	(table) => [
+		uniqueIndex("fx_rate_cache_lookup_unique").on(
+			table.provider,
+			table.fromCurrency,
+			table.toCurrency,
+			table.rateKey,
+		),
 	],
 );
 

@@ -8,6 +8,7 @@ import { AccountKind } from "@/lib/account";
 import { AccountEntryKind, type AccountEntryRecord } from "@/lib/account-entry";
 import { auth } from "@/lib/auth";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
+import { assertCurrencyChangeAllowed } from "@/server/portfolio-currency";
 
 async function requireUserId(): Promise<string> {
 	const session = await auth.api.getSession({ headers: getRequestHeaders() });
@@ -173,6 +174,37 @@ export const updateAccount = createServerFn({ method: "POST" })
 	.validator(updateAccountSchema)
 	.handler(async ({ data }): Promise<AccountRecord> => {
 		const userId = await requireUserId();
+		if (data.currency !== undefined) {
+			const [current] = await db
+				.select({ currency: portfolios.currency })
+				.from(portfolios)
+				.where(and(eq(portfolios.id, data.id), eq(portfolios.userId, userId)));
+			if (!current) throw new Error("Account not found.");
+
+			const [[tradeActivity], [cashFlowActivity]] = await Promise.all([
+				db
+					.select({ count: count() })
+					.from(trades)
+					.where(
+						and(eq(trades.portfolioId, data.id), eq(trades.userId, userId)),
+					),
+				db
+					.select({ count: count() })
+					.from(cashFlows)
+					.where(
+						and(
+							eq(cashFlows.portfolioId, data.id),
+							eq(cashFlows.userId, userId),
+						),
+					),
+			]);
+			assertCurrencyChangeAllowed({
+				currentCurrency: current.currency ?? DEFAULT_CURRENCY,
+				nextCurrency: data.currency,
+				tradeCount: tradeActivity?.count ?? 0,
+				cashFlowCount: cashFlowActivity?.count ?? 0,
+			});
+		}
 
 		const patch: Partial<typeof portfolios.$inferInsert> = {};
 		if (data.name !== undefined) patch.name = data.name;

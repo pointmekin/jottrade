@@ -43,6 +43,13 @@
       "when": 1789471469245,
       "tag": "0005_previous_paibok",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789495309626,
+      "tag": "0006_talented_ender_wiggin",
+      "breakpoints": true
     }
   ]
 }
