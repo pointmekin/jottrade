@@ -160,8 +160,9 @@ export function CommandPalette({
 								placeholder="Search or tell JotTrade what to do"
 								value={query}
 								onValueChange={typeQuery}
-								className="pr-8"
+								className={speech.supported ? "pr-16" : "pr-8"}
 							/>
+							{/* Sits left of the dialog close button, on its centre line. */}
 							{speech.supported && (
 								<Button
 									type="button"
@@ -171,7 +172,7 @@ export function CommandPalette({
 										speech.listening ? "Stop dictation" : "Dictate a command"
 									}
 									aria-pressed={speech.listening}
-									className="-translate-y-1/2 absolute top-1/2 right-2 size-7"
+									className="absolute top-2 right-7 size-8 opacity-70 transition-opacity hover:bg-transparent hover:opacity-100"
 									onClick={() =>
 										speech.listening ? speech.stop() : speech.start()
 									}
@@ -179,7 +180,7 @@ export function CommandPalette({
 									{speech.listening ? (
 										<SquareIcon className="size-3.5 fill-destructive text-destructive" />
 									) : (
-										<MicIcon className="size-4 opacity-60" />
+										<MicIcon className="size-4" />
 									)}
 								</Button>
 							)}
