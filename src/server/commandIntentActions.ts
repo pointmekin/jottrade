@@ -22,6 +22,15 @@ Rules:
 - Treat a quantity as a lot size. Never convert it to units.
 - Leave a field out when the command does not state it. Never guess a price, quantity or amount.
 - "sell" and "short" mean SHORT. "buy" and "long" mean LONG.
+- The command is typed fast and often holds typos, missing words and filler. Read the intended word: "entyr" is entry, "taget" is target, "shrot" is short, "lto" is lot.
+- A price near "entry", "at", "@" or "from" is the entry price. A price near "target", "tp" or "take profit" is the target price. A number near "lot", "lots", "size", "qty" or "volume" is the quantity.
+- When two prices carry no label, the first is the entry price and the second is the target price. Only do this when the second price sits on the profit side of the first: below it for SHORT, above it for LONG. Otherwise leave both prices out.
+- A stop loss is not supported. Ignore a stop-loss price. Never store it as the target price.
+
+Examples:
+"short gold at 4500 entyr price, target 4400, 0.01 lto size" -> {"intent":"trade","symbol":"gold","side":"SHORT","entryPrice":"4500","targetPrice":"4400","quantity":"0.01"}
+"i want to shrot gold 4500 4400 0.01 lot" -> {"intent":"trade","symbol":"gold","side":"SHORT","entryPrice":"4500","targetPrice":"4400","quantity":"0.01"}
+"buy eurusd 1.1735 sl 1.17 0.1 lot" -> {"intent":"trade","symbol":"eurusd","side":"LONG","entryPrice":"1.1735","quantity":"0.1"}
 
 Command:`;
 
