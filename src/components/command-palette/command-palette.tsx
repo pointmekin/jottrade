@@ -1,7 +1,9 @@
 import { useNavigate } from "@tanstack/react-router";
+import { MicIcon, SquareIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { CommandPreview } from "@/components/command-palette/command-preview";
 import { useTheme } from "@/components/theme-provider";
+import { Button } from "@/components/ui/button";
 import {
 	Command,
 	CommandEmpty,
@@ -15,6 +17,7 @@ import {
 	DialogDescription,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { useSpeechInput } from "@/hooks/use-speech-input";
 import { authClient } from "@/lib/auth-client";
 import { toCommandCandidate } from "@/lib/commands/intent-schema";
 import { matchCommands } from "@/lib/commands/matcher";
@@ -52,12 +55,22 @@ export function CommandPalette({
 		setInterpretError(undefined);
 		setQuery(next);
 	};
+	const speech = useSpeechInput(changeQuery);
+	const stopSpeech = speech.stop;
+	const typeQuery = (next: string) => {
+		speech.clearError();
+		changeQuery(next);
+	};
 	useEffect(() => {
 		if (!open) {
 			setQuery("");
 			setSelected(undefined);
 		}
 	}, [open]);
+	// Never keep the microphone open behind a closed palette or a preview.
+	useEffect(() => {
+		if (!open || selected) stopSpeech();
+	}, [open, selected, stopSpeech]);
 	useEffect(() => {
 		if (!session) return;
 		const handleKey = (event: KeyboardEvent) => {
@@ -141,13 +154,49 @@ export function CommandPalette({
 					/>
 				) : (
 					<Command shouldFilter={false}>
-						<CommandInput
-							aria-label="Search commands"
-							placeholder="Search or tell JotTrade what to do"
-							value={query}
-							onValueChange={changeQuery}
-							className="pr-8"
-						/>
+						<div className="relative">
+							<CommandInput
+								aria-label="Search commands"
+								placeholder="Search or tell JotTrade what to do"
+								value={query}
+								onValueChange={typeQuery}
+								className="pr-8"
+							/>
+							{speech.supported && (
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									aria-label={
+										speech.listening ? "Stop dictation" : "Dictate a command"
+									}
+									aria-pressed={speech.listening}
+									className="-translate-y-1/2 absolute top-1/2 right-2 size-7"
+									onClick={() =>
+										speech.listening ? speech.stop() : speech.start()
+									}
+								>
+									{speech.listening ? (
+										<SquareIcon className="size-3.5 fill-destructive text-destructive" />
+									) : (
+										<MicIcon className="size-4 opacity-60" />
+									)}
+								</Button>
+							)}
+						</div>
+						{speech.listening && (
+							<output className="block space-y-1 border-b px-3 py-2 text-xs text-muted-foreground">
+								<span className="flex items-center gap-2">
+									<span className="size-2 shrink-0 animate-pulse rounded-full bg-destructive" />
+									<span className="truncate">
+										{speech.interim || "Listening… speak your command."}
+									</span>
+								</span>
+								<span className="block">
+									Most browsers send the audio to their own speech service.
+								</span>
+							</output>
+						)}
 						<CommandList className="max-h-[min(360px,60dvh)] p-2">
 							<CommandEmpty>
 								No matching commands. Try “short gold” or “deposit 1000”.
@@ -195,12 +244,12 @@ export function CommandPalette({
 								</CommandItem>
 							)}
 						</CommandList>
-						{interpretError && (
+						{(interpretError ?? speech.error) && (
 							<p
 								role="alert"
 								className="border-t px-3 py-2 text-sm text-destructive"
 							>
-								{interpretError}
+								{interpretError ?? speech.error}
 							</p>
 						)}
 						<p className="border-t px-3 py-2 text-xs text-muted-foreground">
