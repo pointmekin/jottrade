@@ -47,7 +47,7 @@ export function parseTrade(query: string): CommandCandidate | null {
 	return {
 		id: "trade",
 		title:
-			`Log ${params.side.toLowerCase()} ${params.symbol ?? ""} trade`.replace(
+			`Log ${params.side?.toLowerCase()} ${params.symbol ?? ""} trade`.replace(
 				/ +/g,
 				" ",
 			),

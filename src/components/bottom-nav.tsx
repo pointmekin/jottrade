@@ -1,5 +1,5 @@
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
-import { Check, Crosshair, LogOut, Plus, Settings } from "lucide-react";
+import { Check, Crosshair, LogOut, Plus, Search, Settings } from "lucide-react";
 import { useState } from "react";
 import { AccountFormDialog } from "@/components/account/account-form-dialog";
 import { AccountKindBadge } from "@/components/account/account-kind-badge";
@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 
 const mobileItems = navItems.slice(0, 4);
 
-export function BottomNav() {
+export function BottomNav({ onOpenCommands }: { onOpenCommands?: () => void }) {
 	const location = useLocation();
 	const router = useRouter();
 	const session = authClient.useSession();
@@ -134,6 +134,16 @@ export function BottomNav() {
 							</div>
 						</div>
 						<div className="grid gap-1 py-3">
+							<button
+								type="button"
+								className="flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent"
+								onClick={() => {
+									setSheetOpen(false);
+									onOpenCommands?.();
+								}}
+							>
+								<Search className="size-4" /> Commands
+							</button>
 							<Link
 								to="/settings"
 								onClick={() => setSheetOpen(false)}

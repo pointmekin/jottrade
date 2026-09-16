@@ -7,9 +7,11 @@ import {
 	useLocation,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { useState } from "react";
 import { Toaster } from "sonner";
 import { AppSidebar } from "@/components/app-sidebar";
 import { BottomNav } from "@/components/bottom-nav";
+import { CommandPalette } from "@/components/command-palette/command-palette";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
@@ -35,6 +37,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
 	const location = useLocation();
+	const [commandsOpen, setCommandsOpen] = useState(false);
 
 	const hideSidebarRoutes = ["/sign-in", "/sign-up"];
 	const shouldHideSidebar =
@@ -80,12 +83,18 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 						<>
 							{/* Desktop project index */}
 							<div className="hidden lg:block">
-								<AppSidebar />
+								<AppSidebar onOpenCommands={() => setCommandsOpen(true)} />
 							</div>
-							<BottomNav />
+							<BottomNav onOpenCommands={() => setCommandsOpen(true)} />
 						</>
 					)}
 					<ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+						{!shouldHideSidebar && (
+							<CommandPalette
+								open={commandsOpen}
+								onOpenChange={setCommandsOpen}
+							/>
+						)}
 						<div
 							className={cn(
 								"w-full min-w-0 transform-gpu",

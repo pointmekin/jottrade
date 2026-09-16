@@ -43,6 +43,13 @@
       "when": 1789471469245,
       "tag": "0005_previous_paibok",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789572619273,
+      "tag": "0006_amusing_kylun",
+      "breakpoints": true
     }
   ]
 }

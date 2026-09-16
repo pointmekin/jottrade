@@ -30,6 +30,7 @@ export type Trade = {
 	entryDate: Date;
 	exitDate: Date | null;
 	entryPrice: string | null;
+	targetPrice?: string | null;
 	exitPrice: string | null;
 	quantity: string | null;
 	netPnl: string | null;

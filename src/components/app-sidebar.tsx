@@ -5,6 +5,7 @@ import {
 	LogOut,
 	PanelLeft,
 	PanelLeftClose,
+	Search,
 } from "lucide-react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { AccountSwitcher } from "@/components/account/account-switcher";
@@ -43,7 +44,11 @@ function isPlainPrimaryMouseEvent(event: ReactMouseEvent<HTMLAnchorElement>) {
 	);
 }
 
-export function AppSidebar() {
+export function AppSidebar({
+	onOpenCommands,
+}: {
+	onOpenCommands?: () => void;
+}) {
 	const session = authClient.useSession();
 	const router = useRouter();
 	const location = useLocation();
@@ -110,6 +115,19 @@ export function AppSidebar() {
 				<SidebarGroup className="px-2 pt-1">
 					<SidebarGroupContent>
 						<SidebarMenu className="gap-1">
+							<SidebarMenuItem>
+								<SidebarMenuButton
+									onClick={onOpenCommands}
+									tooltip="Commands (⌘K / Ctrl+K)"
+									className="h-9"
+								>
+									<Search className="size-4" />
+									<span>Commands</span>
+									<span className="ml-auto text-xs text-muted-foreground">
+										⌘K / Ctrl+K
+									</span>
+								</SidebarMenuButton>
+							</SidebarMenuItem>
 							{mainItems.map((item) => (
 								<SidebarMenuItem key={item.title}>
 									<SidebarMenuButton

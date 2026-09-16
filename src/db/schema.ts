@@ -162,6 +162,7 @@ export const trades = pgTable(
 		entryDate: timestamp("entry_date").notNull(),
 		exitDate: timestamp("exit_date"),
 		entryPrice: numeric("entry_price"),
+		targetPrice: numeric("target_price"),
 		exitPrice: numeric("exit_price"),
 		quantity: numeric("quantity"),
 		fees: numeric("fees").default("0"),

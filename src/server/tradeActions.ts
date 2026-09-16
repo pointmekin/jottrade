@@ -14,6 +14,16 @@ const tradeSchema = z.object({
 	side: z.enum(["LONG", "SHORT"]),
 	entryDate: z.string().transform((str) => new Date(str)), // Input as string from form
 	entryPrice: z.string(), // Ensure string for numeric
+	targetPrice: z
+		.string()
+		.trim()
+		.refine(
+			(value) =>
+				value === "" || (Number.isFinite(Number(value)) && Number(value) > 0),
+			"Target price must be positive.",
+		)
+		.nullable()
+		.optional(),
 	quantity: z.string(),
 	notes: z.string().optional(),
 	portfolioId: z.number().int().positive(),
@@ -56,12 +66,9 @@ async function requireOwnedPortfolio(userId: string, portfolioId: number) {
 	return portfolio;
 }
 
-export const createTrade = createServerFn({ method: "POST" }).handler(
-	async (ctx: any) => {
-		const data = ctx.data as z.infer<typeof tradeSchema>;
-		// Validate manually if needed, or trust the type if client sends strictly
-		// If "data" is the raw payload here
-		const validatedData = tradeSchema.parse(data);
+export const createTrade = createServerFn({ method: "POST" })
+	.validator(tradeSchema)
+	.handler(async ({ data: validatedData }) => {
 		// const request = getWebRequest();
 		const session = await auth.api.getSession({
 			headers: getRequestHeaders(),
@@ -75,8 +82,8 @@ export const createTrade = createServerFn({ method: "POST" }).handler(
 		const portfolio = await requireOwnedPortfolio(session.user.id, portfolioId);
 
 		// Calculate P&L if exit exists
-		let netPnl;
-		let returnPercent;
+		let netPnl: string | undefined;
+		let returnPercent: string | undefined;
 		let status = validatedData.status || "OPEN";
 
 		if (validatedData.exitPrice && validatedData.entryPrice) {
@@ -101,6 +108,7 @@ export const createTrade = createServerFn({ method: "POST" }).handler(
 			side: validatedData.side,
 			entryDate: validatedData.entryDate,
 			entryPrice: validatedData.entryPrice,
+			targetPrice: validatedData.targetPrice || null,
 			quantity: validatedData.quantity,
 			notes: validatedData.notes,
 
@@ -114,8 +122,7 @@ export const createTrade = createServerFn({ method: "POST" }).handler(
 		});
 
 		return { success: true };
-	},
-);
+	});
 
 export const updateTrade = createServerFn({ method: "POST" }).handler(
 	async (ctx: any) => {
@@ -188,6 +195,8 @@ export const updateTrade = createServerFn({ method: "POST" }).handler(
 			setValues.entryDate = validatedData.entryDate;
 		if (validatedData.entryPrice !== undefined)
 			setValues.entryPrice = validatedData.entryPrice;
+		if (validatedData.targetPrice !== undefined)
+			setValues.targetPrice = validatedData.targetPrice || null;
 		if (validatedData.quantity !== undefined)
 			setValues.quantity = validatedData.quantity;
 		if (validatedData.exitDate !== undefined)

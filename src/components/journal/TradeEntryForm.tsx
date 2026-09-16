@@ -38,6 +38,7 @@ const formSchema = z.object({
 	entryPrice: z.string().min(1, "Price is required"),
 	quantity: z.string().min(1, "Quantity is required"),
 	notes: z.string().optional(),
+	targetPrice: z.string().optional(),
 	exitPrice: z.string().optional(),
 	exitDate: z.string().optional(),
 	fees: z.string().optional(),
@@ -64,6 +65,7 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 			side: "LONG",
 			entryDate: toDateTimeLocalValue(new Date()),
 			entryPrice: "",
+			targetPrice: "",
 			quantity: "",
 			notes: "",
 			exitPrice: "",
@@ -231,6 +233,26 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 					<div className="h-px flex-1 bg-border" />
 				</div>
 
+				<FormField
+					control={form.control}
+					name="targetPrice"
+					render={({ field }) => (
+						<FormItem className="space-y-1.5">
+							<Label className={labelCls}>Planned target price</Label>
+							<FormControl>
+								<Input
+									type="number"
+									min="0"
+									step="any"
+									placeholder="Optional"
+									className={inputCls}
+									{...field}
+								/>
+							</FormControl>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
 				{/* Exit Price + Exit Date */}
 				<div className="grid grid-cols-2 gap-3">
 					<FormField

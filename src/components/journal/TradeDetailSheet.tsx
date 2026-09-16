@@ -39,6 +39,7 @@ const MISTAKE_OPTIONS = [
 
 const overviewSchema = z.object({
 	entryPrice: z.string(),
+	targetPrice: z.string().optional(),
 	exitPrice: z.string().optional(),
 	quantity: z.string(),
 	fees: z.string().optional(),
@@ -69,6 +70,7 @@ export function TradeDetailContent({
 		resolver: zodResolver(overviewSchema),
 		values: {
 			entryPrice: trade.entryPrice ?? "",
+			targetPrice: trade.targetPrice ?? "",
 			exitPrice: trade.exitPrice ?? "",
 			quantity: trade.quantity ?? "",
 			fees: trade.fees ?? "",
@@ -84,6 +86,7 @@ export function TradeDetailContent({
 				data: {
 					id: trade.id,
 					entryPrice: values.entryPrice,
+					targetPrice: values.targetPrice,
 					exitPrice: values.exitPrice,
 					quantity: values.quantity,
 					fees: values.fees,
@@ -177,6 +180,15 @@ export function TradeDetailContent({
 						<FieldGroup label="Entry Price">
 							<Input
 								{...register("entryPrice")}
+								className="border-input bg-background font-data text-sm"
+							/>
+						</FieldGroup>
+						<FieldGroup label="Planned target price">
+							<Input
+								type="number"
+								min="0"
+								step="any"
+								{...register("targetPrice")}
 								className="border-input bg-background font-data text-sm"
 							/>
 						</FieldGroup>
