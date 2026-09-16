@@ -4,10 +4,10 @@ import { getRequestHeaders } from "@tanstack/react-start/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { trades } from "@/db/schema";
+import { portfolios, trades } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { calculatePnL, shouldRecalculatePnl } from "@/lib/finance";
-import { resolveInstrumentSpec } from "@/lib/instruments";
+import { DEFAULT_CURRENCY } from "@/lib/currency";
+import { calculateInstrumentPnL, shouldRecalculatePnl } from "@/lib/finance";
 
 const tradeSchema = z.object({
 	symbol: z.string().min(1),
@@ -47,6 +47,15 @@ const deleteTradeSchema = z.object({
 	id: z.number(),
 });
 
+async function requireOwnedPortfolio(userId: string, portfolioId: number) {
+	const [portfolio] = await db
+		.select({ currency: portfolios.currency })
+		.from(portfolios)
+		.where(and(eq(portfolios.id, portfolioId), eq(portfolios.userId, userId)));
+	if (!portfolio) throw new Error("Account not found.");
+	return portfolio;
+}
+
 export const createTrade = createServerFn({ method: "POST" }).handler(
 	async (ctx: any) => {
 		const data = ctx.data as z.infer<typeof tradeSchema>;
@@ -63,6 +72,7 @@ export const createTrade = createServerFn({ method: "POST" }).handler(
 		}
 
 		const portfolioId = validatedData.portfolioId;
+		const portfolio = await requireOwnedPortfolio(session.user.id, portfolioId);
 
 		// Calculate P&L if exit exists
 		let netPnl;
@@ -70,15 +80,13 @@ export const createTrade = createServerFn({ method: "POST" }).handler(
 		let status = validatedData.status || "OPEN";
 
 		if (validatedData.exitPrice && validatedData.entryPrice) {
-			const instrument = resolveInstrumentSpec(validatedData.symbol);
-			const pnl = calculatePnL({
+			const pnl = calculateInstrumentPnL({
+				symbol: validatedData.symbol,
+				accountCurrency: portfolio.currency ?? DEFAULT_CURRENCY,
 				side: validatedData.side,
 				entryPrice: Number(validatedData.entryPrice),
 				exitPrice: Number(validatedData.exitPrice),
 				quantity: Number(validatedData.quantity),
-				contractSize: instrument.contractSize,
-				entryQuoteToAccountRate: 1,
-				exitQuoteToAccountRate: 1,
 				feesAccount: Number(validatedData.fees),
 			});
 			netPnl = pnl.netPnl;
@@ -137,6 +145,9 @@ export const updateTrade = createServerFn({ method: "POST" }).handler(
 
 		if (!existingTrade) throw new Error("Trade not found");
 
+		const portfolioId = validatedData.portfolioId ?? existingTrade.portfolioId;
+		const portfolio = await requireOwnedPortfolio(session.user.id, portfolioId);
+
 		const side = validatedData.side || (existingTrade.side as "LONG" | "SHORT");
 		const entryPrice = validatedData.entryPrice || existingTrade.entryPrice;
 		const exitPrice = validatedData.exitPrice || existingTrade.exitPrice;
@@ -153,17 +164,13 @@ export const updateTrade = createServerFn({ method: "POST" }).handler(
 			entryPrice &&
 			quantity
 		) {
-			const instrument = resolveInstrumentSpec(
-				validatedData.symbol || existingTrade.symbol,
-			);
-			const pnl = calculatePnL({
+			const pnl = calculateInstrumentPnL({
+				symbol: validatedData.symbol || existingTrade.symbol,
+				accountCurrency: portfolio.currency ?? DEFAULT_CURRENCY,
 				side,
 				entryPrice: Number(entryPrice),
 				exitPrice: Number(exitPrice),
 				quantity: Number(quantity),
-				contractSize: instrument.contractSize,
-				entryQuoteToAccountRate: 1,
-				exitQuoteToAccountRate: 1,
 				feesAccount: Number(fees || "0"),
 			});
 			netPnl = pnl.netPnl;

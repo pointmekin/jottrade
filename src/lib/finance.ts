@@ -1,3 +1,6 @@
+import { resolveQuoteToAccountConversion } from "@/lib/fx";
+import { resolveInstrumentSpec } from "@/lib/instruments";
+
 export function shouldRecalculatePnl(importHash: string | null): boolean {
 	return importHash === null;
 }
@@ -11,6 +14,14 @@ export type CalculatePnlInput = {
 	entryQuoteToAccountRate: number;
 	exitQuoteToAccountRate: number;
 	feesAccount?: number;
+};
+
+type CalculateInstrumentPnlInput = Omit<
+	CalculatePnlInput,
+	"contractSize" | "entryQuoteToAccountRate" | "exitQuoteToAccountRate"
+> & {
+	symbol: string;
+	accountCurrency: string;
 };
 
 export function calculatePnL({
@@ -53,4 +64,59 @@ export function calculatePnL({
 		netPnl: netPnlAccount.toFixed(2),
 		returnPercent: returnPercent.toFixed(2),
 	};
+}
+
+function resolveLocalConversionRate(
+	baseCurrency: string,
+	quoteCurrency: string,
+	accountCurrency: string,
+	instrumentPrice: number,
+): number {
+	const conversion = resolveQuoteToAccountConversion({
+		baseCurrency,
+		quoteCurrency,
+		accountCurrency,
+		instrumentPrice,
+	});
+
+	if (conversion.type === "EXTERNAL_REQUIRED") {
+		throw new Error(
+			`P&L conversion from ${conversion.fromCurrency} to ${conversion.toCurrency} requires an external FX rate.`,
+		);
+	}
+
+	return conversion.rate;
+}
+
+export function calculateInstrumentPnL({
+	symbol,
+	accountCurrency,
+	...input
+}: CalculateInstrumentPnlInput) {
+	const instrument = resolveInstrumentSpec(symbol);
+	if (!instrument.baseCurrency || !instrument.quoteCurrency) {
+		return calculatePnL({
+			...input,
+			contractSize: instrument.contractSize,
+			entryQuoteToAccountRate: 1,
+			exitQuoteToAccountRate: 1,
+		});
+	}
+
+	return calculatePnL({
+		...input,
+		contractSize: instrument.contractSize,
+		entryQuoteToAccountRate: resolveLocalConversionRate(
+			instrument.baseCurrency,
+			instrument.quoteCurrency,
+			accountCurrency,
+			input.entryPrice,
+		),
+		exitQuoteToAccountRate: resolveLocalConversionRate(
+			instrument.baseCurrency,
+			instrument.quoteCurrency,
+			accountCurrency,
+			input.exitPrice,
+		),
+	});
 }

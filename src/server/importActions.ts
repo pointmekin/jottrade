@@ -1,11 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { trades } from "@/db/schema";
+import { portfolios, trades } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { calculatePnL } from "@/lib/finance";
-import { resolveInstrumentSpec } from "@/lib/instruments";
+import { DEFAULT_CURRENCY } from "@/lib/currency";
+import { calculateInstrumentPnL } from "@/lib/finance";
 
 // Schema that matches our DB structure mostly, but allows for bulk array
 const importTradeSchema = z.object({
@@ -56,6 +57,17 @@ export const importTrades = createServerFn({ method: "POST" })
 			throw new Error("Unauthorized");
 		}
 
+		const [portfolio] = await db
+			.select({ currency: portfolios.currency })
+			.from(portfolios)
+			.where(
+				and(
+					eq(portfolios.id, data.portfolioId),
+					eq(portfolios.userId, session.user.id),
+				),
+			);
+		if (!portfolio) throw new Error("Account not found.");
+
 		const valuesToInsert: (typeof trades.$inferInsert)[] = [];
 
 		for (const item of input) {
@@ -98,15 +110,13 @@ export const importTrades = createServerFn({ method: "POST" })
 
 				if (!netPnl) {
 					// Only calculate manual PnL if NOT provided by CSV.
-					const instrument = resolveInstrumentSpec(item.symbol);
-					const pnl = calculatePnL({
+					const pnl = calculateInstrumentPnL({
+						symbol: item.symbol,
+						accountCurrency: portfolio.currency ?? DEFAULT_CURRENCY,
 						side,
 						entryPrice: Number(entryPriceStr),
 						exitPrice: Number(exitPriceStr),
 						quantity: Number(quantityStr),
-						contractSize: instrument.contractSize,
-						entryQuoteToAccountRate: 1,
-						exitQuoteToAccountRate: 1,
 						feesAccount: Number(feesStr),
 					});
 					netPnl = pnl.netPnl;

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { calculatePnL, shouldRecalculatePnl } from "../lib/finance";
+import {
+	calculateInstrumentPnL,
+	calculatePnL,
+	shouldRecalculatePnl,
+} from "../lib/finance";
 import { resolveQuoteToAccountConversion } from "../lib/fx";
 
 describe("calculatePnL", () => {
@@ -47,6 +51,47 @@ describe("calculatePnL", () => {
 				feesAccount: 2,
 			}),
 		).toEqual({ netPnl: "48.00", returnPercent: "3.20" });
+	});
+});
+
+describe("calculateInstrumentPnL", () => {
+	it("converts USDJPY quote-currency P&L into USD", () => {
+		expect(
+			calculateInstrumentPnL({
+				symbol: "USDJPY",
+				accountCurrency: "USD",
+				side: "LONG",
+				entryPrice: 153.588,
+				exitPrice: 154.677,
+				quantity: 3.525,
+			}),
+		).toEqual({ netPnl: "2481.77", returnPercent: "0.70" });
+	});
+
+	it("keeps quote-currency P&L unchanged when it matches the account", () => {
+		expect(
+			calculateInstrumentPnL({
+				symbol: "EURUSD",
+				accountCurrency: "USD",
+				side: "LONG",
+				entryPrice: 1.1,
+				exitPrice: 1.11,
+				quantity: 1,
+			}),
+		).toEqual({ netPnl: "1000.00", returnPercent: "0.91" });
+	});
+
+	it("rejects pairs that require an external conversion rate", () => {
+		expect(() =>
+			calculateInstrumentPnL({
+				symbol: "EURJPY",
+				accountCurrency: "USD",
+				side: "LONG",
+				entryPrice: 169,
+				exitPrice: 170,
+				quantity: 1,
+			}),
+		).toThrow("JPY to USD");
 	});
 });
 
