@@ -231,7 +231,7 @@ function TradeCard({ trade, currency }: { trade: Trade; currency: string }) {
 		<Link
 			to="/journal/$tradeId"
 			params={{ tradeId: String(trade.id) }}
-			className="surface block min-h-11 border-l-2 border-l-ring p-3 transition-colors hover:bg-accent/45 focus-visible:border-ring focus-visible:ring-ring/35 focus-visible:ring-[3px]"
+			className="surface block min-h-11 p-3 transition-colors hover:bg-accent/45 focus-visible:border-ring focus-visible:ring-ring/35 focus-visible:ring-[3px]"
 			aria-label={`Review ${trade.symbol} ${trade.side} trade from ${formatEntryDate(trade.entryDate)}`}
 		>
 			<div className="flex items-start justify-between gap-3">
@@ -301,7 +301,7 @@ function AdjustmentCard({
 	currency: string;
 }) {
 	return (
-		<div className="surface block min-h-11 border-l-2 border-l-border bg-muted/35 p-3">
+		<div className="surface block min-h-11 bg-muted/35 p-3">
 			<div className="flex items-start justify-between gap-3">
 				<div className="min-w-0">
 					<div className="flex flex-wrap items-center gap-2">
@@ -441,8 +441,8 @@ export function JournalTable({
 										key={row.id}
 										className={
 											isTrade
-												? "cursor-pointer border-border border-l-2 border-l-ring hover:bg-accent/55 focus-visible:bg-accent/55"
-												: "border-border border-l-2 border-l-border bg-muted/35 hover:bg-muted/35"
+												? "cursor-pointer border-border hover:bg-accent/55 focus-visible:bg-accent/55"
+												: "border-border bg-muted/35 hover:bg-muted/35"
 										}
 										tabIndex={isClickable ? 0 : undefined}
 										role={isClickable ? "link" : undefined}
