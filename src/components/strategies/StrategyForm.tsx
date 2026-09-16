@@ -24,6 +24,11 @@ interface StrategyFormProps {
 }
 
 export function StrategyForm({ strategy, onSaved }: StrategyFormProps) {
+	// React Compiler caches register("name") on the stable register identity.
+	// The form then never re-registers its fields, so a new strategy keeps the
+	// previous values in the DOM.
+	"use no memo";
+
 	const qc = useQueryClient();
 	const {
 		register,

@@ -7,7 +7,12 @@ export default defineConfig({
     viteTsConfigPaths({
       projects: ['./tsconfig.json'],
     }),
-    viteReact(),
+    // Match the app build, so tests see the same compiler memoization.
+    viteReact({
+      babel: {
+        plugins: ['babel-plugin-react-compiler'],
+      },
+    }),
   ],
   test: {
     globals: true,

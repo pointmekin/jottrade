@@ -58,6 +58,11 @@ export function TradeDetailContent({
 	trade,
 	onDeleted,
 }: TradeDetailContentProps) {
+	// React Compiler caches register("field") on the stable register identity.
+	// The form then never re-registers its fields, so a new trade keeps the
+	// previous values in the DOM.
+	"use no memo";
+
 	const qc = useQueryClient();
 	const [uploading, setUploading] = useState(false);
 
