@@ -38,7 +38,7 @@ export function BottomNav({ onOpenCommands }: { onOpenCommands?: () => void }) {
 	return (
 		<>
 			<nav
-				className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-border bg-sidebar lg:hidden"
+				className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-6 border-t border-border bg-sidebar lg:hidden"
 				style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
 			>
 				{mobileItems.map((item, index) => (
@@ -55,9 +55,25 @@ export function BottomNav({ onOpenCommands }: { onOpenCommands?: () => void }) {
 							{String(index + 1).padStart(2, "0")}
 						</span>
 						<item.icon className="size-4" />
-						<span className="text-xs font-semibold">{item.title}</span>
+						<span className="w-full truncate px-0.5 text-center text-[10px] font-semibold">
+							{item.title}
+						</span>
 					</Link>
 				))}
+				<button
+					type="button"
+					onClick={onOpenCommands}
+					aria-label="Open commands"
+					className="relative flex min-h-14 flex-col items-center justify-center gap-1 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+				>
+					<span className="absolute left-1 top-1 font-data text-[7px] text-muted-foreground">
+						05
+					</span>
+					<Search className="size-4" />
+					<span className="w-full truncate px-0.5 text-center text-[10px] font-semibold">
+						Commands
+					</span>
+				</button>
 				<button
 					type="button"
 					onClick={() => setSheetOpen(true)}
@@ -65,12 +81,14 @@ export function BottomNav({ onOpenCommands }: { onOpenCommands?: () => void }) {
 					className="relative flex min-h-14 flex-col items-center justify-center gap-1 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
 				>
 					<span className="absolute left-1 top-1 font-data text-[7px] text-muted-foreground">
-						05
+						06
 					</span>
 					<div className="flex size-4 items-center justify-center border border-current font-data text-[7px]">
 						{userInitial}
 					</div>
-					<span className="text-xs font-semibold">Account</span>
+					<span className="w-full truncate px-0.5 text-center text-[10px] font-semibold">
+						Account
+					</span>
 				</button>
 			</nav>
 
@@ -134,16 +152,6 @@ export function BottomNav({ onOpenCommands }: { onOpenCommands?: () => void }) {
 							</div>
 						</div>
 						<div className="grid gap-1 py-3">
-							<button
-								type="button"
-								className="flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent"
-								onClick={() => {
-									setSheetOpen(false);
-									onOpenCommands?.();
-								}}
-							>
-								<Search className="size-4" /> Commands
-							</button>
 							<Link
 								to="/settings"
 								onClick={() => setSheetOpen(false)}
