@@ -22,6 +22,7 @@ import { authClient } from "@/lib/auth-client";
 import { toCommandCandidate } from "@/lib/commands/intent-schema";
 import { matchCommands } from "@/lib/commands/matcher";
 import type { CommandCandidate } from "@/lib/commands/types";
+import { cn } from "@/lib/utils";
 import { extractCommandIntent } from "@/server/commandIntentActions";
 
 /** Below this, a local match is a guess, so offer the Gemini fallback. */
@@ -160,7 +161,7 @@ export function CommandPalette({
 								placeholder="Search or tell JotTrade what to do"
 								value={query}
 								onValueChange={typeQuery}
-								className={speech.supported ? "pr-16" : "pr-8"}
+								className={cn("!h12", speech.supported ? "pr-16" : "pr-8")}
 							/>
 							{/* Sits left of the dialog close button, on its centre line. */}
 							{speech.supported && (

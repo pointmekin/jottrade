@@ -36,9 +36,14 @@ type Handler = ((event: unknown) => void) | null;
 class FakeRecognition {
 	static instances: FakeRecognition[] = [];
 	static failOnStart = false;
+	static available?: (options: {
+		langs: string[];
+		processLocally?: boolean;
+	}) => Promise<string>;
 	lang = "";
 	continuous = false;
 	interimResults = false;
+	processLocally?: boolean;
 	started = 0;
 	aborted = 0;
 	onresult: Handler = null;
@@ -85,6 +90,7 @@ afterEach(() => {
 	vi.clearAllMocks();
 	FakeRecognition.instances = [];
 	FakeRecognition.failOnStart = false;
+	FakeRecognition.available = undefined;
 	Reflect.deleteProperty(window, "SpeechRecognition");
 	Reflect.deleteProperty(window, "webkitSpeechRecognition");
 });
@@ -231,6 +237,61 @@ describe("palette dictation", () => {
 		});
 		expect(screen.queryByRole("alert")).toBeNull();
 		expect(screen.getByText("Journal")).toBeTruthy();
+	});
+
+	it("names the likely cause when the speech service is unreachable", async () => {
+		support("SpeechRecognition");
+		setup();
+		await waitFor(() => expect(mic()).toBeTruthy());
+		fireEvent.click(mic() as HTMLElement);
+		act(() => latest().onerror?.({ error: "network" }));
+
+		expect(screen.getByRole("alert").textContent).toMatch(
+			/could not reach its speech service/,
+		);
+		expect(screen.getByRole("alert").textContent).toMatch(/Brave/);
+	});
+
+	it("processes on device when a local language pack is installed", async () => {
+		support("SpeechRecognition");
+		const available = vi.fn().mockResolvedValue("available");
+		FakeRecognition.available = available;
+		setup();
+		await waitFor(() => expect(mic()).toBeTruthy());
+		await waitFor(() => expect(available).toHaveBeenCalled());
+		fireEvent.click(mic() as HTMLElement);
+
+		expect(available).toHaveBeenCalledWith({
+			langs: ["en-US"],
+			processLocally: true,
+		});
+		expect(latest().processLocally).toBe(true);
+	});
+
+	it.each(["downloadable", "unavailable"])(
+		"keeps the default service when the local pack is %s",
+		async (state) => {
+			support("SpeechRecognition");
+			const available = vi.fn().mockResolvedValue(state);
+			FakeRecognition.available = available;
+			setup();
+			await waitFor(() => expect(available).toHaveBeenCalled());
+			fireEvent.click(mic() as HTMLElement);
+
+			expect(latest().processLocally).toBeUndefined();
+			expect(latest().started).toBe(1);
+		},
+	);
+
+	it("still dictates when the availability check is missing or fails", async () => {
+		support("SpeechRecognition");
+		FakeRecognition.available = vi.fn().mockRejectedValue(new Error("no"));
+		setup();
+		await waitFor(() => expect(mic()).toBeTruthy());
+		fireEvent.click(mic() as HTMLElement);
+
+		expect(latest().started).toBe(1);
+		expect(latest().processLocally).toBeUndefined();
 	});
 
 	it("reports a start failure without leaving a listening state", async () => {

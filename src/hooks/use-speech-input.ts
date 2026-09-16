@@ -7,13 +7,21 @@ type Recognition = {
 	lang: string;
 	continuous: boolean;
 	interimResults: boolean;
+	processLocally?: boolean;
 	start: () => void;
 	abort: () => void;
 	onresult: ((event: RecognitionEvent) => void) | null;
 	onerror: ((event: RecognitionErrorEvent) => void) | null;
 	onend: (() => void) | null;
 };
-type RecognitionConstructor = new () => Recognition;
+type RecognitionConstructor = (new () => Recognition) & {
+	available?: (options: {
+		langs: string[];
+		processLocally?: boolean;
+	}) => Promise<string>;
+};
+
+const LANG = "en-US";
 
 function recognitionConstructor(): RecognitionConstructor | undefined {
 	if (typeof window === "undefined") return undefined;
@@ -31,7 +39,8 @@ const ERRORS: Record<string, string> = {
 	"service-not-allowed": BLOCKED,
 	"audio-capture": "No microphone was found. Type the command instead.",
 	"no-speech": "Nothing was heard. Try again, or type the command.",
-	network: "Dictation could not reach the network. Type the command instead.",
+	network:
+		"Your browser could not reach its speech service. Brave, Arc and other non-Chrome browsers often block it. Use Chrome or Safari, or type the command.",
 };
 const FAILED = "Dictation failed. Type the command instead.";
 
@@ -41,11 +50,27 @@ export function useSpeechInput(onTranscript: (text: string) => void) {
 	const [interim, setInterim] = useState("");
 	const [error, setError] = useState<string>();
 	const recognition = useRef<Recognition | null>(null);
+	const onDevice = useRef(false);
 	const handleTranscript = useRef(onTranscript);
 	handleTranscript.current = onTranscript;
 
 	// Resolved after mount so the server and the client render the same markup.
-	useEffect(() => setSupported(Boolean(recognitionConstructor())), []);
+	useEffect(() => {
+		const Constructor = recognitionConstructor();
+		setSupported(Boolean(Constructor));
+		if (!Constructor?.available) return;
+		let current = true;
+		// On-device recognition needs no speech server, so prefer it when it is
+		// already installed. Downloading a language pack unasked is too much.
+		Constructor.available({ langs: [LANG], processLocally: true })
+			.then((result) => {
+				if (current) onDevice.current = result === "available";
+			})
+			.catch(() => {});
+		return () => {
+			current = false;
+		};
+	}, []);
 
 	const stop = useCallback(() => {
 		const active = recognition.current;
@@ -69,9 +94,10 @@ export function useSpeechInput(onTranscript: (text: string) => void) {
 		setError(undefined);
 		setInterim("");
 		const active = new Constructor();
-		active.lang = "en-US";
+		active.lang = LANG;
 		active.continuous = false;
 		active.interimResults = true;
+		if (onDevice.current) active.processLocally = true;
 		active.onresult = (event) => {
 			let text = "";
 			let final = false;
