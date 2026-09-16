@@ -24,6 +24,9 @@ vi.mock("@/components/theme-provider", () => ({
 vi.mock("@/lib/auth-client", () => ({
 	authClient: { useSession: () => ({ data: mocks.session }) },
 }));
+vi.mock("@/server/commandIntentActions", () => ({
+	extractCommandIntent: vi.fn(),
+}));
 vi.mock("@/components/command-palette/command-preview", () => ({
 	CommandPreview: () => <div>Review before saving</div>,
 }));

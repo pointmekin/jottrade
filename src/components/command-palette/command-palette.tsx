@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CommandPreview } from "@/components/command-palette/command-preview";
 import { useTheme } from "@/components/theme-provider";
 import {
@@ -16,8 +16,13 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { authClient } from "@/lib/auth-client";
+import { toCommandCandidate } from "@/lib/commands/intent-schema";
 import { matchCommands } from "@/lib/commands/matcher";
 import type { CommandCandidate } from "@/lib/commands/types";
+import { extractCommandIntent } from "@/server/commandIntentActions";
+
+/** Below this, a local match is a guess, so offer the Gemini fallback. */
+const LOCAL_CONFIDENCE_THRESHOLD = 0.9;
 
 export function CommandPalette({
 	open,
@@ -32,7 +37,21 @@ export function CommandPalette({
 	const [query, setQuery] = useState("");
 	const [selected, setSelected] = useState<CommandCandidate>();
 	const [saving, setSaving] = useState(false);
+	const [interpreting, setInterpreting] = useState(false);
+	const [interpretError, setInterpretError] = useState<string>();
+	const request = useRef(0);
 	const candidates = matchCommands(query);
+	const command = query.trim();
+	const offerFallback =
+		command.length > 0 &&
+		(candidates[0]?.confidence ?? 0) < LOCAL_CONFIDENCE_THRESHOLD;
+	// Discard an in-flight interpretation once the command text moves on.
+	const changeQuery = (next: string) => {
+		request.current++;
+		setInterpreting(false);
+		setInterpretError(undefined);
+		setQuery(next);
+	};
 	useEffect(() => {
 		if (!open) {
 			setQuery("");
@@ -67,6 +86,33 @@ export function CommandPalette({
 			onOpenChange(false);
 		} else setSelected(candidate);
 	};
+	const interpret = async () => {
+		const id = ++request.current;
+		setInterpreting(true);
+		setInterpretError(undefined);
+		try {
+			const extracted = await extractCommandIntent({ data: { command } });
+			if (id !== request.current) return;
+			const candidate = toCommandCandidate(extracted);
+			if (!candidate) {
+				setInterpretError(
+					"That did not match a supported command. Try a typed command.",
+				);
+				setInterpreting(false);
+				return;
+			}
+			setInterpreting(false);
+			choose(candidate);
+		} catch (error) {
+			if (id !== request.current) return;
+			setInterpretError(
+				error instanceof Error
+					? error.message
+					: "Could not interpret that command. Try typing it.",
+			);
+			setInterpreting(false);
+		}
+	};
 	return (
 		<Dialog
 			open={open}
@@ -99,7 +145,7 @@ export function CommandPalette({
 							aria-label="Search commands"
 							placeholder="Search or tell JotTrade what to do"
 							value={query}
-							onValueChange={setQuery}
+							onValueChange={changeQuery}
 							className="pr-8"
 						/>
 						<CommandList className="max-h-[min(360px,60dvh)] p-2">
@@ -129,7 +175,34 @@ export function CommandPalette({
 									</div>
 								</CommandItem>
 							))}
+							{offerFallback && (
+								<CommandItem
+									value="interpret"
+									onSelect={() => {
+										if (!interpreting) void interpret();
+									}}
+									className="min-h-11"
+								>
+									<div className="min-w-0">
+										<p>
+											{interpreting ? "Interpreting…" : "Interpret with Gemini"}
+										</p>
+										<p className="text-xs text-muted-foreground">
+											Sends this command text to Google. Nothing saves without
+											your confirmation.
+										</p>
+									</div>
+								</CommandItem>
+							)}
 						</CommandList>
+						{interpretError && (
+							<p
+								role="alert"
+								className="border-t px-3 py-2 text-sm text-destructive"
+							>
+								{interpretError}
+							</p>
+						)}
 						<p className="border-t px-3 py-2 text-xs text-muted-foreground">
 							↑ ↓ to choose · Enter to continue · Esc to close
 						</p>
