@@ -17,6 +17,8 @@ import {
 	DialogDescription,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { Spinner } from "@/components/ui/spinner";
 import { useSpeechInput } from "@/hooks/use-speech-input";
 import { authClient } from "@/lib/auth-client";
 import { toCommandCandidate } from "@/lib/commands/intent-schema";
@@ -61,11 +63,21 @@ export function CommandPalette({
 		speech.clearError();
 		changeQuery(next);
 	};
-	useEffect(() => {
-		if (!open) {
+	// Reset on the way in, not on the way out. A reset during the close
+	// animation swaps the content back to the default list and looks like a jump.
+	const [wasOpen, setWasOpen] = useState(open);
+	if (open !== wasOpen) {
+		setWasOpen(open);
+		if (open) {
 			setQuery("");
 			setSelected(undefined);
+			setInterpreting(false);
+			setInterpretError(undefined);
 		}
+	}
+	// Drop an in-flight interpretation when the palette closes.
+	useEffect(() => {
+		if (!open) request.current++;
 	}, [open]);
 	// Never keep the microphone open behind a closed palette or a preview.
 	useEffect(() => {
@@ -172,6 +184,7 @@ export function CommandPalette({
 										speech.listening ? "Stop dictation" : "Dictate a command"
 									}
 									aria-pressed={speech.listening}
+									disabled={interpreting}
 									className="absolute top-2 right-7 size-8 opacity-70 transition-opacity hover:bg-transparent hover:opacity-100"
 									onClick={() =>
 										speech.listening ? speech.stop() : speech.start()
@@ -206,6 +219,7 @@ export function CommandPalette({
 								<CommandItem
 									key={candidate.id}
 									value={candidate.id}
+									disabled={interpreting}
 									onSelect={() => choose(candidate)}
 									className="min-h-11"
 								>
@@ -234,7 +248,8 @@ export function CommandPalette({
 									className="min-h-11"
 								>
 									<div className="min-w-0">
-										<p>
+										<p className="flex items-center gap-2">
+											{interpreting && <Spinner className="size-3.5" />}
 											{interpreting ? "Interpreting…" : "Interpret with Gemini"}
 										</p>
 										<p className="text-xs text-muted-foreground">
@@ -253,9 +268,23 @@ export function CommandPalette({
 								{interpretError ?? speech.error}
 							</p>
 						)}
-						<p className="border-t px-3 py-2 text-xs text-muted-foreground">
-							↑ ↓ to choose · Enter to continue · Esc to close
-						</p>
+						<div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t px-3 py-2 text-xs text-muted-foreground">
+							<span className="flex items-center gap-1.5">
+								<KbdGroup>
+									<Kbd>↑</Kbd>
+									<Kbd>↓</Kbd>
+								</KbdGroup>
+								to choose
+							</span>
+							<span className="flex items-center gap-1.5">
+								<Kbd>Enter</Kbd>
+								to continue
+							</span>
+							<span className="flex items-center gap-1.5">
+								<Kbd>Esc</Kbd>
+								to close
+							</span>
+						</div>
 					</Command>
 				)}
 			</DialogContent>

@@ -132,6 +132,22 @@ describe("Gemini fallback", () => {
 		expect(screen.queryByText(/Review before saving/)).toBeNull();
 	});
 
+	it("shows a spinner and disables the local commands while it interprets", async () => {
+		mocks.extract.mockReturnValue(new Promise(() => {}));
+		open("deposit something vague");
+		fireEvent.click(screen.getByText("Interpret with Gemini"));
+
+		await waitFor(() => expect(screen.getByText("Interpreting…")).toBeTruthy());
+		expect(screen.getByRole("status")).toBeTruthy();
+		const local = screen
+			.getAllByRole("option")
+			.filter((item) => !item.textContent?.includes("Interpreting…"));
+		expect(local.length).toBeGreaterThan(0);
+		for (const item of local) {
+			expect(item.getAttribute("data-disabled")).toBe("true");
+		}
+	});
+
 	it("discards a response that arrives after the query changed", async () => {
 		let settle: (value: unknown) => void = () => {};
 		mocks.extract.mockReturnValue(

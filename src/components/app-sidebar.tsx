@@ -15,6 +15,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import {
 	Sidebar,
 	SidebarContent,
@@ -123,9 +124,11 @@ export function AppSidebar({
 								>
 									<Search className="size-4" />
 									<span>Commands</span>
-									<span className="ml-auto text-xs text-muted-foreground">
-										⌘K / Ctrl+K
-									</span>
+									<KbdGroup className="ml-auto">
+										<Kbd>⌘K</Kbd>
+										<span className="text-xs text-muted-foreground">/</span>
+										<Kbd>Ctrl+K</Kbd>
+									</KbdGroup>
 								</SidebarMenuButton>
 							</SidebarMenuItem>
 							{mainItems.map((item) => (
