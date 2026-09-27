@@ -9,6 +9,10 @@ This file provides guidance to coding agents working in this repository.
 - `npm run serve` previews the production build.
 - `npm run test` runs the Vitest suite.
 - `npm run lint`, `npm run format`, and `npm run check` use Biome.
+- `npm run typecheck` runs `tsc --noEmit`.
+- `npm run lint:sonar` runs the SonarJS rules (the SonarLint analyzer) through ESLint.
+- `npm run doctor` runs React Doctor on the whole project.
+- `npm run quality` runs the quality gate. See "Quality gate".
 - `npm run db:generate`, `npm run db:migrate`, `npm run db:push`, and `npm run db:studio` manage Drizzle.
 - `npm run deploy` deploys to Cloudflare Workers with Wrangler.
 
@@ -76,11 +80,30 @@ Use the `@/*` alias for imports from `src/`.
 
 ## Repository conventions
 
-- Use Biome for linting and formatting; do not introduce ESLint or Prettier configuration.
+- Use Biome for linting and formatting. ESLint runs only the SonarJS rules in `eslint.config.js`; do not add other ESLint rules or Prettier.
 - Reuse the existing Better Auth session flow and keep auth API routes under `/api/auth/*`.
 - Apply authentication at the route-layout level for protected screens.
 - Preserve strong TypeScript types across server functions, query results, forms, and database operations.
 - Keep secrets out of source control.
+
+## Quality gate
+
+Run `npm run quality` before every commit and before you report a task as done. The task is not done until it passes.
+
+- `tsc --noEmit` and Vitest check the whole project.
+- Biome, SonarJS and React Doctor check the files changed since `BASE` (default `origin/main`). `main` still has older findings, so a file you touch must be clean when you finish.
+- CI runs the same gate on every pull request (`.github/workflows/quality.yml`), with `BASE` set to the pull request base.
+
+Fix the cause of a finding. Do not suppress a rule or change a threshold to pass the gate. If a finding is a false positive, suppress it on that line with a reason, and say so in the pull request.
+
+## Code style
+
+- Reuse the domain `as const` objects in `src/lib/trade.ts`, `src/lib/account.ts` and `src/lib/account-entry.ts`. Do not write `"LONG"`, `"CLOSED"` or other domain strings inline.
+- Put a query key in `QueryKey` (`src/lib/query-keys.ts`) before you use it.
+- Default to no comment. Write one only for a reason the code cannot show: a business rule, an external constraint, or a workaround.
+- Keep a component to one job. Biome fails a function above 120 lines, and SonarJS fails a file above 400 lines (500 for tests).
+- A component reads shared state (account, currency) from its hook, not from props passed down.
+- `src/server/` files export only `createServerFn` results. Put a helper they share in a server-only module: `src/lib/auth.ts` for the session, `src/db/` for queries.
 
 ## Environment variables
 

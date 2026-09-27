@@ -9,6 +9,7 @@
 		"ignoreUnknown": false,
 		"includes": [
 			"**/src/**/*",
+			"**/scripts/**/*",
 			"**/.vscode/**/*",
 			"**/index.html",
 			"**/vite.config.js",
@@ -20,16 +21,82 @@
 		"enabled": true,
 		"indentStyle": "tab"
 	},
-	"assist": { "actions": { "source": { "organizeImports": "on" } } },
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
+	},
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true
+			"recommended": true,
+			"complexity": {
+				"noExcessiveCognitiveComplexity": "error",
+				"noExcessiveLinesPerFunction": {
+					"level": "error",
+					"options": {
+						"maxLines": 120,
+						"skipBlankLines": true
+					}
+				},
+				"noUselessFragments": "error"
+			},
+			"correctness": {
+				"noUnusedImports": "error",
+				"noUnusedVariables": "error",
+				"noUnusedFunctionParameters": "error"
+			},
+			"style": {
+				"noNestedTernary": "error",
+				"noEnum": "error",
+				"noNonNullAssertion": "error",
+				"noParameterAssign": "error",
+				"noUselessElse": "error",
+				"useConsistentArrayType": {
+					"level": "error",
+					"options": {
+						"syntax": "shorthand"
+					}
+				}
+			},
+			"suspicious": {
+				"noExplicitAny": "error",
+				"noConsole": {
+					"level": "error",
+					"options": {
+						"allow": ["error", "warn"]
+					}
+				}
+			}
 		}
 	},
 	"javascript": {
 		"formatter": {
 			"quoteStyle": "double"
 		}
-	}
+	},
+	"overrides": [
+		{
+			"includes": ["scripts/**"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noConsole": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["src/test/**"],
+			"linter": {
+				"rules": {
+					"complexity": {
+						"noExcessiveLinesPerFunction": "off"
+					}
+				}
+			}
+		}
+	]
 }
