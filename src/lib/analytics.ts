@@ -250,30 +250,37 @@ export type SharpeResult = { value: number | null; days: number };
  * weekdays between active days count as zero returns; a day without positive
  * capital has no defined return and is skipped. Risk-free rate is 0, the
  * standard deviation is the sample (n-1) one, and annualization is √252.
+ * `endDay` is the last day of the window: idle weekdays after the last point
+ * up to it are zero returns too.
  * IMPORTANT: points must be sorted by date ascending.
  */
-export function computeSharpe(curve: EquityPoint[]): SharpeResult {
+export function computeSharpe(
+	curve: EquityPoint[],
+	endDay?: string,
+): SharpeResult {
 	const returns: number[] = [];
+	const pushIdleWeekdays = (after: string, before: string) => {
+		for (let day = nextDayKey(after); day < before; day = nextDayKey(day)) {
+			if (isWeekdayKey(day)) returns.push(0);
+		}
+	};
 
 	for (let i = 1; i < curve.length; i++) {
 		const previous = curve[i - 1];
 		const point = curve[i];
 
-		if (previous.balance > 0) {
-			for (
-				let day = nextDayKey(previous.date);
-				day < point.date;
-				day = nextDayKey(day)
-			) {
-				if (isWeekdayKey(day)) returns.push(0);
-			}
-		}
+		if (previous.balance > 0) pushIdleWeekdays(previous.date, point.date);
 
 		const pnl = point.performance - previous.performance;
 		const capital = point.balance - pnl;
 		if (capital <= 0) continue;
 		if (pnl === 0 && !isWeekdayKey(point.date)) continue;
 		returns.push(pnl / capital);
+	}
+
+	const last = curve.at(-1);
+	if (endDay && last && last.balance > 0) {
+		pushIdleWeekdays(last.date, nextDayKey(endDay));
 	}
 
 	const days = returns.length;
