@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { portfolios, trades } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
-import { calculateInstrumentPnL } from "@/lib/finance";
+import { calculateInstrumentPnL, priceReturnPercent } from "@/lib/finance";
 
 // Schema that matches our DB structure mostly, but allows for bulk array
 const importTradeSchema = z.object({
@@ -93,20 +93,12 @@ export const importTrades = createServerFn({ method: "POST" })
 			if (exitPriceStr && entryPriceStr && exitDate) {
 				status = "CLOSED";
 
-				// ROI Logic: Price Change %
-				// Since we don't know the margin/leverage, calculating ROI on Equity is impossible without that data.
-				// Converting to "Price Return" is the standard fallback.
-				const en = parseFloat(entryPriceStr);
-				const ex = parseFloat(exitPriceStr);
-
-				if (!isNaN(en) && !isNaN(ex) && en !== 0) {
-					// (Exit - Entry) / Entry
-					let diffPct = ((ex - en) / en) * 100;
-					// If SHORT, Entry > Exit is good. (Entry - Exit) / Entry = -((Exit - Entry)/Entry)
-					// So if Short, flip the sign.
-					if (side === "SHORT") diffPct = -diffPct;
-					returnPercent = diffPct.toFixed(2);
-				}
+				const priceReturn = priceReturnPercent(
+					side,
+					parseFloat(entryPriceStr),
+					parseFloat(exitPriceStr),
+				);
+				if (priceReturn !== null) returnPercent = priceReturn.toFixed(2);
 
 				if (!netPnl) {
 					// Only calculate manual PnL if NOT provided by CSV.
@@ -120,7 +112,6 @@ export const importTrades = createServerFn({ method: "POST" })
 						feesAccount: Number(feesStr),
 					});
 					netPnl = pnl.netPnl;
-					if (!returnPercent) returnPercent = pnl.returnPercent;
 				}
 			}
 

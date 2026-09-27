@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	calculateInstrumentPnL,
 	calculatePnL,
+	priceReturnPercent,
 	shouldRecalculatePnl,
 } from "../lib/finance";
 import { resolveQuoteToAccountConversion } from "../lib/fx";
@@ -21,7 +22,7 @@ describe("calculatePnL", () => {
 				entryQuoteToAccountRate: 1 / entryPrice,
 				exitQuoteToAccountRate: 1 / exitPrice,
 			}),
-		).toEqual({ netPnl: "2481.77", returnPercent: "0.70" });
+		).toEqual({ netPnl: "2481.77", returnPercent: "0.71" });
 	});
 
 	it("uses explicit metal contract metadata", () => {
@@ -50,7 +51,22 @@ describe("calculatePnL", () => {
 				exitQuoteToAccountRate: 1,
 				feesAccount: 2,
 			}),
-		).toEqual({ netPnl: "48.00", returnPercent: "3.20" });
+		).toEqual({ netPnl: "48.00", returnPercent: "3.33" });
+	});
+});
+
+describe("priceReturnPercent", () => {
+	it("measures the price move from entry to exit, before fees and conversion", () => {
+		expect(priceReturnPercent("LONG", 150, 155)).toBeCloseTo(3.333, 3);
+	});
+
+	it("flips the sign for a short", () => {
+		expect(priceReturnPercent("SHORT", 150, 155)).toBeCloseTo(-3.333, 3);
+	});
+
+	it("is unavailable without a valid entry price", () => {
+		expect(priceReturnPercent("LONG", 0, 155)).toBeNull();
+		expect(priceReturnPercent("LONG", Number.NaN, 155)).toBeNull();
 	});
 });
 
@@ -65,7 +81,7 @@ describe("calculateInstrumentPnL", () => {
 				exitPrice: 154.677,
 				quantity: 3.525,
 			}),
-		).toEqual({ netPnl: "2481.77", returnPercent: "0.70" });
+		).toEqual({ netPnl: "2481.77", returnPercent: "0.71" });
 	});
 
 	it("keeps quote-currency P&L unchanged when it matches the account", () => {
