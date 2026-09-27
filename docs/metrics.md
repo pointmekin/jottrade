@@ -53,3 +53,5 @@ The **balance at entry** is every deposit, withdrawal, adjustment and closed tra
 ## Strategy totals
 
 The dashboard strategy chart and the strategy page use one aggregation, `summarizeGroup`. The strategy page reads every closed trade of the strategy on the server, so it does not depend on journal pages. With the dashboard period set to "All time", both screens show the same trade count, average P&L and win rate. The test "strategy reconciliation fixture" in `src/test/analytics.test.ts` checks this on 80 trades.
+
+`scripts/reconcile-metrics.ts` runs the same check on a real database. It reads every account in one read-only transaction and compares the headline and the strategy chart with SQL totals. It also counts the closed trades whose stored `return_percent` is not the price return.
