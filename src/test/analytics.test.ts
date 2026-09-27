@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	closedTradesInRange,
+	computeAccountReturn,
 	computeAvgHoldTime,
 	computeMaxDrawdown,
 	computePayoffRatio,
@@ -551,5 +552,65 @@ describe("computeAvgHoldTime", () => {
 			t("2025-01-02T12:00:00Z", "2025-01-02T08:00:00Z", 50), // 4h
 		];
 		expect(computeAvgHoldTime(trades)).toBe(3);
+	});
+});
+
+describe("computeAccountReturn", () => {
+	const closed = (
+		entryISO: string,
+		exitISO: string | null,
+		netPnl: number,
+	): TradeRecord => ({
+		status: "CLOSED",
+		entryDate: new Date(entryISO),
+		exitDate: exitISO ? new Date(exitISO) : null,
+		netPnl,
+	});
+	const deposit = {
+		occurredAt: new Date("2025-01-01T00:00:00Z"),
+		amount: 10000,
+	};
+	const trade = closed("2025-01-10T09:00:00Z", "2025-01-10T15:00:00Z", 210);
+
+	it("divides net P&L by the balance just before entry", () => {
+		const earlier = closed("2025-01-02T09:00:00Z", "2025-01-03T09:00:00Z", 500);
+		expect(computeAccountReturn(trade, [earlier, trade], [deposit])).toEqual({
+			percent: 2,
+			balanceAtEntry: 10500,
+		});
+	});
+
+	it("counts adjustments before entry and ignores later flows and exits", () => {
+		const overlapping = closed(
+			"2025-01-09T09:00:00Z",
+			"2025-01-10T12:00:00Z",
+			-400,
+		);
+		const result = computeAccountReturn(
+			trade,
+			[overlapping, trade],
+			[
+				deposit,
+				{
+					occurredAt: new Date("2025-01-05T00:00:00Z"),
+					amount: 500,
+					kind: "ADJUSTMENT",
+				},
+				{ occurredAt: new Date("2025-01-11T00:00:00Z"), amount: 5000 },
+			],
+		);
+		expect(result.balanceAtEntry).toBe(10500);
+	});
+
+	it("is unavailable, not zero, without a positive balance at entry", () => {
+		expect(computeAccountReturn(trade, [trade], [])).toEqual({
+			percent: null,
+			balanceAtEntry: 0,
+		});
+	});
+
+	it("is unavailable for a trade that is not closed", () => {
+		const open = { ...trade, status: "OPEN", exitDate: null };
+		expect(computeAccountReturn(open, [open], [deposit]).percent).toBeNull();
 	});
 });

@@ -8,6 +8,7 @@ import { ArrowLeft, RefreshCw } from "lucide-react";
 import { AppPageHeader } from "@/components/app-page-header";
 import type { Trade } from "@/components/journal/JournalTable";
 import { TradeDetailContent } from "@/components/journal/TradeDetailSheet";
+import { TradeReturns } from "@/components/journal/trade-returns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAccounts } from "@/hooks/use-accounts";
@@ -92,8 +93,16 @@ function JournalEntryPage() {
 					</div>
 				)}
 
-				{!isLoading && trade && !isError && (
-					<TradeDetailContent trade={trade} onDeleted={goBack} />
+				{!isLoading && data && trade && !isError && (
+					<>
+						<TradeReturns
+							status={trade.status}
+							returnPercent={trade.returnPercent}
+							accountReturn={data.accountReturn}
+							currency={currency}
+						/>
+						<TradeDetailContent trade={trade} onDeleted={goBack} />
+					</>
 				)}
 			</main>
 		</div>
@@ -102,27 +111,38 @@ function JournalEntryPage() {
 
 function JournalEntrySkeleton() {
 	return (
-		<div className="surface space-y-6 overflow-hidden">
-			<div className="border-b border-border px-5 py-4">
-				<div className="flex items-start justify-between gap-3">
-					<div className="space-y-2">
-						<Skeleton className="h-6 w-28" />
-						<Skeleton className="h-4 w-36" />
+		<>
+			<div className="grid grid-cols-2 gap-3" aria-hidden="true">
+				{["price-return", "account-return"].map((cell) => (
+					<div key={cell} className="surface p-3">
+						<Skeleton className="h-4 w-24" />
+						<Skeleton className="mt-2 h-5 w-16" />
+						<Skeleton className="mt-2 h-3 w-28" />
 					</div>
-					<Skeleton className="h-6 w-24" />
+				))}
+			</div>
+			<div className="surface space-y-6 overflow-hidden">
+				<div className="border-b border-border px-5 py-4">
+					<div className="flex items-start justify-between gap-3">
+						<div className="space-y-2">
+							<Skeleton className="h-6 w-28" />
+							<Skeleton className="h-4 w-36" />
+						</div>
+						<Skeleton className="h-6 w-24" />
+					</div>
+				</div>
+				<div className="space-y-4 px-5 pb-5">
+					<Skeleton className="h-5 w-28" />
+					<div className="grid grid-cols-2 gap-3">
+						{["entry", "exit", "quantity", "fees"].map((field) => (
+							<Skeleton key={field} className="h-9 w-full" />
+						))}
+					</div>
+					<Skeleton className="h-28 w-full" />
+					<Skeleton className="h-32 w-full" />
 				</div>
 			</div>
-			<div className="space-y-4 px-5 pb-5">
-				<Skeleton className="h-5 w-28" />
-				<div className="grid grid-cols-2 gap-3">
-					{["entry", "exit", "quantity", "fees"].map((field) => (
-						<Skeleton key={field} className="h-9 w-full" />
-					))}
-				</div>
-				<Skeleton className="h-28 w-full" />
-				<Skeleton className="h-32 w-full" />
-			</div>
-		</div>
+		</>
 	);
 }
 

@@ -370,6 +370,34 @@ export function computeAvgHoldTime(trades: ClosedTrade[]): number | null {
 	return totalHours / trades.length;
 }
 
+export type AccountReturn = {
+	/** null for a trade that is not closed, or without a positive balance at entry. */
+	percent: number | null;
+	balanceAtEntry: number;
+};
+
+/**
+ * Net P&L over the balance just before entry. That balance is every deposit,
+ * withdrawal, adjustment and closed trade realized before the entry time.
+ */
+export function computeAccountReturn(
+	trade: TradeRecord,
+	records: TradeRecord[],
+	cashFlows: CashFlow[],
+): AccountReturn {
+	const beforeEntry = {
+		from: null,
+		to: new Date(trade.entryDate.getTime() - 1),
+	};
+	const balanceAtEntry = summarizeTrades(records, cashFlows, beforeEntry).stats
+		.totalBalance;
+	const isAvailable = trade.status === TradeStatus.Closed && balanceAtEntry > 0;
+	return {
+		percent: isAvailable ? (trade.netPnl / balanceAtEntry) * 100 : null,
+		balanceAtEntry,
+	};
+}
+
 export type GroupSummary = {
 	count: number;
 	wins: number;

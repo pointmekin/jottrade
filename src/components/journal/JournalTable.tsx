@@ -192,7 +192,10 @@ const buildJournalColumns = (currency: string): JournalColumn[] => [
 					The move from entry to exit as a percent of the entry price. It is
 					positive when the price moved in the trade direction.
 				</p>
-				<p>Fees, leverage, swaps and currency conversion are not in it.</p>
+				<p>
+					Fees, leverage, swaps and currency conversion are not in it. The trade
+					page also shows the account return.
+				</p>
 			</MetricLabel>
 		),
 		trade: (trade) => {

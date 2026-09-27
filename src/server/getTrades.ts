@@ -13,7 +13,8 @@ import {
 } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { trades } from "@/db/schema";
+import { cashFlows, trades } from "@/db/schema";
+import { computeAccountReturn } from "@/lib/analytics";
 import { auth } from "@/lib/auth";
 
 const PAGE_SIZE = 50;
@@ -96,20 +97,53 @@ export const getTradeById = createServerFn({ method: "GET" })
 		const session = await auth.api.getSession({ headers: getRequestHeaders() });
 		if (!session) throw new Error("Unauthorized");
 
+		const inAccount = and(
+			eq(trades.portfolioId, data.portfolioId),
+			eq(trades.userId, session.user.id),
+		);
 		const [trade] = await db
 			.select()
 			.from(trades)
-			.where(
-				and(
-					eq(trades.id, data.id),
-					eq(trades.portfolioId, data.portfolioId),
-					eq(trades.userId, session.user.id),
-				),
-			);
+			.where(and(eq(trades.id, data.id), inAccount));
 
 		if (!trade) return null;
+
+		const [history, flows] = await Promise.all([
+			db
+				.select({
+					status: trades.status,
+					entryDate: trades.entryDate,
+					exitDate: trades.exitDate,
+					netPnl: trades.netPnl,
+				})
+				.from(trades)
+				.where(inAccount),
+			db
+				.select({
+					occurredAt: cashFlows.occurredAt,
+					amount: cashFlows.amount,
+					kind: cashFlows.kind,
+				})
+				.from(cashFlows)
+				.where(
+					and(
+						eq(cashFlows.portfolioId, data.portfolioId),
+						eq(cashFlows.userId, session.user.id),
+					),
+				),
+		]);
+		const toRecord = (row: typeof trade | (typeof history)[number]) => ({
+			...row,
+			netPnl: Number(row.netPnl ?? 0),
+		});
+
 		return {
 			...trade,
 			screenshots: (trade.screenshots as string[] | null) ?? [],
+			accountReturn: computeAccountReturn(
+				toRecord(trade),
+				history.map(toRecord),
+				flows.map((flow) => ({ ...flow, amount: Number(flow.amount) })),
+			),
 		};
 	});
