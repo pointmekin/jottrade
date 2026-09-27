@@ -11,10 +11,10 @@ import {
 } from "@/components/ui/drawer";
 import { useCurrency } from "@/hooks/use-currency";
 import { useIsMobile } from "@/hooks/use-mobile";
+import type { CalendarDay } from "@/lib/calendar-days";
 import { formatMoney } from "@/lib/currency";
 import { TradeSide } from "@/lib/trade";
 import { cn } from "@/lib/utils";
-import type { CalendarDay } from "@/server/calendarActions";
 
 interface DayTradesPopoverProps {
 	date: string;

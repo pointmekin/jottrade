@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { CalendarDay } from "@/server/calendarActions";
+import type { CalendarDay } from "@/lib/calendar-days";
 import { CalendarDayCell } from "./CalendarDayCell";
 import { DayTradesPopover } from "./DayTradesPopover";
 
