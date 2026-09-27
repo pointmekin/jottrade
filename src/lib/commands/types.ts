@@ -1,24 +1,32 @@
 import type { AccountEntryKind } from "@/lib/account-entry";
+import type { TradeSide } from "@/lib/trade";
+
+export const IntentType = {
+	Trade: "trade",
+	AccountEntry: "account-entry",
+	Navigation: "navigation",
+	Theme: "theme",
+} as const;
 
 export type TradeParams = {
 	symbol?: string;
-	side?: "LONG" | "SHORT";
+	side?: TradeSide;
 	entryPrice?: string;
 	quantity?: string;
 	targetPrice?: string;
 };
 export type AccountEntryParams = {
-	kind: Exclude<AccountEntryKind, "ADJUSTMENT">;
+	kind: Exclude<AccountEntryKind, typeof AccountEntryKind.Adjustment>;
 	amount?: string;
 	currency?: string;
 };
 export type WriteIntent =
-	| { type: "trade"; params: TradeParams }
-	| { type: "account-entry"; params: AccountEntryParams };
+	| { type: typeof IntentType.Trade; params: TradeParams }
+	| { type: typeof IntentType.AccountEntry; params: AccountEntryParams };
 export type CommandIntent =
 	| WriteIntent
-	| { type: "navigation"; path: string }
-	| { type: "theme"; theme: "dark" | "light" | "system" };
+	| { type: typeof IntentType.Navigation; path: string }
+	| { type: typeof IntentType.Theme; theme: "dark" | "light" | "system" };
 export type CommandCandidate = {
 	id: string;
 	title: string;

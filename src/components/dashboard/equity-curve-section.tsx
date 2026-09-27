@@ -1,13 +1,19 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Crosshair } from "lucide-react";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { SectionHeading } from "@/components/app-page-header";
-import { EquityCurveChart } from "@/components/dashboard/DashboardCharts";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrency } from "@/hooks/use-currency";
 import type { EquityPoint } from "@/lib/analytics";
 import { EQUITY_SERIES_LABEL, EquitySeries } from "@/lib/equity-series";
+import { JournalIntent } from "@/lib/journal-search";
+
+const EquityCurveChart = lazy(() =>
+	import("@/components/dashboard/DashboardCharts").then((module) => ({
+		default: module.EquityCurveChart,
+	})),
+);
 
 interface EquityCurveSectionProps {
 	data: EquityPoint[];
@@ -56,7 +62,7 @@ function EmptyPeriod({ periodLabel }: { periodLabel: string }) {
 				or record a trade.
 			</p>
 			<Button asChild variant="outline" className="mt-5">
-				<Link to="/journal" search={{ intent: "log" } as never}>
+				<Link to="/journal" search={{ intent: JournalIntent.Log }}>
 					Record first trade
 				</Link>
 			</Button>
@@ -72,7 +78,11 @@ function CurveBody({
 }: Omit<EquityCurveSectionProps, "totalTrades"> & { series: EquitySeries }) {
 	if (isLoading) return <Skeleton className="h-full w-full" />;
 	if (data.length === 0) return <EmptyPeriod periodLabel={periodLabel} />;
-	return <EquityCurveChart data={data} series={series} />;
+	return (
+		<Suspense fallback={<Skeleton className="h-full w-full" />}>
+			<EquityCurveChart data={data} series={series} />
+		</Suspense>
+	);
 }
 
 export function EquityCurveSection({

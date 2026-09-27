@@ -1,11 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { portfolios, trades } from "@/db/schema";
+import { requireOwnedPortfolio } from "@/db/portfolios";
+import { trades } from "@/db/schema";
 import { requireUserId } from "@/lib/auth";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { calculateInstrumentPnL, priceReturnPercent } from "@/lib/finance";
+import { sha256Hex } from "@/lib/hash";
 import { TradeSide, TradeStatus } from "@/lib/trade";
 
 const importTradeSchema = z.object({
@@ -22,16 +23,6 @@ const importTradeSchema = z.object({
 });
 
 type ImportTrade = z.infer<typeof importTradeSchema>;
-
-async function sha256(text: string) {
-	const digest = await crypto.subtle.digest(
-		"SHA-256",
-		new TextEncoder().encode(text),
-	);
-	return Array.from(new Uint8Array(digest))
-		.map((b) => b.toString(16).padStart(2, "0"))
-		.join("");
-}
 
 function toTradeRow(item: ImportTrade, accountCurrency: string) {
 	const side = item.side.toLowerCase().includes("buy")
@@ -86,7 +77,7 @@ type TradeRow = ReturnType<typeof toTradeRow>;
 
 /** A ticket is not unique: a position can close in several partial fills, so the exit leg is part of the key. */
 function importHash(userId: string, row: TradeRow) {
-	return sha256(
+	return sha256Hex(
 		[
 			userId,
 			row.symbol,
@@ -111,16 +102,7 @@ export const importTrades = createServerFn({ method: "POST" })
 	)
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
-		const [portfolio] = await db
-			.select({ currency: portfolios.currency })
-			.from(portfolios)
-			.where(
-				and(
-					eq(portfolios.id, data.portfolioId),
-					eq(portfolios.userId, userId),
-				),
-			);
-		if (!portfolio) throw new Error("Account not found.");
+		const portfolio = await requireOwnedPortfolio(userId, data.portfolioId);
 
 		const rows = data.trades.map((item) =>
 			toTradeRow(item, portfolio.currency ?? DEFAULT_CURRENCY),

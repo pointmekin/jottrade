@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
+import { requireUserId } from "@/lib/auth";
 import {
 	type ExtractedIntent,
 	extractedIntentSchema,
@@ -37,8 +36,7 @@ Command:`;
 export const extractCommandIntent = createServerFn({ method: "POST" })
 	.validator(z.object({ command: z.string().trim().min(1) }))
 	.handler(async ({ data }): Promise<ExtractedIntent> => {
-		const session = await auth.api.getSession({ headers: getRequestHeaders() });
-		if (!session) throw new Error("Unauthorized");
+		await requireUserId();
 
 		const apiKey = process.env.GEMINI_API_KEY;
 		if (!apiKey)

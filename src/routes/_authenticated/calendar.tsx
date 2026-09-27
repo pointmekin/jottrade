@@ -4,6 +4,7 @@ import {
 	useNavigate,
 	useSearch,
 } from "@tanstack/react-router";
+import { format } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
@@ -70,17 +71,9 @@ function CalendarPage() {
 		navigate({ search: { year: ny, month: nm } });
 	};
 
-	const monthName = new Date(year, month - 1, 1).toLocaleDateString("en-US", {
-		month: "long",
-		year: "numeric",
-	});
-	const monthControlName = new Date(year, month - 1, 1).toLocaleDateString(
-		"en-US",
-		{
-			month: "short",
-			year: "numeric",
-		},
-	);
+	const firstOfMonth = new Date(year, month - 1, 1);
+	const monthName = format(firstOfMonth, "MMMM yyyy");
+	const monthControlName = format(firstOfMonth, "MMM yyyy");
 
 	return (
 		<div className="app-page">

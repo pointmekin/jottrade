@@ -1,3 +1,5 @@
+// Only loaded through React.lazy, so recharts stays out of the first bundle.
+// react-doctor-disable-next-line react-doctor/prefer-dynamic-import
 import {
 	CartesianGrid,
 	Line,
@@ -39,7 +41,10 @@ export function EquityCurveChart({ data, series }: EquityCurveProps) {
 	return (
 		<div className="h-full min-h-[300px] w-full font-data">
 			<ResponsiveContainer width="100%" height="100%">
-				<LineChart data={data} margin={{ top: 5, right: 10, left: 8, bottom: 5 }}>
+				<LineChart
+					data={data}
+					margin={{ top: 5, right: 10, left: 8, bottom: 5 }}
+				>
 					<CartesianGrid stroke="var(--border)" vertical={false} />
 					<XAxis
 						dataKey="date"

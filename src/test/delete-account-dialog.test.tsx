@@ -52,9 +52,12 @@ function renderDialog(onOpenChange = vi.fn()) {
 	const wrapper = ({ children }: { children: ReactNode }) => (
 		<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 	);
-	render(<DeleteAccountDialog account={account} onOpenChange={onOpenChange} />, {
-		wrapper,
-	});
+	render(
+		<DeleteAccountDialog account={account} onOpenChange={onOpenChange} />,
+		{
+			wrapper,
+		},
+	);
 	return { onOpenChange, queryClient };
 }
 
@@ -91,9 +94,7 @@ describe("DeleteAccountDialog", () => {
 		renderDialog(onOpenChange);
 
 		typeConfirmation("Exness Demo");
-		fireEvent.click(
-			screen.getByRole("button", { name: "Delete permanently" }),
-		);
+		fireEvent.click(screen.getByRole("button", { name: "Delete permanently" }));
 
 		await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
 		expect(deleteAccount).toHaveBeenCalledOnce();
@@ -109,9 +110,7 @@ describe("DeleteAccountDialog", () => {
 		renderDialog(onOpenChange);
 
 		typeConfirmation("Exness Demo");
-		fireEvent.click(
-			screen.getByRole("button", { name: "Delete permanently" }),
-		);
+		fireEvent.click(screen.getByRole("button", { name: "Delete permanently" }));
 
 		await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
 		expect(state.clearActiveAccount).toHaveBeenCalledOnce();
@@ -120,7 +119,10 @@ describe("DeleteAccountDialog", () => {
 	it("keeps the active account when another account was deleted", async () => {
 		vi.mocked(deleteAccount).mockResolvedValue({ success: true } as never);
 		const queryClient = new QueryClient({
-			defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
+			defaultOptions: {
+				mutations: { retry: false },
+				queries: { retry: false },
+			},
 		});
 		const invalidate = vi
 			.spyOn(queryClient, "invalidateQueries")
@@ -135,9 +137,7 @@ describe("DeleteAccountDialog", () => {
 		);
 
 		typeConfirmation("Exness Demo");
-		fireEvent.click(
-			screen.getByRole("button", { name: "Delete permanently" }),
-		);
+		fireEvent.click(screen.getByRole("button", { name: "Delete permanently" }));
 
 		await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
 		expect(state.clearActiveAccount).not.toHaveBeenCalled();

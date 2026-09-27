@@ -22,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrency } from "@/hooks/use-currency";
 import { useDashboardAnalytics } from "@/hooks/use-dashboard-analytics";
 import { formatMoneyWithCode } from "@/lib/currency";
+import { JournalIntent } from "@/lib/journal-search";
 import {
 	describePeriod,
 	PeriodPreset,
@@ -76,7 +77,7 @@ function Dashboard() {
 								}
 							/>
 							<Button asChild>
-								<Link to="/journal" search={{ intent: "log" } as never}>
+								<Link to="/journal" search={{ intent: JournalIntent.Log }}>
 									<Plus className="size-4" /> Log trade
 								</Link>
 							</Button>

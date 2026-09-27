@@ -10,6 +10,7 @@ export const QueryKey = {
 	AdvancedAnalytics: "advanced-analytics",
 	Strategies: "strategies",
 	StrategyPerformance: "strategy-performance",
+	ExnessExportScript: "exness-export-script",
 } as const;
 
 export type QueryKey = (typeof QueryKey)[keyof typeof QueryKey];

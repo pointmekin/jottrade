@@ -1,31 +1,25 @@
-import { useQuery } from "@tanstack/react-query";
 import { Filter, X } from "lucide-react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useId, useState } from "react";
 import { PeriodPicker } from "@/components/period-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { describePeriod, PeriodPreset } from "@/lib/period";
-import { QueryKey } from "@/lib/query-keys";
-import { getStrategies } from "@/server/strategyActions";
+import type { TradeSide, TradeStatus } from "@/lib/trade";
+import { FilterFields } from "./filter-fields";
 
-// Filter state read/written to URL search params
+const SYMBOL_DEBOUNCE_MS = 300;
+
+/** Read from and written to the URL search params. */
 export type JournalFilters = {
 	symbol?: string;
-	side?: "LONG" | "SHORT";
-	status?: "OPEN" | "CLOSED" | "PENDING";
-	setupId?: string; // number or "none"
-	confidence?: string; // comma-separated
+	side?: TradeSide;
+	status?: TradeStatus;
+	/** A strategy id, or "none". */
+	setupId?: string;
+	/** Comma-separated confidence levels. */
+	confidence?: string;
 	mistake?: string;
 	period?: PeriodPreset;
-	/** Bounds of the custom period. */
 	dateFrom?: string;
 	dateTo?: string;
 	page?: number;
@@ -36,39 +30,65 @@ interface FilterBarProps {
 	onFiltersChange: (filters: JournalFilters) => void;
 }
 
+function FilterChip({
+	children,
+	clearLabel,
+	onClear,
+}: {
+	children: ReactNode;
+	clearLabel: string;
+	onClear: () => void;
+}) {
+	return (
+		<Badge
+			variant="outline"
+			className="gap-1 rounded-md border-border font-data text-xs font-normal"
+		>
+			{children}
+			<button
+				type="button"
+				className="rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+				aria-label={clearLabel}
+				onClick={onClear}
+			>
+				<X className="h-3 w-3" />
+			</button>
+		</Badge>
+	);
+}
+
+function useDebouncedSymbol(
+	symbol: string | undefined,
+	onCommit: (symbol: string | undefined) => void,
+) {
+	const [symbolInput, setSymbolInput] = useState(symbol ?? "");
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			if (symbolInput !== (symbol ?? "")) onCommit(symbolInput || undefined);
+		}, SYMBOL_DEBOUNCE_MS);
+		return () => clearTimeout(timer);
+	}, [symbol, symbolInput, onCommit]);
+	return [symbolInput, setSymbolInput] as const;
+}
+
 export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
-	const [expanded, setExpanded] = useState(false);
-	const [symbolInput, setSymbolInput] = useState(filters.symbol ?? "");
-	const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-	const filterFieldsId = useId();
-	const symbolInputId = `${filterFieldsId}-symbol`;
-	const statusLabelId = `${filterFieldsId}-status`;
-	const strategyLabelId = `${filterFieldsId}-strategy`;
-
-	const { data: strategies = [] } = useQuery({
-		queryKey: [QueryKey.Strategies],
-		queryFn: () => getStrategies({ data: undefined }),
-	});
-
+	const [isExpanded, setIsExpanded] = useState(false);
+	const fieldsId = useId();
 	const update = useCallback(
-		(patch: Partial<JournalFilters>) => {
-			onFiltersChange({ ...filters, ...patch, page: 1 });
-		},
+		(patch: Partial<JournalFilters>) =>
+			onFiltersChange({ ...filters, ...patch, page: 1 }),
 		[filters, onFiltersChange],
 	);
-
-	useEffect(() => {
-		clearTimeout(debounceRef.current);
-		debounceRef.current = setTimeout(() => {
-			if (symbolInput !== (filters.symbol ?? "")) {
-				update({ symbol: symbolInput || undefined });
-			}
-		}, 300);
-		return () => clearTimeout(debounceRef.current);
-	}, [filters.symbol, symbolInput, update]);
+	const commitSymbol = useCallback(
+		(symbol: string | undefined) => update({ symbol }),
+		[update],
+	);
+	const [symbolInput, setSymbolInput] = useDebouncedSymbol(
+		filters.symbol,
+		commitSymbol,
+	);
 
 	const period = filters.period ?? PeriodPreset.All;
-
 	const activeCount = [
 		filters.symbol,
 		filters.side,
@@ -77,7 +97,6 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 		filters.confidence,
 		filters.mistake,
 	].filter(Boolean).length;
-
 	const clearAll = () => {
 		setSymbolInput("");
 		onFiltersChange({ page: 1, period });
@@ -87,11 +106,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 		<section aria-label="Journal filters" className="border-y border-border">
 			<div className="flex min-w-0 flex-wrap items-center gap-2 py-2.5">
 				<PeriodPicker
-					value={{
-						preset: period,
-						from: filters.dateFrom,
-						to: filters.dateTo,
-					}}
+					value={{ preset: period, from: filters.dateFrom, to: filters.dateTo }}
 					onChange={(next) =>
 						update({
 							period: next.preset,
@@ -104,9 +119,9 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 					variant="outline"
 					size="sm"
 					className="h-9 border-border bg-background"
-					aria-expanded={expanded}
-					aria-controls={filterFieldsId}
-					onClick={() => setExpanded(!expanded)}
+					aria-expanded={isExpanded}
+					aria-controls={fieldsId}
+					onClick={() => setIsExpanded(!isExpanded)}
 				>
 					<Filter className="mr-2 h-3.5 w-3.5" />
 					Filters
@@ -127,215 +142,58 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 					</Button>
 				)}
 			</div>
-
-			{expanded && (
-				<div
-					id={filterFieldsId}
-					className="grid grid-cols-2 gap-x-3 gap-y-3 border-t border-border bg-muted/25 py-3 md:grid-cols-4 md:py-4"
-				>
-					{/* Symbol */}
-					<div>
-						<label htmlFor={symbolInputId} className="field-label mb-1 block">
-							Symbol
-						</label>
-						<Input
-							id={symbolInputId}
-							value={symbolInput}
-							onChange={(e) => setSymbolInput(e.target.value)}
-							placeholder="AAPL"
-							className="h-9 bg-background text-sm"
-						/>
-					</div>
-
-					{/* Side */}
-					<fieldset className="min-w-0">
-						<legend className="field-label mb-1">Side</legend>
-						<div className="flex gap-1">
-							{(["LONG", "SHORT"] as const).map((s) => (
-								<Button
-									key={s}
-									size="sm"
-									variant="outline"
-									className={`h-9 flex-1 text-xs ${filters.side === s ? "border-ring bg-accent text-accent-foreground" : "text-muted-foreground"}`}
-									aria-pressed={filters.side === s}
-									onClick={() =>
-										update({ side: filters.side === s ? undefined : s })
-									}
-								>
-									{s}
-								</Button>
-							))}
-						</div>
-					</fieldset>
-
-					{/* Status */}
-					<div>
-						<p id={statusLabelId} className="field-label mb-1">
-							Status
-						</p>
-						<Select
-							value={filters.status ?? ""}
-							onValueChange={(v) =>
-								update({ status: v === "__all__" ? undefined : (v as any) })
-							}
-						>
-							<SelectTrigger
-								className="h-9 bg-background text-sm"
-								aria-labelledby={statusLabelId}
-							>
-								<SelectValue placeholder="All" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="__all__">All</SelectItem>
-								{["OPEN", "CLOSED", "PENDING"].map((s) => (
-									<SelectItem key={s} value={s}>
-										{s}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
-
-					{/* Strategy */}
-					<div>
-						<p id={strategyLabelId} className="field-label mb-1">
-							Strategy
-						</p>
-						<Select
-							value={filters.setupId ?? ""}
-							onValueChange={(v) => update({ setupId: v || undefined })}
-						>
-							<SelectTrigger
-								className="h-9 bg-background text-sm"
-								aria-labelledby={strategyLabelId}
-							>
-								<SelectValue placeholder="All" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="">All</SelectItem>
-								<SelectItem value="none">No Strategy</SelectItem>
-								{(strategies as any[]).map((s: any) => (
-									<SelectItem key={s.id} value={String(s.id)}>
-										{s.name}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
-
-					{/* Confidence */}
-					<fieldset className="min-w-0">
-						<legend className="field-label mb-1">Confidence</legend>
-						<div className="flex gap-1">
-							{(["HIGH", "MEDIUM", "LOW"] as const).map((c) => {
-								const active = (filters.confidence ?? "")
-									.split(",")
-									.filter(Boolean)
-									.includes(c);
-								const toggle = () => {
-									const current = (filters.confidence ?? "")
-										.split(",")
-										.filter(Boolean);
-									const next = active
-										? current.filter((x) => x !== c)
-										: [...current, c];
-									update({ confidence: next.join(",") || undefined });
-								};
-								return (
-									<Button
-										key={c}
-										size="sm"
-										variant="outline"
-										className={`h-9 flex-1 text-xs ${active ? "border-ring bg-accent text-accent-foreground" : "text-muted-foreground"}`}
-										aria-pressed={active}
-										aria-label={`${c[0]}${c.slice(1).toLowerCase()} confidence`}
-										onClick={toggle}
-									>
-										{c[0]}
-									</Button>
-								);
-							})}
-						</div>
-					</fieldset>
-				</div>
+			{isExpanded && (
+				<FilterFields
+					id={fieldsId}
+					filters={filters}
+					symbolInput={symbolInput}
+					onSymbolInput={setSymbolInput}
+					update={update}
+				/>
 			)}
-
-			{/* Active filter chips */}
 			{(activeCount > 0 || period !== PeriodPreset.All) && (
 				<div className="flex flex-wrap gap-2 border-t border-border py-2">
 					{period !== PeriodPreset.All && (
-						<Badge
-							variant="outline"
-							className="gap-1 rounded-md border-border font-data text-xs font-normal"
+						<FilterChip
+							clearLabel="Clear period filter"
+							onClear={() =>
+								update({
+									period: PeriodPreset.All,
+									dateFrom: undefined,
+									dateTo: undefined,
+								})
+							}
 						>
 							{describePeriod({
 								preset: period,
 								from: filters.dateFrom,
 								to: filters.dateTo,
 							})}
-							<button
-								type="button"
-								className="rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-								aria-label="Clear period filter"
-								onClick={() =>
-									update({
-										period: PeriodPreset.All,
-										dateFrom: undefined,
-										dateTo: undefined,
-									})
-								}
-							>
-								<X className="h-3 w-3" />
-							</button>
-						</Badge>
+						</FilterChip>
 					)}
 					{filters.symbol && (
-						<Badge
-							variant="outline"
-							className="gap-1 rounded-md border-border font-data text-xs font-normal"
+						<FilterChip
+							clearLabel="Clear symbol filter"
+							onClear={() => update({ symbol: undefined })}
 						>
 							Symbol: {filters.symbol}
-							<button
-								type="button"
-								className="rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-								aria-label="Clear symbol filter"
-								onClick={() => update({ symbol: undefined })}
-							>
-								<X className="h-3 w-3" />
-							</button>
-						</Badge>
+						</FilterChip>
 					)}
 					{filters.side && (
-						<Badge
-							variant="outline"
-							className="gap-1 rounded-md border-border font-data text-xs font-normal"
+						<FilterChip
+							clearLabel="Clear side filter"
+							onClear={() => update({ side: undefined })}
 						>
 							{filters.side}
-							<button
-								type="button"
-								className="rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-								aria-label="Clear side filter"
-								onClick={() => update({ side: undefined })}
-							>
-								<X className="h-3 w-3" />
-							</button>
-						</Badge>
+						</FilterChip>
 					)}
 					{filters.status && (
-						<Badge
-							variant="outline"
-							className="gap-1 rounded-md border-border font-data text-xs font-normal"
+						<FilterChip
+							clearLabel="Clear status filter"
+							onClear={() => update({ status: undefined })}
 						>
 							{filters.status}
-							<button
-								type="button"
-								className="rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-								aria-label="Clear status filter"
-								onClick={() => update({ status: undefined })}
-							>
-								<X className="h-3 w-3" />
-							</button>
-						</Badge>
+						</FilterChip>
 					)}
 				</div>
 			)}

@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import {
 	Drawer,
@@ -11,6 +12,7 @@ import {
 import { useCurrency } from "@/hooks/use-currency";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { formatMoney } from "@/lib/currency";
+import { TradeSide } from "@/lib/trade";
 import { cn } from "@/lib/utils";
 import type { CalendarDay } from "@/server/calendarActions";
 
@@ -23,13 +25,14 @@ interface DayTradesPopoverProps {
 	children: React.ReactNode;
 }
 
+/** A breakeven day or trade is neither a gain nor a loss, so it stays neutral. */
+function pnlTextClass(pnl: number | null) {
+	if (pnl === null || pnl === 0) return "text-muted-foreground";
+	return pnl > 0 ? "text-success" : "text-destructive";
+}
+
 function formatDate(date: string) {
-	return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
-		weekday: "long",
-		month: "long",
-		day: "numeric",
-		year: "numeric",
-	});
+	return format(new Date(`${date}T00:00:00`), "EEEE, MMMM d, yyyy");
 }
 
 function TradeList({
@@ -41,12 +44,7 @@ function TradeList({
 	return (
 		<div className="min-w-0 divide-y divide-border">
 			{day.trades.map((trade) => {
-				const pnlClass =
-					trade.netPnl === null
-						? "text-muted-foreground"
-						: trade.netPnl >= 0
-							? "text-success"
-							: "text-destructive";
+				const pnlClass = pnlTextClass(trade.netPnl);
 
 				return (
 					<Link
@@ -61,7 +59,7 @@ function TradeList({
 								{trade.symbol}
 							</span>
 							<Badge
-								className={`h-4 shrink-0 rounded-md px-1 text-xs ${trade.side === "LONG" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}
+								className={`h-4 shrink-0 rounded-md px-1 text-xs ${trade.side === TradeSide.Long ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}
 							>
 								{trade.side}
 							</Badge>
@@ -122,17 +120,8 @@ export function DayTradesPopover({
 				>
 					<DrawerTitle>{formatDate(date)}</DrawerTitle>
 					<DrawerDescription>
-						{day.tradeCount} trade{day.tradeCount !== 1 ? "s" : ""} · net
-						P&amp;L{" "}
-						<span
-							className={
-								day.netPnl > 0
-									? "text-success"
-									: day.netPnl < 0
-										? "text-destructive"
-										: "text-muted-foreground"
-							}
-						>
+						{`${day.tradeCount} trade${day.tradeCount === 1 ? "" : "s"} · net P&L `}
+						<span className={pnlTextClass(day.netPnl)}>
 							{formatMoney(day.netPnl, currency, { signed: true })}
 						</span>
 					</DrawerDescription>

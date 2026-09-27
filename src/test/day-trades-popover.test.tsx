@@ -4,6 +4,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps, ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DayTradesPopover } from "@/components/calendar/DayTradesPopover";
+import { TradeSide, TradeStatus } from "@/lib/trade";
 
 const { viewport } = vi.hoisted(() => ({ viewport: { isMobile: false } }));
 
@@ -79,8 +80,8 @@ const day = {
 		{
 			id: 42,
 			symbol: "AAPL",
-			side: "LONG",
-			status: "CLOSED",
+			side: TradeSide.Long,
+			status: TradeStatus.Closed,
 			netPnl: 125.5,
 		},
 	],

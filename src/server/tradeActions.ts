@@ -2,7 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { portfolios, trades } from "@/db/schema";
+import { requireOwnedPortfolio } from "@/db/portfolios";
+import { trades } from "@/db/schema";
 import { requireUserId } from "@/lib/auth";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { calculateInstrumentPnL, shouldRecalculatePnl } from "@/lib/finance";
@@ -48,13 +49,44 @@ const updateTradeSchema = tradeSchema.partial().extend({
 	setupId: z.number().nullable().optional(),
 });
 
-async function requireOwnedPortfolio(userId: string, portfolioId: number) {
-	const [portfolio] = await db
-		.select({ currency: portfolios.currency })
-		.from(portfolios)
-		.where(and(eq(portfolios.id, portfolioId), eq(portfolios.userId, userId)));
-	if (!portfolio) throw new Error("Account not found.");
-	return portfolio;
+type ExistingTrade = typeof trades.$inferSelect;
+type TradeChanges = Omit<z.infer<typeof updateTradeSchema>, "id">;
+
+function recalculatePnl(
+	existing: ExistingTrade,
+	changes: TradeChanges,
+	accountCurrency: string,
+) {
+	const merged = {
+		symbol: changes.symbol || existing.symbol,
+		side: changes.side || existing.side,
+		entryPrice: changes.entryPrice || existing.entryPrice,
+		exitPrice: changes.exitPrice || existing.exitPrice,
+		quantity: changes.quantity || existing.quantity,
+		fees: changes.fees || existing.fees || "0",
+	};
+	const canRecalculate =
+		shouldRecalculatePnl(existing.importHash) &&
+		merged.exitPrice &&
+		merged.entryPrice &&
+		merged.quantity;
+	if (!canRecalculate) {
+		return {
+			netPnl: existing.netPnl,
+			returnPercent: existing.returnPercent,
+			isRecalculated: false,
+		};
+	}
+	const pnl = calculateInstrumentPnL({
+		symbol: merged.symbol,
+		accountCurrency,
+		side: merged.side,
+		entryPrice: Number(merged.entryPrice),
+		exitPrice: Number(merged.exitPrice),
+		quantity: Number(merged.quantity),
+		feesAccount: Number(merged.fees),
+	});
+	return { ...pnl, isRecalculated: true };
 }
 
 export const createTrade = createServerFn({ method: "POST" })
@@ -103,34 +135,15 @@ export const updateTrade = createServerFn({ method: "POST" })
 			userId,
 			changes.portfolioId ?? existing.portfolioId,
 		);
-		const merged = {
-			symbol: changes.symbol || existing.symbol,
-			side: changes.side || existing.side,
-			entryPrice: changes.entryPrice || existing.entryPrice,
-			exitPrice: changes.exitPrice || existing.exitPrice,
-			quantity: changes.quantity || existing.quantity,
-			fees: changes.fees || existing.fees || "0",
-		};
-
-		let { netPnl, returnPercent } = existing;
-		let status = changes.status ?? existing.status;
-		const canRecalculate =
-			shouldRecalculatePnl(existing.importHash) &&
-			merged.exitPrice &&
-			merged.entryPrice &&
-			merged.quantity;
-		if (canRecalculate) {
-			({ netPnl, returnPercent } = calculateInstrumentPnL({
-				symbol: merged.symbol,
-				accountCurrency: portfolio.currency ?? DEFAULT_CURRENCY,
-				side: merged.side,
-				entryPrice: Number(merged.entryPrice),
-				exitPrice: Number(merged.exitPrice),
-				quantity: Number(merged.quantity),
-				feesAccount: Number(merged.fees),
-			}));
-			if (changes.exitPrice && !changes.status) status = TradeStatus.Closed;
-		}
+		const { netPnl, returnPercent, isRecalculated } = recalculatePnl(
+			existing,
+			changes,
+			portfolio.currency ?? DEFAULT_CURRENCY,
+		);
+		const closesNow = isRecalculated && changes.exitPrice && !changes.status;
+		const status = closesNow
+			? TradeStatus.Closed
+			: (changes.status ?? existing.status);
 
 		await db
 			.update(trades)

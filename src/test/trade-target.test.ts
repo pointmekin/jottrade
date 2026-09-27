@@ -82,7 +82,13 @@ describe("planned trade targets", () => {
 	});
 	it("clears the target on update", async () => {
 		mocks.where.mockResolvedValueOnce([
-			{ ...data, id: 2, userId: "user1", status: TradeStatus.Open, importHash: null },
+			{
+				...data,
+				id: 2,
+				userId: "user1",
+				status: TradeStatus.Open,
+				importHash: null,
+			},
 		]);
 		await updateTrade({ data: { id: 2, targetPrice: "" } });
 		expect(mocks.set).toHaveBeenCalledWith(

@@ -1,14 +1,10 @@
-import { Link } from "@tanstack/react-router";
 import {
-	type ColumnDef,
 	flexRender,
 	getCoreRowModel,
+	type Row,
 	useReactTable,
 } from "@tanstack/react-table";
-import { format } from "date-fns";
-import { SlidersHorizontal } from "lucide-react";
-import { type ReactNode, useMemo } from "react";
-import { MetricLabel } from "@/components/metric-label";
+import { useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
@@ -19,184 +15,11 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { useCurrency } from "@/hooks/use-currency";
-import type { AccountEntryRecord } from "@/lib/account-entry";
-import { formatMoney } from "@/lib/currency";
-import type { JournalEntry } from "@/lib/journal-entries";
-import { type Trade, TradeSide } from "@/lib/trade";
-
-type JournalRow = JournalEntry<Trade>;
-
-/**
- * One column renders both entry kinds so trades and adjustments stay in the
- * same grid. A column without an `adjustment` renderer shows a dash instead.
- */
-type JournalColumn = {
-	id: string;
-	header: string | (() => ReactNode);
-	trade: (trade: Trade) => ReactNode;
-	adjustment?: (adjustment: AccountEntryRecord) => ReactNode;
-};
-
-const Dash = () => <span className="text-muted-foreground">—</span>;
-
-function formatEntryDate(value: Date | string | null | undefined) {
-	if (!value) return "—";
-	try {
-		return format(new Date(value), "MMM dd, HH:mm");
-	} catch {
-		return "Invalid date";
-	}
-}
-
-function SidePill({ side }: { side: string }) {
-	return (
-		<span
-			className={`status-pill ${side === "LONG" ? "border-success/35 bg-success/10 text-success" : "border-destructive/35 bg-destructive/10 text-destructive"}`}
-		>
-			{side}
-		</span>
-	);
-}
-
-function AdjustmentPill() {
-	return (
-		<span className="status-pill border-border bg-muted text-muted-foreground">
-			<SlidersHorizontal className="size-3" />
-			Adjustment
-		</span>
-	);
-}
-
-function Money({
-	value,
-	currency,
-	signed,
-}: {
-	value: number | null;
-	currency: string;
-	signed?: boolean;
-}) {
-	if (value === null) return <Dash />;
-	const color = value >= 0 ? "text-success" : "text-destructive";
-	return (
-		<span className={`font-data font-medium ${signed ? color : ""}`}>
-			{formatMoney(value, currency, { signed })}
-		</span>
-	);
-}
-
-const toNumber = (value: string | null | undefined) =>
-	value ? Number(value) : null;
-
-const buildJournalColumns = (currency: string): JournalColumn[] => [
-	{
-		id: "date",
-		header: "Date",
-		trade: (trade) => formatEntryDate(trade.entryDate),
-		adjustment: (adjustment) => formatEntryDate(adjustment.occurredAt),
-	},
-	{
-		id: "symbol",
-		header: "Symbol",
-		trade: (trade) => <span className="font-bold">{trade.symbol}</span>,
-		adjustment: (adjustment) => (
-			<span className="text-muted-foreground">
-				{adjustment.note || "Account adjustment"}
-			</span>
-		),
-	},
-	{
-		id: "side",
-		header: "Side",
-		trade: (trade) => <SidePill side={trade.side} />,
-		adjustment: () => <AdjustmentPill />,
-	},
-	{
-		id: "entryPrice",
-		header: `Entry (${currency})`,
-		trade: (trade) => (
-			<Money value={toNumber(trade.entryPrice)} currency={currency} />
-		),
-	},
-	{
-		id: "exitPrice",
-		header: `Exit (${currency})`,
-		trade: (trade) => (
-			<Money value={toNumber(trade.exitPrice)} currency={currency} />
-		),
-	},
-	{
-		id: "quantity",
-		header: "Qty",
-		trade: (trade) => trade.quantity || <Dash />,
-	},
-	{
-		id: "exitDate",
-		header: "Exit Date",
-		trade: (trade) =>
-			trade.exitDate ? formatEntryDate(trade.exitDate) : <Dash />,
-	},
-	{
-		id: "status",
-		header: "Status",
-		trade: (trade) => (
-			<span className="text-xs uppercase text-muted-foreground">
-				{trade.status ?? "—"}
-			</span>
-		),
-	},
-	{
-		id: "fees",
-		header: "Fees",
-		trade: (trade) => {
-			const fees = toNumber(trade.fees);
-			if (!fees) return <Dash />;
-			return <span className="text-muted-foreground">{fees.toFixed(2)}</span>;
-		},
-	},
-	{
-		id: "pnl",
-		header: `Net P&L (${currency})`,
-		trade: (trade) => (
-			<Money value={toNumber(trade.netPnl)} currency={currency} signed />
-		),
-		adjustment: (adjustment) => (
-			<Money value={adjustment.amount} currency={currency} signed />
-		),
-	},
-	{
-		id: "roi",
-		header: () => (
-			<MetricLabel label="Price return" className="font-medium">
-				<p>
-					The move from entry to exit as a percent of the entry price. It is
-					positive when the price moved in the trade direction.
-				</p>
-				<p>
-					Fees, leverage, swaps and currency conversion are not in it. The trade
-					page also shows the account return.
-				</p>
-			</MetricLabel>
-		),
-		trade: (trade) => {
-			const roi = toNumber(trade.returnPercent);
-			if (roi === null) return <Dash />;
-			const color = roi >= 0 ? "text-success" : "text-destructive";
-			return <span className={`font-medium ${color}`}>{roi.toFixed(2)}%</span>;
-		},
-	},
-];
-
-const toColumnDefs = (columns: JournalColumn[]): ColumnDef<JournalRow>[] =>
-	columns.map((column) => ({
-		id: column.id,
-		header: column.header,
-		cell: ({ row }) => {
-			const entry = row.original;
-			if (entry.kind === "trade") return column.trade(entry.trade);
-			return column.adjustment?.(entry.adjustment) ?? <Dash />;
-		},
-	}));
+import { JournalEntryKind } from "@/lib/journal-entries";
+import type { Trade } from "@/lib/trade";
+import { cn } from "@/lib/utils";
+import { type JournalRow, journalColumnDefs } from "./journal-columns";
+import { AdjustmentCard, TradeCard } from "./journal-mobile-cards";
 
 const MOBILE_SKELETON_KEYS = [
 	"mobile-1",
@@ -214,113 +37,6 @@ const DESKTOP_SKELETON_KEYS = [
 	"desktop-6",
 	"desktop-7",
 ];
-
-function TradeCard({ trade, currency }: { trade: Trade; currency: string }) {
-	const netPnl = toNumber(trade.netPnl);
-	const returnPercent = toNumber(trade.returnPercent);
-
-	return (
-		<Link
-			to="/journal/$tradeId"
-			params={{ tradeId: String(trade.id) }}
-			className="surface block min-h-11 p-3 transition-colors hover:bg-accent/45 focus-visible:border-ring focus-visible:ring-ring/35 focus-visible:ring-[3px]"
-			aria-label={`Review ${trade.symbol} ${trade.side} trade from ${formatEntryDate(trade.entryDate)}`}
-		>
-			<div className="flex items-start justify-between gap-3">
-				<div className="min-w-0">
-					<div className="flex flex-wrap items-center gap-2">
-						<span className="font-semibold tracking-tight text-foreground">
-							{trade.symbol}
-						</span>
-						<SidePill side={trade.side} />
-						<span className="status-pill bg-muted text-muted-foreground">
-							{trade.status ?? "—"}
-						</span>
-					</div>
-					<p className="mt-1 text-xs text-muted-foreground">
-						{formatEntryDate(trade.entryDate)}
-					</p>
-				</div>
-				<div className="shrink-0 text-right">
-					<p className="text-sm">
-						<Money value={netPnl} currency={currency} signed />
-					</p>
-					<p className="text-xs text-muted-foreground">net P&amp;L</p>
-				</div>
-			</div>
-
-			<div className="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-2.5">
-				<div>
-					<p className="text-xs text-muted-foreground">Entry</p>
-					<p className="font-data text-xs text-foreground">
-						{trade.entryPrice
-							? formatMoney(Number(trade.entryPrice), currency)
-							: "—"}
-					</p>
-				</div>
-				<div>
-					<p className="text-xs text-muted-foreground">Exit</p>
-					<p className="font-data text-xs text-foreground">
-						{trade.exitPrice
-							? formatMoney(Number(trade.exitPrice), currency)
-							: "—"}
-					</p>
-				</div>
-				<div>
-					<p className="text-xs text-muted-foreground">Qty</p>
-					<p className="font-data text-xs text-foreground">
-						{trade.quantity || "—"}
-					</p>
-				</div>
-			</div>
-			{returnPercent !== null && (
-				<p
-					className={`mt-2 text-right font-data text-xs font-medium ${returnPercent >= 0 ? "text-success" : "text-destructive"}`}
-				>
-					{returnPercent >= 0 ? "+" : ""}
-					{returnPercent.toFixed(2)}% price return
-				</p>
-			)}
-		</Link>
-	);
-}
-
-function AdjustmentCard({
-	adjustment,
-	currency,
-}: {
-	adjustment: AccountEntryRecord;
-	currency: string;
-}) {
-	return (
-		<div className="surface block min-h-11 bg-muted/35 p-3">
-			<div className="flex items-start justify-between gap-3">
-				<div className="min-w-0">
-					<div className="flex flex-wrap items-center gap-2">
-						<span className="font-semibold tracking-tight text-foreground">
-							Account adjustment
-						</span>
-						<AdjustmentPill />
-					</div>
-					<p className="mt-1 text-xs text-muted-foreground">
-						{formatEntryDate(adjustment.occurredAt)}
-					</p>
-				</div>
-				<div className="shrink-0 text-right">
-					<p className="text-sm">
-						<Money value={adjustment.amount} currency={currency} signed />
-					</p>
-					<p className="text-xs text-muted-foreground">balance change</p>
-				</div>
-			</div>
-			{adjustment.note && (
-				<p className="mt-3 truncate border-t border-border pt-2.5 text-xs text-muted-foreground">
-					{adjustment.note}
-				</p>
-			)}
-		</div>
-	);
-}
 
 export function JournalTableSkeleton() {
 	return (
@@ -351,6 +67,48 @@ export function JournalTableSkeleton() {
 	);
 }
 
+function JournalTableRow({
+	row,
+	onTradeClick,
+}: {
+	row: Row<JournalRow>;
+	onTradeClick?: (trade: Trade) => void;
+}) {
+	const entry = row.original;
+	const trade = entry.kind === JournalEntryKind.Trade ? entry.trade : null;
+	const isClickable = trade !== null && onTradeClick !== undefined;
+	const openTrade = () => {
+		if (trade) onTradeClick?.(trade);
+	};
+
+	return (
+		<TableRow
+			className={cn(
+				"border-border",
+				trade
+					? "cursor-pointer hover:bg-accent/55 focus-visible:bg-accent/55"
+					: "bg-muted/35 hover:bg-muted/35",
+			)}
+			tabIndex={isClickable ? 0 : undefined}
+			role={isClickable ? "link" : undefined}
+			onClick={openTrade}
+			onKeyDown={(event) => {
+				if (!isClickable) return;
+				if (event.key === "Enter" || event.key === " ") {
+					event.preventDefault();
+					openTrade();
+				}
+			}}
+		>
+			{row.getVisibleCells().map((cell) => (
+				<TableCell key={cell.id}>
+					{flexRender(cell.column.columnDef.cell, cell.getContext())}
+				</TableCell>
+			))}
+		</TableRow>
+	);
+}
+
 interface JournalTableProps {
 	entries: JournalRow[];
 	emptyMessage?: string;
@@ -363,10 +121,7 @@ export function JournalTable({
 	onTradeClick,
 }: JournalTableProps) {
 	const currency = useCurrency();
-	const columns = useMemo(
-		() => toColumnDefs(buildJournalColumns(currency)),
-		[currency],
-	);
+	const columns = useMemo(() => journalColumnDefs(currency), [currency]);
 
 	const table = useReactTable({
 		data: entries,
@@ -379,7 +134,7 @@ export function JournalTable({
 			<div className="space-y-2 md:hidden">
 				{entries.length ? (
 					entries.map((entry) =>
-						entry.kind === "trade" ? (
+						entry.kind === JournalEntryKind.Trade ? (
 							<TradeCard
 								key={entry.key}
 								trade={entry.trade}
@@ -420,44 +175,15 @@ export function JournalTable({
 					</TableHeader>
 					<TableBody>
 						{table.getRowModel().rows.length ? (
-							table.getRowModel().rows.map((row) => {
-								const entry = row.original;
-								const isTrade = entry.kind === "trade";
-								const openTrade = () => {
-									if (isTrade) onTradeClick?.(entry.trade);
-								};
-								const isClickable = isTrade && Boolean(onTradeClick);
-
-								return (
-									<TableRow
+							table
+								.getRowModel()
+								.rows.map((row) => (
+									<JournalTableRow
 										key={row.id}
-										className={
-											isTrade
-												? "cursor-pointer border-border hover:bg-accent/55 focus-visible:bg-accent/55"
-												: "border-border bg-muted/35 hover:bg-muted/35"
-										}
-										tabIndex={isClickable ? 0 : undefined}
-										role={isClickable ? "link" : undefined}
-										onClick={openTrade}
-										onKeyDown={(event) => {
-											if (!isClickable) return;
-											if (event.key === "Enter" || event.key === " ") {
-												event.preventDefault();
-												openTrade();
-											}
-										}}
-									>
-										{row.getVisibleCells().map((cell) => (
-											<TableCell key={cell.id}>
-												{flexRender(
-													cell.column.columnDef.cell,
-													cell.getContext(),
-												)}
-											</TableCell>
-										))}
-									</TableRow>
-								);
-							})
+										row={row}
+										onTradeClick={onTradeClick}
+									/>
+								))
 						) : (
 							<TableRow>
 								<TableCell

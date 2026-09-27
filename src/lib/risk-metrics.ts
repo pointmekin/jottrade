@@ -1,8 +1,8 @@
 import {
 	type CashFlow,
+	type EquityPoint,
 	realizedAt,
 	summarizeTrades,
-	type EquityPoint,
 	type TradeRecord,
 } from "./analytics";
 import { roundCents } from "./currency";

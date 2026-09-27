@@ -14,8 +14,8 @@ import { z } from "zod";
 import { db } from "@/db";
 import { loadAccountHistory } from "@/db/account-history";
 import { trades } from "@/db/schema";
-import { computeAccountReturn } from "@/lib/risk-metrics";
 import { requireUserId } from "@/lib/auth";
+import { computeAccountReturn } from "@/lib/risk-metrics";
 import { TradeConfidence, TradeSide, TradeStatus } from "@/lib/trade";
 
 const PAGE_SIZE = 50;
@@ -52,7 +52,9 @@ function tradeConditions(userId: string, filter: TradeFilter) {
 		filter.confidence?.length
 			? inArray(trades.confidence, filter.confidence)
 			: undefined,
-		filter.mistake?.length ? inArray(trades.mistake, filter.mistake) : undefined,
+		filter.mistake?.length
+			? inArray(trades.mistake, filter.mistake)
+			: undefined,
 		filter.dateFrom
 			? gte(trades.entryDate, new Date(filter.dateFrom))
 			: undefined,

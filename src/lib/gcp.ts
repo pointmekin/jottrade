@@ -5,13 +5,24 @@
 
 const STORAGE_HOST = "storage.googleapis.com";
 
+function requireEnv(name: string): string {
+	const value = process.env[name];
+	if (!value) throw new Error(`${name} is not set.`);
+	return value;
+}
+
+const bucketName = () => requireEnv("GCP_BUCKET_NAME");
+
+export const publicObjectUrl = (objectName: string) =>
+	`https://${STORAGE_HOST}/${bucketName()}/${objectName}`;
+
 type ServiceAccount = {
 	client_email: string;
 	private_key: string;
 };
 
 function parseServiceAccount(): ServiceAccount {
-	const raw = atob(process.env.GCP_SERVICE_ACCOUNT_KEY!);
+	const raw = atob(requireEnv("GCP_SERVICE_ACCOUNT_KEY"));
 	return JSON.parse(raw);
 }
 
@@ -58,7 +69,7 @@ export async function createSignedUploadUrl(
 	contentType: string,
 	expiresInSeconds = 900,
 ): Promise<string> {
-	const bucketName = process.env.GCP_BUCKET_NAME!;
+	const bucket = bucketName();
 	const sa = parseServiceAccount();
 	const cryptoKey = await importPrivateKey(sa.private_key);
 
@@ -86,7 +97,7 @@ export async function createSignedUploadUrl(
 
 	const canonicalRequest = [
 		"PUT",
-		`/${bucketName}/${objectName}`,
+		`/${bucket}/${objectName}`,
 		canonicalQuery,
 		`content-type:${contentType}\nhost:${STORAGE_HOST}\n`,
 		"content-type;host",
@@ -109,19 +120,19 @@ export async function createSignedUploadUrl(
 	);
 
 	return (
-		`https://${STORAGE_HOST}/${bucketName}/${objectName}` +
+		`https://${STORAGE_HOST}/${bucket}/${objectName}` +
 		`?${canonicalQuery}&X-Goog-Signature=${hexEncode(signatureBuffer)}`
 	);
 }
 
 /** Deletes an object from GCP using the JSON API with a service account Bearer token. */
 export async function deleteGcpObject(objectName: string): Promise<void> {
-	const bucketName = process.env.GCP_BUCKET_NAME!;
+	const bucket = bucketName();
 	// Get an access token via the service account credentials
 	const token = await getAccessToken();
 	const encodedName = encodeURIComponent(objectName);
 	const res = await fetch(
-		`https://storage.googleapis.com/storage/v1/b/${bucketName}/o/${encodedName}`,
+		`https://storage.googleapis.com/storage/v1/b/${bucket}/o/${encodedName}`,
 		{ method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
 	);
 	if (!res.ok && res.status !== 404) {
@@ -162,6 +173,7 @@ async function getAccessToken(): Promise<string> {
 		headers: { "Content-Type": "application/x-www-form-urlencoded" },
 		body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
 	});
+	if (!res.ok) throw new Error(`GCP token request failed: ${res.status}`);
 	const json = (await res.json()) as { access_token: string };
 	return json.access_token;
 }

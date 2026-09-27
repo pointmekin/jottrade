@@ -11,7 +11,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CommandPreview } from "@/components/command-palette/command-preview";
 import type { WriteIntent } from "@/lib/commands/types";
-import { addCashFlow } from "@/server/portfolioActions";
+import { addCashFlow } from "@/server/cashFlowActions";
 import { createTrade } from "@/server/tradeActions";
 
 const state = vi.hoisted(() => ({
@@ -21,10 +21,9 @@ const state = vi.hoisted(() => ({
 vi.mock("@/hooks/use-accounts", () => ({
 	useAccounts: () => state,
 }));
-vi.mock("@/hooks/use-account-entries", () => ({
-}));
+vi.mock("@/hooks/use-account-entries", () => ({}));
 vi.mock("@/server/tradeActions", () => ({ createTrade: vi.fn() }));
-vi.mock("@/server/portfolioActions", () => ({ addCashFlow: vi.fn() }));
+vi.mock("@/server/cashFlowActions", () => ({ addCashFlow: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
 const trade: WriteIntent = {
 	type: "trade",

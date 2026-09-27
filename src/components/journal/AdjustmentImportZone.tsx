@@ -1,4 +1,5 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 import {
 	AlertCircle,
 	Check,
@@ -6,7 +7,7 @@ import {
 	Loader2,
 	UploadCloud,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -23,10 +24,16 @@ import {
 	type ImportedAdjustment,
 	parseAdjustmentCsv,
 } from "@/lib/adjustment-import";
-import { invalidateAccountEntryQueries } from "@/lib/query-keys";
-import { importAdjustments } from "@/server/portfolioActions";
+import { invalidateAccountEntryQueries, QueryKey } from "@/lib/query-keys";
+import { importAdjustments } from "@/server/cashFlowActions";
 
 const MAX_CSV_SIZE = 5 * 1024 * 1024;
+
+async function loadExportScript() {
+	const response = await fetch("/exness-adjustments-export.js");
+	if (!response.ok) throw new Error("Script unavailable");
+	return (await response.text()).trimEnd();
+}
 
 export function AdjustmentImportZone({
 	onSuccess,
@@ -34,20 +41,18 @@ export function AdjustmentImportZone({
 	onSuccess?: () => void;
 }) {
 	const queryClient = useQueryClient();
-	const [script, setScript] = useState("");
 	const [parsedData, setParsedData] = useState<ImportedAdjustment[]>([]);
 	const [skippedRows, setSkippedRows] = useState(0);
 	const [error, setError] = useState<string | null>(null);
 
-	useEffect(() => {
-		fetch("/exness-adjustments-export.js")
-			.then((response) => {
-				if (!response.ok) throw new Error("Script unavailable");
-				return response.text();
-			})
-			.then((text) => setScript(text.trimEnd()))
-			.catch(() => setError("The Exness export script could not be loaded."));
-	}, []);
+	const { data: script = "", isError: isScriptMissing } = useQuery({
+		queryKey: [QueryKey.ExnessExportScript],
+		queryFn: loadExportScript,
+		staleTime: Number.POSITIVE_INFINITY,
+	});
+	const shownError =
+		error ??
+		(isScriptMissing ? "The Exness export script could not be loaded." : null);
 
 	const copyScript = async () => {
 		if (!script) return;
@@ -164,7 +169,7 @@ export function AdjustmentImportZone({
 									key={`${row.positionId}-${row.occurredAt}-${row.amount}`}
 								>
 									<TableCell className="whitespace-nowrap">
-										{new Date(row.occurredAt).toLocaleString()}
+										{format(new Date(row.occurredAt), "dd MMM yyyy, HH:mm")}
 									</TableCell>
 									<TableCell>{row.symbol || "—"}</TableCell>
 									<TableCell>{row.positionId || "—"}</TableCell>
@@ -217,7 +222,7 @@ export function AdjustmentImportZone({
 					isDragActive
 						? "border-ring bg-accent/60"
 						: "border-border hover:bg-accent/35"
-				} ${error ? "border-destructive/50 bg-destructive/10" : ""}`}
+				} ${shownError ? "border-destructive/50 bg-destructive/10" : ""}`}
 			>
 				<input {...getInputProps()} />
 				<div className="flex flex-col items-center gap-3">
@@ -241,10 +246,10 @@ export function AdjustmentImportZone({
 				</div>
 			</div>
 
-			{error && (
+			{shownError && (
 				<div className="flex items-center border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
 					<AlertCircle className="mr-2 size-4 shrink-0" />
-					{error}
+					{shownError}
 				</div>
 			)}
 		</div>
