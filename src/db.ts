@@ -1,4 +1,3 @@
-// Neon
 import { neon } from "@neondatabase/serverless";
 
 /**
@@ -22,7 +21,6 @@ export async function getClient() {
 	return client;
 }
 
-// Drizzle
 import { drizzle } from "drizzle-orm/neon-http";
 import * as schema from "./db/schema";
 

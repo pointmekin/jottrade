@@ -19,7 +19,7 @@ type FormValues = z.infer<typeof schema>;
 type Strategy = { id: number; name: string; description: string | null };
 
 interface StrategyFormProps {
-	strategy: Strategy | null; // null = creating new
+	strategy: Strategy | null;
 	onSaved: (s: Strategy) => void;
 }
 

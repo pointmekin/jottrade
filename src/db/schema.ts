@@ -14,10 +14,10 @@ import {
 
 import { AccountKind } from "@/lib/account";
 import { AccountEntryKind } from "@/lib/account-entry";
+import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { type TradeConfidence, type TradeSide, TradeStatus } from "@/lib/trade";
 
-// --- Auth Schema (BetterAuth) ---
-
+// Better Auth owns user, session, account and verification.
 export const user = pgTable("user", {
 	id: text("id").primaryKey(),
 	name: text("name").notNull(),
@@ -90,20 +90,17 @@ export const verification = pgTable(
 	(table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
-// --- Application Schema ---
-
-// 2. Portfolios (Multiple trading accounts per user)
 export const portfolios = pgTable(
 	"portfolios",
 	{
 		id: serial("id").primaryKey(),
 		userId: text("user_id")
 			.notNull()
-			.references(() => user.id, { onDelete: "cascade" }), // Foreign key to users
-		name: text("name").notNull(), // e.g., "Robinhood", "Binance"
+			.references(() => user.id, { onDelete: "cascade" }),
+		name: text("name").notNull(),
 		description: text("description"),
 		kind: text("kind").default(AccountKind.Real).notNull(),
-		currency: text("currency").default("USD"),
+		currency: text("currency").default(DEFAULT_CURRENCY),
 		isDefault: boolean("is_default").default(false),
 		createdAt: timestamp("created_at").defaultNow(),
 	},
@@ -114,7 +111,7 @@ export const portfolios = pgTable(
 	],
 );
 
-// 2b. Account entries that change balance outside a closed trade.
+// Deposits, withdrawals and broker adjustments: balance changes outside a trade.
 export const cashFlows = pgTable(
 	"cash_flows",
 	{
@@ -144,7 +141,6 @@ export const cashFlows = pgTable(
 	],
 );
 
-// 3. Trades (The Core Table)
 export const trades = pgTable(
 	"trades",
 	{
@@ -158,12 +154,11 @@ export const trades = pgTable(
 			.notNull()
 			.references(() => user.id, { onDelete: "cascade" }),
 
-		// Basic Info
-		symbol: text("symbol").notNull(), // AAPL, BTC-USD
+		symbol: text("symbol").notNull(),
 		side: text("side").$type<TradeSide>().notNull(),
 		status: text("status").$type<TradeStatus>().default(TradeStatus.Open),
 
-		// Numbers (Use numeric for money to avoid float errors)
+		// numeric, not float, so money keeps exact cents.
 		entryDate: timestamp("entry_date").notNull(),
 		exitDate: timestamp("exit_date"),
 		entryPrice: numeric("entry_price"),
@@ -172,19 +167,16 @@ export const trades = pgTable(
 		quantity: numeric("quantity"),
 		fees: numeric("fees").default("0"),
 
-		// Calculations (Computed on insert/update usually, but stored for speed)
 		netPnl: numeric("net_pnl"),
 		returnPercent: numeric("return_percent"),
 
-		// Analysis & Psychology (StonkJournal Features)
-		setupId: integer("setup_id"), // Link to specific strategy (will add relation below if needed, or keeping loose for now based on spec)
-		mistake: text("mistake"), // e.g., "Fomo", "Revenge Trading"
+		setupId: integer("setup_id"),
+		mistake: text("mistake"),
 		confidence: text("confidence").$type<TradeConfidence>(),
-		notes: text("notes"), // Rich text/Markdown
+		notes: text("notes"),
 		screenshots: jsonb("screenshots").$type<string[]>().default([]),
 
-		// Import Deduplication
-		importHash: text("import_hash").unique(), // SHA256 of trade details
+		importHash: text("import_hash").unique(),
 	},
 	(t) => [
 		index("idx_trades_user").on(t.userId),
@@ -193,17 +185,14 @@ export const trades = pgTable(
 	],
 );
 
-// 4. Setups/Strategies (For "Pattern Analysis")
 export const strategies = pgTable("strategies", {
 	id: serial("id").primaryKey(),
 	userId: text("user_id")
 		.notNull()
 		.references(() => user.id, { onDelete: "cascade" }),
-	name: text("name").notNull(), // e.g., "Breakout", "Gap Fill"
+	name: text("name").notNull(),
 	description: text("description"),
 });
-
-// --- Relations ---
 
 export const userRelations = relations(user, ({ many }) => ({
 	sessions: many(session),

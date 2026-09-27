@@ -4,6 +4,7 @@ import { CalendarDayCell } from "./CalendarDayCell";
 import { DayTradesPopover } from "./DayTradesPopover";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const GRID_DAYS = 6 * 7;
 
 interface CalendarGridProps {
 	year: number;
@@ -14,15 +15,14 @@ interface CalendarGridProps {
 export function CalendarGrid({ year, month, data }: CalendarGridProps) {
 	const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-	// Build grid: 6-week grid starting from Sunday before month start
 	const days = useMemo(() => {
 		const firstDay = new Date(Date.UTC(year, month - 1, 1));
 		const start = new Date(firstDay);
-		start.setUTCDate(start.getUTCDate() - start.getUTCDay()); // back to Sunday
+		start.setUTCDate(start.getUTCDate() - start.getUTCDay());
 
 		const cells: { date: string; currentMonth: boolean }[] = [];
 		const cursor = new Date(start);
-		for (let i = 0; i < 42; i++) {
+		for (let i = 0; i < GRID_DAYS; i++) {
 			cells.push({
 				date: cursor.toISOString().slice(0, 10),
 				currentMonth: cursor.getUTCMonth() === month - 1,
@@ -34,7 +34,6 @@ export function CalendarGrid({ year, month, data }: CalendarGridProps) {
 
 	return (
 		<div className="surface min-w-0 overflow-hidden">
-			{/* Day of week header */}
 			<div className="grid min-w-0 grid-cols-7 border-b border-border bg-background">
 				{DOW.map((d) => (
 					<div
@@ -46,7 +45,6 @@ export function CalendarGrid({ year, month, data }: CalendarGridProps) {
 				))}
 			</div>
 
-			{/* Grid */}
 			<div className="grid min-w-0 grid-cols-7">
 				{days.map(({ date, currentMonth }) => {
 					const day = data[date];

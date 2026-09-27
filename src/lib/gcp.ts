@@ -1,7 +1,5 @@
-// GCP Storage v4 signed URL using Web Crypto (Cloudflare Workers compatible).
-// Do NOT use @google-cloud/storage — incompatible with Workers runtime.
-// Uses PATH-STYLE URLs (https://storage.googleapis.com/{bucket}/{object}).
-// Ensure your GCP bucket does NOT enforce virtual-hosted-style only.
+// Web Crypto instead of @google-cloud/storage, which does not run on Workers.
+// URLs are path-style, so the bucket must not enforce virtual-hosted-style only.
 
 const STORAGE_HOST = "storage.googleapis.com";
 
@@ -27,7 +25,7 @@ function parseServiceAccount(): ServiceAccount {
 }
 
 async function importPrivateKey(pem: string): Promise<CryptoKey> {
-	// PEM private_key field has literal \n — replace with actual newlines first
+	// The service account JSON stores the PEM with escaped newlines.
 	const normalized = pem.replace(/\\n/g, "\n");
 	const body = normalized
 		.replace(/-----BEGIN PRIVATE KEY-----/, "")
@@ -58,12 +56,7 @@ async function sha256Hex(data: string): Promise<string> {
 	return hexEncode(buf);
 }
 
-/**
- * Creates a GCP Storage v4 signed PUT URL for direct browser upload.
- * @param objectName  e.g. "trades/{userId}/{tradeId}/{fileName}"
- * @param contentType e.g. "image/jpeg"
- * @param expiresInSeconds max 604800 (7 days); default 900 (15 min)
- */
+/** A v4 signed PUT URL for a direct browser upload. GCP caps `expiresInSeconds` at 7 days. */
 export async function createSignedUploadUrl(
 	objectName: string,
 	contentType: string,
@@ -74,13 +67,13 @@ export async function createSignedUploadUrl(
 	const cryptoKey = await importPrivateKey(sa.private_key);
 
 	const now = new Date();
-	const dateStr = now.toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD
-	const timeStr = now.toISOString().slice(11, 19).replace(/:/g, ""); // HHMMSS
+	const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
+	const timeStr = now.toISOString().slice(11, 19).replace(/:/g, "");
 	const datetimeStr = `${dateStr}T${timeStr}Z`;
 	const credentialScope = `${dateStr}/auto/storage/goog4_request`;
 	const credential = `${sa.client_email}/${credentialScope}`;
 
-	// Canonical query string — params sorted alphabetically by key
+	// GCP signs the query string with its parameters sorted by key.
 	const qp = (
 		[
 			["X-Goog-Algorithm", "GOOG4-RSA-SHA256"],
@@ -125,10 +118,8 @@ export async function createSignedUploadUrl(
 	);
 }
 
-/** Deletes an object from GCP using the JSON API with a service account Bearer token. */
 export async function deleteGcpObject(objectName: string): Promise<void> {
 	const bucket = bucketName();
-	// Get an access token via the service account credentials
 	const token = await getAccessToken();
 	const encodedName = encodeURIComponent(objectName);
 	const res = await fetch(
@@ -161,7 +152,7 @@ async function getAccessToken(): Promise<string> {
 		cryptoKey,
 		new TextEncoder().encode(sigInput),
 	);
-	// Use loop-based encoding — spread operator on large Uint8Array exceeds call stack in Workers
+	// A spread of a large Uint8Array overflows the call stack on Workers.
 	const sigBytes = new Uint8Array(sigBuf);
 	let sigB64 = "";
 	for (let i = 0; i < sigBytes.length; i++)
