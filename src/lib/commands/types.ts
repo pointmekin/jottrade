@@ -8,6 +8,19 @@ export const IntentType = {
 	Theme: "theme",
 } as const;
 
+export const CommandTheme = {
+	Dark: "dark",
+	Light: "light",
+	System: "system",
+} as const;
+export type CommandTheme = (typeof CommandTheme)[keyof typeof CommandTheme];
+
+export const THEME_TITLES: Record<CommandTheme, string> = {
+	[CommandTheme.Dark]: "Dark mode",
+	[CommandTheme.Light]: "Light mode",
+	[CommandTheme.System]: "System theme",
+};
+
 export type TradeParams = {
 	symbol?: string;
 	side?: TradeSide;
@@ -26,7 +39,7 @@ export type WriteIntent =
 export type CommandIntent =
 	| WriteIntent
 	| { type: typeof IntentType.Navigation; path: string }
-	| { type: typeof IntentType.Theme; theme: "dark" | "light" | "system" };
+	| { type: typeof IntentType.Theme; theme: CommandTheme };
 export type CommandCandidate = {
 	id: string;
 	title: string;
@@ -37,3 +50,9 @@ export type CommandCandidate = {
 export type RegisteredCommand = Omit<CommandCandidate, "confidence"> & {
 	aliases: string[];
 };
+
+export function isWriteIntent(intent: CommandIntent): intent is WriteIntent {
+	return (
+		intent.type === IntentType.Trade || intent.type === IntentType.AccountEntry
+	);
+}

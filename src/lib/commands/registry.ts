@@ -1,6 +1,11 @@
 import { AccountEntryKind } from "@/lib/account-entry";
 import { navItems } from "@/lib/nav-items";
-import type { RegisteredCommand } from "./types";
+import {
+	CommandTheme,
+	IntentType,
+	type RegisteredCommand,
+	THEME_TITLES,
+} from "./types";
 
 export const commandRegistry: RegisteredCommand[] = [
 	...navItems.map((item) => ({
@@ -11,20 +16,20 @@ export const commandRegistry: RegisteredCommand[] = [
 			`go to ${item.title.toLowerCase()}`,
 			...(item.url === "/journal" ? ["trades"] : []),
 		],
-		intent: { type: "navigation" as const, path: item.url },
+		intent: { type: IntentType.Navigation, path: item.url },
 	})),
 	{
 		id: "trade",
 		title: "Log trade",
 		aliases: ["log trade", "new trade", "buy", "sell", "long", "short"],
-		intent: { type: "trade", params: {} },
+		intent: { type: IntentType.Trade, params: {} },
 	},
 	{
 		id: "deposit",
 		title: "Add deposit",
 		aliases: ["deposit", "add deposit"],
 		intent: {
-			type: "account-entry",
+			type: IntentType.AccountEntry,
 			params: { kind: AccountEntryKind.Deposit },
 		},
 	},
@@ -33,17 +38,14 @@ export const commandRegistry: RegisteredCommand[] = [
 		title: "Add withdrawal",
 		aliases: ["withdraw", "withdrawal", "add withdrawal"],
 		intent: {
-			type: "account-entry",
+			type: IntentType.AccountEntry,
 			params: { kind: AccountEntryKind.Withdrawal },
 		},
 	},
-	...(["dark", "light", "system"] as const).map((theme) => ({
+	...Object.values(CommandTheme).map((theme) => ({
 		id: `theme:${theme}`,
-		title:
-			theme === "system"
-				? "System theme"
-				: `${theme === "dark" ? "Dark" : "Light"} mode`,
+		title: THEME_TITLES[theme],
 		aliases: [theme, `${theme} mode`, `${theme} theme`],
-		intent: { type: "theme" as const, theme },
+		intent: { type: IntentType.Theme, theme },
 	})),
 ];
