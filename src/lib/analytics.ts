@@ -64,7 +64,9 @@ function addToDay(amounts: DailyAmounts, day: string, amount: number) {
 }
 
 /** A closed trade without an exit time is realized at entry. */
-export function realizedAt(trade: TradeRecord): Date {
+export function realizedAt(
+	trade: Pick<TradeRecord, "entryDate" | "exitDate">,
+): Date {
 	return trade.exitDate ?? trade.entryDate;
 }
 

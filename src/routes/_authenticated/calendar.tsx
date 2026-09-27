@@ -14,8 +14,9 @@ import { CalendarSkeleton } from "@/components/calendar/CalendarSkeleton";
 import { Button } from "@/components/ui/button";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useCurrency } from "@/hooks/use-currency";
+import type { CalendarDay } from "@/lib/calendar-days";
 import { QueryKey } from "@/lib/query-keys";
-import { type CalendarDay, getCalendarData } from "@/server/calendarActions";
+import { getCalendarData } from "@/server/calendarActions";
 
 const calendarSearchSchema = z.object({
 	year: z.number().default(() => new Date().getFullYear()),

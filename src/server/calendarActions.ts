@@ -1,48 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq, gte, isNull, lt } from "drizzle-orm";
+import { and, eq, gte, lt, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { trades } from "@/db/schema";
 import { requireUserId } from "@/lib/auth";
-import { isValidTimeZone, toDayKey } from "@/lib/date";
-import type { TradeSide, TradeStatus } from "@/lib/trade";
-
-export type CalendarTrade = {
-	id: number;
-	symbol: string;
-	side: TradeSide;
-	status: TradeStatus | null;
-	netPnl: number | null;
-};
-
-export type CalendarDay = {
-	/** Closed trades only. */
-	netPnl: number;
-	/** Closed and open trades. */
-	tradeCount: number;
-	trades: CalendarTrade[];
-};
-
-const tradeColumns = {
-	id: trades.id,
-	symbol: trades.symbol,
-	side: trades.side,
-	status: trades.status,
-	netPnl: trades.netPnl,
-	entryDate: trades.entryDate,
-	exitDate: trades.exitDate,
-};
-
-const toCalendarTrade = (
-	row: Omit<CalendarTrade, "netPnl">,
-	netPnl: number | null,
-): CalendarTrade => ({
-	id: row.id,
-	symbol: row.symbol,
-	side: row.side,
-	status: row.status,
-	netPnl,
-});
+import { groupTradesByDay } from "@/lib/calendar-days";
+import { isValidTimeZone } from "@/lib/date";
 
 export const getCalendarData = createServerFn({ method: "GET" })
 	.validator(
@@ -57,52 +20,40 @@ export const getCalendarData = createServerFn({ method: "GET" })
 	)
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
-		const start = new Date(data.from);
-		const end = new Date(data.to);
-		const inAccount = and(
-			eq(trades.userId, userId),
-			eq(trades.portfolioId, data.portfolioId),
-		);
-
-		const [closedTrades, openTrades] = await Promise.all([
-			db
-				.select(tradeColumns)
-				.from(trades)
-				.where(
-					and(inAccount, gte(trades.exitDate, start), lt(trades.exitDate, end)),
-				),
-			db
-				.select(tradeColumns)
-				.from(trades)
-				.where(
-					and(
-						inAccount,
-						gte(trades.entryDate, start),
-						lt(trades.entryDate, end),
-						isNull(trades.exitDate),
+		const range = { from: new Date(data.from), to: new Date(data.to) };
+		const rows = await db
+			.select({
+				id: trades.id,
+				symbol: trades.symbol,
+				side: trades.side,
+				status: trades.status,
+				netPnl: trades.netPnl,
+				entryDate: trades.entryDate,
+				exitDate: trades.exitDate,
+			})
+			.from(trades)
+			.where(
+				and(
+					eq(trades.userId, userId),
+					eq(trades.portfolioId, data.portfolioId),
+					or(
+						and(
+							gte(trades.exitDate, range.from),
+							lt(trades.exitDate, range.to),
+						),
+						and(
+							gte(trades.entryDate, range.from),
+							lt(trades.entryDate, range.to),
+						),
 					),
 				),
-		]);
-
-		const days: Record<string, CalendarDay> = {};
-		const addToDay = (at: Date, trade: CalendarTrade) => {
-			const key = toDayKey(at, data.timeZone);
-			days[key] ??= { netPnl: 0, tradeCount: 0, trades: [] };
-			days[key].netPnl += trade.netPnl ?? 0;
-			days[key].tradeCount += 1;
-			days[key].trades.push(trade);
-		};
-
-		for (const row of closedTrades) {
-			if (row.exitDate) {
-				addToDay(
-					row.exitDate,
-					toCalendarTrade(row, row.netPnl === null ? null : Number(row.netPnl)),
-				);
-			}
-		}
-		for (const row of openTrades) {
-			addToDay(row.entryDate, toCalendarTrade(row, null));
-		}
-		return days;
+			);
+		return groupTradesByDay(
+			rows.map((row) => ({
+				...row,
+				netPnl: row.netPnl === null ? null : Number(row.netPnl),
+			})),
+			range,
+			data.timeZone,
+		);
 	});

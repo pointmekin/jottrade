@@ -1,7 +1,7 @@
 import { format, parseISO } from "date-fns";
 import { useCurrency } from "@/hooks/use-currency";
+import type { CalendarDay } from "@/lib/calendar-days";
 import { formatMoney } from "@/lib/currency";
-import type { CalendarDay } from "@/server/calendarActions";
 
 interface CalendarDayCellProps {
 	date: string; // YYYY-MM-DD
