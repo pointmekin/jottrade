@@ -50,10 +50,11 @@ export function StrategyForm({ strategy, onSaved }: StrategyFormProps) {
 				: createStrategy({ data: values }),
 		onSuccess: (saved) => {
 			qc.invalidateQueries({ queryKey: [QueryKey.Strategies] });
-			onSaved(saved as Strategy);
+			onSaved(saved);
 			if (!strategy) reset();
 		},
 	});
+	const submitLabel = strategy ? "Save Changes" : "Create Strategy";
 
 	return (
 		<form
@@ -81,11 +82,7 @@ export function StrategyForm({ strategy, onSaved }: StrategyFormProps) {
 				/>
 			</div>
 			<Button type="submit" disabled={saveMut.isPending} className="w-full">
-				{saveMut.isPending
-					? "Saving…"
-					: strategy
-						? "Save Changes"
-						: "Create Strategy"}
+				{saveMut.isPending ? "Saving…" : submitLabel}
 			</Button>
 
 			{strategy && <StrategyPerformance strategyId={strategy.id} />}

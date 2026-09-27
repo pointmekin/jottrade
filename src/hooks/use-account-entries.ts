@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { QueryKey } from "@/lib/query-keys";
-import { getCashFlows } from "@/server/portfolioActions";
+import { getCashFlows } from "@/server/cashFlowActions";
 
 /** Deposits, withdrawals, and adjustments for the active trading account. */
 export function useAccountEntries(portfolioId?: number) {

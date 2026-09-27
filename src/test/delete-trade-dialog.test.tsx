@@ -11,19 +11,19 @@ import {
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DeleteTradeDialog } from "@/components/journal/DeleteTradeDialog";
+import { TradeSide } from "@/lib/trade";
 import { deleteTrade } from "@/server/tradeActions";
 
 vi.mock("@/server/tradeActions", () => ({
 	deleteTrade: vi.fn(),
 }));
 
-vi.mock("@/hooks/use-accounts", () => ({
-}));
+vi.mock("@/hooks/use-accounts", () => ({}));
 
 const trade = {
 	id: 42,
 	symbol: "AAPL",
-	side: "LONG",
+	side: TradeSide.Long,
 	entryDate: new Date("2025-01-03T16:30:00Z"),
 };
 

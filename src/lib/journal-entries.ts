@@ -1,10 +1,20 @@
 import type { AccountEntryRecord } from "./account-entry";
 
+export const JournalEntryKind = {
+	Trade: "trade",
+	Adjustment: "adjustment",
+} as const;
+
 export type JournalEntry<TTrade> =
-	| { key: string; kind: "trade"; occurredAt: Date; trade: TTrade }
 	| {
 			key: string;
-			kind: "adjustment";
+			kind: typeof JournalEntryKind.Trade;
+			occurredAt: Date;
+			trade: TTrade;
+	  }
+	| {
+			key: string;
+			kind: typeof JournalEntryKind.Adjustment;
 			occurredAt: Date;
 			adjustment: AccountEntryRecord;
 	  };
@@ -16,7 +26,7 @@ export function mergeJournalEntries<
 		...trades.map(
 			(trade): JournalEntry<TTrade> => ({
 				key: `trade-${trade.id}`,
-				kind: "trade",
+				kind: JournalEntryKind.Trade,
 				occurredAt: new Date(trade.entryDate),
 				trade,
 			}),
@@ -24,7 +34,7 @@ export function mergeJournalEntries<
 		...adjustments.map(
 			(adjustment): JournalEntry<TTrade> => ({
 				key: `adjustment-${adjustment.id}`,
-				kind: "adjustment",
+				kind: JournalEntryKind.Adjustment,
 				occurredAt: new Date(adjustment.occurredAt),
 				adjustment,
 			}),

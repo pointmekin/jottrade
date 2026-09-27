@@ -1,3 +1,5 @@
+// Only loaded through React.lazy, so recharts stays out of the first bundle.
+// react-doctor-disable-next-line react-doctor/prefer-dynamic-import
 import {
 	Bar,
 	BarChart,

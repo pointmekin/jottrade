@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import type { ComponentProps } from "react";
+import { type Control, type FieldPath, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAccounts } from "@/hooks/use-accounts";
 import { localDateTimeToIso, toDateTimeLocalValue } from "@/lib/date";
 import { invalidateTradeQueries } from "@/lib/query-keys";
+import { TradeSide } from "@/lib/trade";
 import { cn } from "@/lib/utils";
 import { createTrade } from "@/server/tradeActions";
 
@@ -32,7 +34,7 @@ const formSchema = z.object({
 		.string()
 		.min(1, "Symbol is required")
 		.transform((s) => s.toUpperCase()),
-	side: z.enum(["LONG", "SHORT"]),
+	side: z.enum(TradeSide),
 	entryDate: z
 		.string()
 		.refine((val) => !Number.isNaN(Date.parse(val)), "Invalid date"),
@@ -45,41 +47,116 @@ const formSchema = z.object({
 	fees: z.string().optional(),
 });
 
+type FormValues = z.infer<typeof formSchema>;
+
 interface TradeEntryFormProps {
 	onSuccess?: () => void;
 	onCancel?: () => void;
 }
 
-const inputCls =
+const INPUT_CLASS =
 	"bg-background border-input text-foreground font-data text-sm placeholder:text-muted-foreground";
 
-const labelCls = "field-label";
+const emptyValues = (): FormValues => ({
+	symbol: "",
+	side: TradeSide.Long,
+	entryDate: toDateTimeLocalValue(new Date()),
+	entryPrice: "",
+	targetPrice: "",
+	quantity: "",
+	notes: "",
+	exitPrice: "",
+	exitDate: "",
+	fees: "",
+});
 
-export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
+function FormInput({
+	control,
+	name,
+	label,
+	className,
+	...inputProps
+}: {
+	control: Control<FormValues>;
+	name: FieldPath<FormValues>;
+	label: string;
+} & ComponentProps<typeof Input>) {
+	return (
+		<FormField
+			control={control}
+			name={name}
+			render={({ field }) => (
+				<FormItem className="space-y-1.5">
+					<Label className="field-label">{label}</Label>
+					<FormControl>
+						<Input
+							className={cn(INPUT_CLASS, className)}
+							{...inputProps}
+							{...field}
+						/>
+					</FormControl>
+					<FormMessage className="text-xs text-destructive" />
+				</FormItem>
+			)}
+		/>
+	);
+}
+
+function SideSelect({ control }: { control: Control<FormValues> }) {
+	return (
+		<FormField
+			control={control}
+			name="side"
+			render={({ field }) => (
+				<FormItem className="space-y-1.5">
+					<Label className="field-label">Side</Label>
+					<Select onValueChange={field.onChange} defaultValue={field.value}>
+						<FormControl>
+							<SelectTrigger className="border-input bg-background text-sm">
+								<SelectValue />
+							</SelectTrigger>
+						</FormControl>
+						<SelectContent>
+							<SelectItem value={TradeSide.Long} className="text-success">
+								Long
+							</SelectItem>
+							<SelectItem value={TradeSide.Short} className="text-destructive">
+								Short
+							</SelectItem>
+						</SelectContent>
+					</Select>
+				</FormItem>
+			)}
+		/>
+	);
+}
+
+function NotesField({ control }: { control: Control<FormValues> }) {
+	return (
+		<FormField
+			control={control}
+			name="notes"
+			render={({ field }) => (
+				<FormItem className="space-y-1.5">
+					<Label className="field-label">Notes</Label>
+					<FormControl>
+						<Textarea
+							placeholder="Setup context, emotions, plan…"
+							className="min-h-20 resize-none border-input bg-background text-sm text-foreground placeholder:text-muted-foreground"
+							{...field}
+						/>
+					</FormControl>
+				</FormItem>
+			)}
+		/>
+	);
+}
+
+function useLogTrade(onLogged: () => void) {
 	const queryClient = useQueryClient();
 	const { activeAccount } = useAccounts();
-
-	const form = useForm<z.infer<typeof formSchema>>({
-		resolver: zodResolver(formSchema),
-		defaultValues: {
-			symbol: "",
-			side: "LONG",
-			entryDate: toDateTimeLocalValue(new Date()),
-			entryPrice: "",
-			targetPrice: "",
-			quantity: "",
-			notes: "",
-			exitPrice: "",
-			exitDate: "",
-			fees: "",
-		},
-	});
-
-	const side = form.watch("side");
-	const isLong = side === "LONG";
-
-	const { mutate: logTrade, isPending } = useMutation({
-		mutationFn: (values: z.infer<typeof formSchema>) => {
+	return useMutation({
+		mutationFn: (values: FormValues) => {
 			if (!activeAccount) {
 				return Promise.reject(new Error("No active account."));
 			}
@@ -92,12 +169,11 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 						? localDateTimeToIso(values.exitDate)
 						: undefined,
 				},
-			} as never);
+			});
 		},
 		onSuccess: () => {
 			invalidateTradeQueries(queryClient);
-			form.reset();
-			onSuccess?.();
+			onLogged();
 		},
 		onError: (cause) => {
 			toast.error(
@@ -107,6 +183,20 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 			);
 		},
 	});
+}
+
+export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
+	const form = useForm<FormValues>({
+		resolver: zodResolver(formSchema),
+		defaultValues: emptyValues(),
+	});
+	const { mutate: logTrade, isPending } = useLogTrade(() => {
+		form.reset();
+		onSuccess?.();
+	});
+	const isLong = form.watch("side") === TradeSide.Long;
+	const sideLabel = isLong ? "Long" : "Short";
+	const { control } = form;
 
 	return (
 		<Form {...form}>
@@ -114,223 +204,81 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 				onSubmit={form.handleSubmit((values) => logTrade(values))}
 				className="space-y-4"
 			>
-				{/* Symbol */}
-				<FormField
-					control={form.control}
+				<FormInput
+					control={control}
 					name="symbol"
-					render={({ field }) => (
-						<FormItem className="space-y-1.5">
-							<Label className={labelCls}>Symbol</Label>
-							<FormControl>
-								<Input
-									placeholder="AAPL"
-									className={cn(inputCls, "uppercase")}
-									{...field}
-								/>
-							</FormControl>
-							<FormMessage className="text-xs text-destructive" />
-						</FormItem>
-					)}
+					label="Symbol"
+					placeholder="AAPL"
+					className="uppercase"
 				/>
-
-				{/* Side + Entry Date */}
 				<div className="grid grid-cols-2 gap-3">
-					<FormField
-						control={form.control}
-						name="side"
-						render={({ field }) => (
-							<FormItem className="space-y-1.5">
-								<Label className={labelCls}>Side</Label>
-								<Select
-									onValueChange={field.onChange}
-									defaultValue={field.value}
-								>
-									<FormControl>
-										<SelectTrigger className="border-input bg-background text-sm">
-											<SelectValue />
-										</SelectTrigger>
-									</FormControl>
-									<SelectContent>
-										<SelectItem value="LONG" className="text-success">
-											Long
-										</SelectItem>
-										<SelectItem value="SHORT" className="text-destructive">
-											Short
-										</SelectItem>
-									</SelectContent>
-								</Select>
-								<FormMessage className="text-xs text-destructive" />
-							</FormItem>
-						)}
-					/>
-
-					<FormField
-						control={form.control}
+					<SideSelect control={control} />
+					<FormInput
+						control={control}
 						name="entryDate"
-						render={({ field }) => (
-							<FormItem className="space-y-1.5">
-								<Label className={labelCls}>Entry Date</Label>
-								<FormControl>
-									<Input
-										type="datetime-local"
-										className={cn(inputCls, "appearance-none")}
-										{...field}
-									/>
-								</FormControl>
-								<FormMessage className="text-xs text-destructive" />
-							</FormItem>
-						)}
+						label="Entry Date"
+						type="datetime-local"
+						className="appearance-none"
 					/>
 				</div>
-
-				{/* Entry Price + Quantity */}
 				<div className="grid grid-cols-2 gap-3">
-					<FormField
-						control={form.control}
+					<FormInput
+						control={control}
 						name="entryPrice"
-						render={({ field }) => (
-							<FormItem className="space-y-1.5">
-								<Label className={labelCls}>Entry Price</Label>
-								<FormControl>
-									<Input
-										type="number"
-										step="0.0001"
-										placeholder="150.00"
-										className={inputCls}
-										{...field}
-									/>
-								</FormControl>
-								<FormMessage className="text-xs text-destructive" />
-							</FormItem>
-						)}
+						label="Entry Price"
+						type="number"
+						step="0.0001"
+						placeholder="150.00"
 					/>
-
-					<FormField
-						control={form.control}
+					<FormInput
+						control={control}
 						name="quantity"
-						render={({ field }) => (
-							<FormItem className="space-y-1.5">
-								<Label className={labelCls}>Quantity</Label>
-								<FormControl>
-									<Input
-										type="number"
-										step="0.0001"
-										placeholder="10"
-										className={inputCls}
-										{...field}
-									/>
-								</FormControl>
-								<FormMessage className="text-xs text-destructive" />
-							</FormItem>
-						)}
+						label="Quantity"
+						type="number"
+						step="0.0001"
+						placeholder="10"
 					/>
 				</div>
-
-				{/* Optional divider */}
 				<div className="flex items-center gap-3 pt-1">
 					<div className="h-px flex-1 bg-border" />
 					<span className="field-label">Optional</span>
 					<div className="h-px flex-1 bg-border" />
 				</div>
-
-				<FormField
-					control={form.control}
+				<FormInput
+					control={control}
 					name="targetPrice"
-					render={({ field }) => (
-						<FormItem className="space-y-1.5">
-							<Label className={labelCls}>Planned target price</Label>
-							<FormControl>
-								<Input
-									type="number"
-									min="0"
-									step="any"
-									placeholder="Optional"
-									className={inputCls}
-									{...field}
-								/>
-							</FormControl>
-							<FormMessage />
-						</FormItem>
-					)}
+					label="Planned target price"
+					type="number"
+					min="0"
+					step="any"
+					placeholder="Optional"
 				/>
-				{/* Exit Price + Exit Date */}
 				<div className="grid grid-cols-2 gap-3">
-					<FormField
-						control={form.control}
+					<FormInput
+						control={control}
 						name="exitPrice"
-						render={({ field }) => (
-							<FormItem className="space-y-1.5">
-								<Label className={labelCls}>Exit Price</Label>
-								<FormControl>
-									<Input
-										type="number"
-										step="0.0001"
-										placeholder="155.00"
-										className={inputCls}
-										{...field}
-									/>
-								</FormControl>
-							</FormItem>
-						)}
+						label="Exit Price"
+						type="number"
+						step="0.0001"
+						placeholder="155.00"
 					/>
-
-					<FormField
-						control={form.control}
+					<FormInput
+						control={control}
 						name="exitDate"
-						render={({ field }) => (
-							<FormItem className="space-y-1.5">
-								<Label className={labelCls}>Exit Date</Label>
-								<FormControl>
-									<Input
-										type="datetime-local"
-										className={cn(inputCls, "appearance-none")}
-										{...field}
-									/>
-								</FormControl>
-							</FormItem>
-						)}
+						label="Exit Date"
+						type="datetime-local"
+						className="appearance-none"
 					/>
 				</div>
-
-				{/* Fees */}
-				<FormField
-					control={form.control}
+				<FormInput
+					control={control}
 					name="fees"
-					render={({ field }) => (
-						<FormItem className="space-y-1.5">
-							<Label className={labelCls}>Fees</Label>
-							<FormControl>
-								<Input
-									type="number"
-									step="0.01"
-									placeholder="0.00"
-									className={inputCls}
-									{...field}
-								/>
-							</FormControl>
-						</FormItem>
-					)}
+					label="Fees"
+					type="number"
+					step="0.01"
+					placeholder="0.00"
 				/>
-
-				{/* Notes */}
-				<FormField
-					control={form.control}
-					name="notes"
-					render={({ field }) => (
-						<FormItem className="space-y-1.5">
-							<Label className={labelCls}>Notes</Label>
-							<FormControl>
-								<Textarea
-									placeholder="Setup context, emotions, plan…"
-									className="min-h-20 resize-none border-input bg-background text-sm text-foreground placeholder:text-muted-foreground"
-									{...field}
-								/>
-							</FormControl>
-						</FormItem>
-					)}
-				/>
-
-				{/* Actions */}
+				<NotesField control={control} />
 				<div className="flex gap-2 pt-2">
 					{onCancel && (
 						<Button
@@ -346,13 +294,13 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 						type="submit"
 						disabled={isPending}
 						className={cn(
-							"flex-1 font-medium transition-all",
+							"flex-1 font-medium transition-colors",
 							isLong
 								? "bg-success text-success-foreground hover:bg-success/88"
 								: "bg-destructive text-destructive-foreground hover:bg-destructive/88",
 						)}
 					>
-						{isPending ? "Logging…" : `Log ${isLong ? "Long" : "Short"}`}
+						{isPending ? "Logging…" : `Log ${sideLabel}`}
 					</Button>
 				</div>
 			</form>

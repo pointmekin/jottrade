@@ -61,7 +61,9 @@ export function StrategyPerformance({ strategyId }: { strategyId: number }) {
 								? UNAVAILABLE
 								: `${data.winRate.toFixed(1)}%`
 						}
-						sub={data.winRate === null ? "No win or loss yet" : "Scratch excluded"}
+						sub={
+							data.winRate === null ? "No win or loss yet" : "Scratch excluded"
+						}
 						definition={
 							<p>
 								Wins over wins plus losses. Breakeven (scratch) trades are left

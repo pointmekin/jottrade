@@ -18,10 +18,13 @@ vi.mock("@tanstack/react-start", () => ({
 		return builder;
 	},
 }));
-vi.mock("@tanstack/react-start/server", () => ({
-	getRequestHeaders: () => new Headers(),
+vi.mock("@/lib/auth", () => ({
+	requireUserId: async () => {
+		const session = await mocks.session();
+		if (!session) throw new Error("Unauthorized");
+		return session.user.id;
+	},
 }));
-vi.mock("@/lib/auth", () => ({ auth: { api: { getSession: mocks.session } } }));
 
 function reply(text: string) {
 	return {

@@ -14,11 +14,7 @@ import {
 
 import { AccountKind } from "@/lib/account";
 import { AccountEntryKind } from "@/lib/account-entry";
-import {
-	type TradeConfidence,
-	type TradeSide,
-	TradeStatus,
-} from "@/lib/trade";
+import { type TradeConfidence, type TradeSide, TradeStatus } from "@/lib/trade";
 
 // --- Auth Schema (BetterAuth) ---
 

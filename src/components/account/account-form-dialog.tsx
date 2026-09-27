@@ -119,6 +119,7 @@ export function AccountFormDialog({
 		saveMutation.error instanceof Error
 			? saveMutation.error.message
 			: "The account could not be saved. Please try again.";
+	const submitLabel = account ? "Save changes" : "Create account";
 
 	return (
 		<Dialog
@@ -265,11 +266,7 @@ export function AccountFormDialog({
 								Cancel
 							</Button>
 							<Button type="submit" disabled={saveMutation.isPending}>
-								{saveMutation.isPending
-									? "Saving…"
-									: account
-										? "Save changes"
-										: "Create account"}
+								{saveMutation.isPending ? "Saving…" : submitLabel}
 							</Button>
 						</DialogFooter>
 					</form>

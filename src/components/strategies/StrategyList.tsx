@@ -74,6 +74,7 @@ export function StrategyList({
 								<Button
 									variant="ghost"
 									size="icon"
+									aria-label={`Delete ${s.name}`}
 									className="h-7 w-7 text-muted-foreground opacity-0 group-hover:text-destructive group-hover:opacity-100"
 									onClick={(e) => e.stopPropagation()}
 								>

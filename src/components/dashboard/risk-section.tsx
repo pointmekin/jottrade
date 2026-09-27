@@ -1,5 +1,5 @@
+import { lazy, Suspense } from "react";
 import { SectionHeading } from "@/components/app-page-header";
-import { PerformanceCharts } from "@/components/dashboard/PerformanceCharts";
 import { RiskMetrics } from "@/components/dashboard/RiskMetrics";
 import { MetricCardSkeleton } from "@/components/metric-card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,8 +8,27 @@ import type { getAdvancedAnalytics } from "@/server/getAdvancedAnalytics";
 
 type AdvancedAnalytics = Awaited<ReturnType<typeof getAdvancedAnalytics>>;
 
+const PerformanceCharts = lazy(() =>
+	import("@/components/dashboard/PerformanceCharts").then((module) => ({
+		default: module.PerformanceCharts,
+	})),
+);
+
 const METRICS = ["sharpe", "drawdown", "payoff", "hold"];
 const CHARTS = ["strategy", "symbol", "day", "hour"];
+
+function ChartsSkeleton() {
+	return (
+		<div className="grid grid-cols-1 gap-4 md:grid-cols-2" aria-hidden="true">
+			{CHARTS.map((key) => (
+				<div key={key} className="surface p-3 sm:p-4">
+					<Skeleton className="h-4 w-40" />
+					<Skeleton className="mt-4 h-48 w-full" />
+				</div>
+			))}
+		</div>
+	);
+}
 
 function RiskSectionSkeleton() {
 	return (
@@ -19,14 +38,7 @@ function RiskSectionSkeleton() {
 					<MetricCardSkeleton key={key} />
 				))}
 			</div>
-			<div className="grid grid-cols-1 gap-4 md:grid-cols-2" aria-hidden="true">
-				{CHARTS.map((key) => (
-					<div key={key} className="surface p-3 sm:p-4">
-						<Skeleton className="h-4 w-40" />
-						<Skeleton className="mt-4 h-48 w-full" />
-					</div>
-				))}
-			</div>
+			<ChartsSkeleton />
 		</>
 	);
 }
@@ -56,12 +68,14 @@ export function RiskSection({
 			{data ? (
 				<>
 					<RiskMetrics metrics={data.riskMetrics} />
-					<PerformanceCharts
-						byStrategy={data.byStrategy}
-						bySymbol={data.bySymbol}
-						byDayOfWeek={data.byDayOfWeek}
-						byHour={data.byHour}
-					/>
+					<Suspense fallback={<ChartsSkeleton />}>
+						<PerformanceCharts
+							byStrategy={data.byStrategy}
+							bySymbol={data.bySymbol}
+							byDayOfWeek={data.byDayOfWeek}
+							byHour={data.byHour}
+						/>
+					</Suspense>
 				</>
 			) : (
 				<RiskSectionSkeleton />
