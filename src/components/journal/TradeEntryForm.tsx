@@ -21,8 +21,9 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { accountsQueryKey, useAccounts } from "@/hooks/use-accounts";
+import { useAccounts } from "@/hooks/use-accounts";
 import { localDateTimeToIso, toDateTimeLocalValue } from "@/lib/date";
+import { invalidateTradeQueries } from "@/lib/trade-queries";
 import { cn } from "@/lib/utils";
 import { createTrade } from "@/server/tradeActions";
 
@@ -94,8 +95,7 @@ export function TradeEntryForm({ onSuccess, onCancel }: TradeEntryFormProps) {
 			} as never);
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["trades"] });
-			queryClient.invalidateQueries({ queryKey: accountsQueryKey });
+			invalidateTradeQueries(queryClient);
 			form.reset();
 			onSuccess?.();
 		},

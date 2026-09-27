@@ -147,5 +147,6 @@ describe("DeleteAccountDialog", () => {
 		);
 		expect(invalidatedKeys).toContainEqual(["accounts"]);
 		expect(invalidatedKeys).toContainEqual(["trades"]);
+		expect(invalidatedKeys).toContainEqual(["strategy-performance"]);
 	});
 });
