@@ -52,7 +52,9 @@ export function useSpeechInput(onTranscript: (text: string) => void) {
 	const recognition = useRef<Recognition | null>(null);
 	const onDevice = useRef(false);
 	const handleTranscript = useRef(onTranscript);
-	handleTranscript.current = onTranscript;
+	useEffect(() => {
+		handleTranscript.current = onTranscript;
+	});
 
 	// Resolved after mount so the server and the client render the same markup.
 	useEffect(() => {
