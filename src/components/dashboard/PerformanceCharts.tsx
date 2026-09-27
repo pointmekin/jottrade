@@ -7,20 +7,17 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
+import type { GroupSummary } from "@/lib/analytics";
+import { formatMoney } from "@/lib/currency";
 
-type GroupStats = {
-	name: string;
-	avgPnl: number;
-	totalPnl: number;
-	winRate: number;
-	count: number;
-};
+type GroupStats = GroupSummary & { name: string };
 
 interface PerformanceChartsProps {
 	byStrategy: GroupStats[];
 	bySymbol: GroupStats[];
 	byDayOfWeek: GroupStats[];
 	byHour: GroupStats[];
+	currency: string;
 }
 
 const POSITIVE_COLOR = "var(--success)";
@@ -30,10 +27,12 @@ function PnLBar({
 	data,
 	dataKey = "avgPnl",
 	name,
+	currency,
 }: {
 	data: GroupStats[];
 	dataKey?: keyof GroupStats;
 	name: string;
+	currency: string;
 }) {
 	return (
 		<div className="surface p-3 sm:p-4">
@@ -81,16 +80,20 @@ function PnLBar({
 							color: "var(--popover-foreground)",
 							fontFamily: "var(--font-mono)",
 						}}
-						formatter={(val) =>
-							val !== undefined
-								? [`$${Number(val).toFixed(2)}`, "Avg P&L"]
-								: ["", "Avg P&L"]
-						}
+						formatter={(val, _name, item) => {
+							const group = item.payload as GroupStats;
+							const winRate =
+								group.winRate === null ? "—" : `${group.winRate.toFixed(0)}%`;
+							return [
+								`${formatMoney(Number(val), currency)} · ${group.count} trades · ${winRate} win`,
+								"Avg P&L",
+							];
+						}}
 					/>
 					<Bar dataKey={dataKey as string} radius={[4, 4, 0, 0]}>
-						{data.map((entry) => (
+						{data.map((entry, index) => (
 							<Cell
-								key={entry.name}
+								key={`${entry.name}-${index}`}
 								fill={
 									(entry[dataKey] as number) >= 0
 										? POSITIVE_COLOR
@@ -110,13 +113,26 @@ export function PerformanceCharts({
 	bySymbol,
 	byDayOfWeek,
 	byHour,
+	currency,
 }: PerformanceChartsProps) {
 	return (
 		<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-			<PnLBar data={byStrategy} name="Avg P&L by strategy" />
-			<PnLBar data={bySymbol} name="Avg P&L by symbol (top 10)" />
-			<PnLBar data={byDayOfWeek} name="Avg P&L by day of week" />
-			<PnLBar data={byHour} name="Avg P&L by entry hour" />
+			<PnLBar
+				data={byStrategy}
+				name="Avg P&L by strategy"
+				currency={currency}
+			/>
+			<PnLBar
+				data={bySymbol}
+				name="Avg P&L by symbol (top 10)"
+				currency={currency}
+			/>
+			<PnLBar
+				data={byDayOfWeek}
+				name="Avg P&L by day of week"
+				currency={currency}
+			/>
+			<PnLBar data={byHour} name="Avg P&L by entry hour" currency={currency} />
 		</div>
 	);
 }

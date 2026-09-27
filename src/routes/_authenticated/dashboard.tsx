@@ -7,12 +7,17 @@ import {
 	useSearch,
 } from "@tanstack/react-router";
 import { ArrowRight, Crosshair, Plus, Wallet } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { z } from "zod";
 import { AppPageHeader, SectionHeading } from "@/components/app-page-header";
-import { EquityCurveChart } from "@/components/dashboard/DashboardCharts";
+import {
+	EQUITY_SERIES_LABEL,
+	EquityCurveChart,
+	EquitySeries,
+} from "@/components/dashboard/DashboardCharts";
 import { PerformanceCharts } from "@/components/dashboard/PerformanceCharts";
 import { RiskMetrics } from "@/components/dashboard/RiskMetrics";
+import { MetricLabel } from "@/components/metric-label";
 import { PeriodPicker } from "@/components/period-picker";
 import { SetupCalculator } from "@/components/tools/SetupCalculator";
 import { Button } from "@/components/ui/button";
@@ -48,7 +53,7 @@ const EMPTY_STATS: TradeStats = {
 	totalBalance: 0,
 	activeTrades: 0,
 	totalPnL: 0,
-	winRate: 0,
+	winRate: null,
 	profitFactor: null,
 	totalTrades: 0,
 	winningTrades: 0,
@@ -64,6 +69,9 @@ function Dashboard() {
 	const currency = useCurrency();
 	const { activeAccount } = useAccounts();
 	const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+	const [equitySeries, setEquitySeries] = useState<EquitySeries>(
+		EquitySeries.Balance,
+	);
 
 	const selection: PeriodSelection = useMemo(
 		() => ({ preset: search.period, from: search.from, to: search.to }),
@@ -182,7 +190,13 @@ function Dashboard() {
 						aria-label="Account summary"
 					>
 						<div className="metric-cell">
-							<p className="field-label">Account balance</p>
+							<MetricLabel label="Account balance">
+								<p>
+									{
+										"Deposits minus withdrawals, plus trading P&L and broker adjustments, up to the end of the period."
+									}
+								</p>
+							</MetricLabel>
 							<p className="metric-value mt-1">
 								{formatMoney(stats.totalBalance, currency)}
 							</p>
@@ -193,7 +207,17 @@ function Dashboard() {
 							</p>
 						</div>
 						<div className="metric-cell">
-							<p className="field-label">Net P&amp;L</p>
+							<MetricLabel label="Net P&L">
+								<p>
+									{
+										"Net P&L of trades closed in the period, plus broker adjustments such as swaps and dividends."
+									}
+								</p>
+								<p>
+									Deposits and withdrawals are not profit. They change the
+									balance only.
+								</p>
+							</MetricLabel>
 							<p className={`metric-value mt-1 ${pnlTone}`}>
 								{formatMoney(stats.totalPnL, currency, { signed: true })}
 							</p>
@@ -202,8 +226,19 @@ function Dashboard() {
 							</p>
 						</div>
 						<div className="metric-cell">
-							<p className="field-label">Win rate</p>
-							<p className="metric-value mt-1">{stats.winRate.toFixed(1)}%</p>
+							<MetricLabel label="Win rate">
+								<p>
+									Wins over wins plus losses. Breakeven (scratch) trades are
+									left out of both.
+								</p>
+								<p>
+									PF is profit factor: gross profit over gross loss. It shows —
+									when no trade lost.
+								</p>
+							</MetricLabel>
+							<p className="metric-value mt-1">
+								{stats.winRate === null ? "—" : `${stats.winRate.toFixed(1)}%`}
+							</p>
 							<p className="mt-1 text-xs text-muted-foreground">
 								{stats.winningTrades}W / {stats.losingTrades}L
 								{stats.breakevenTrades > 0 &&
@@ -227,20 +262,49 @@ function Dashboard() {
 				<section className="surface mt-6 p-3 sm:p-4 md:p-5">
 					<SectionHeading
 						title="Equity curve"
-						detail={`${stats.totalTrades} trades · ${periodLabel} · ${currency}`}
+						detail={
+							equitySeries === EquitySeries.Performance
+								? `Trading P&L only, no deposits or withdrawals · ${periodLabel} · ${currency}`
+								: `${stats.totalTrades} trades · ${periodLabel} · ${currency}`
+						}
 						actions={
-							<Button asChild variant="outline" size="sm">
-								<Link to="/journal">
-									Open journal <ArrowRight className="size-4" />
-								</Link>
-							</Button>
+							<div className="flex items-center gap-2">
+								<fieldset className="flex gap-1">
+									<legend className="sr-only">Curve</legend>
+									{Object.values(EquitySeries).map((series) => (
+										<Button
+											key={series}
+											size="sm"
+											variant="outline"
+											className={
+												equitySeries === series
+													? "border-ring bg-accent text-accent-foreground"
+													: "text-muted-foreground"
+											}
+											aria-pressed={equitySeries === series}
+											onClick={() => setEquitySeries(series)}
+										>
+											{EQUITY_SERIES_LABEL[series]}
+										</Button>
+									))}
+								</fieldset>
+								<Button asChild variant="outline" size="sm">
+									<Link to="/journal">
+										Open journal <ArrowRight className="size-4" />
+									</Link>
+								</Button>
+							</div>
 						}
 					/>
 					<div className="mt-3 h-[18rem] sm:mt-4 sm:h-[20rem] md:h-[22rem]">
 						{isLoading ? (
 							<Skeleton className="h-full w-full" />
 						) : equityData.length > 0 ? (
-							<EquityCurveChart data={equityData} currency={currency} />
+							<EquityCurveChart
+								data={equityData}
+								series={equitySeries}
+								currency={currency}
+							/>
 						) : (
 							<div className="empty-field h-full border-0">
 								<Crosshair className="mb-4 size-6 text-muted-foreground" />
@@ -261,30 +325,35 @@ function Dashboard() {
 
 				{(isAdvancedLoading || advanced) && (
 					<section className="mt-6 space-y-4 sm:mt-8">
-						<SectionHeading title="Risk and performance" detail={periodLabel} />
+						<SectionHeading
+							title="Risk and performance"
+							detail={
+								advanced
+									? `${advanced.riskMetrics.closedTrades} closed trades · ${periodLabel} · ${currency}`
+									: periodLabel
+							}
+						/>
 						{isAdvancedLoading ? (
 							<>
 								<MetricSkeletonRow cards />
 								<PerformanceSkeleton />
 							</>
 						) : (
-							<>
-								<RiskMetrics
-									sharpe={(advanced as any).riskMetrics.sharpe}
-									maxDrawdown={(advanced as any).riskMetrics.maxDrawdown}
-									avgRR={(advanced as any).riskMetrics.avgRR}
-									avgHoldTimeHours={
-										(advanced as any).riskMetrics.avgHoldTimeHours
-									}
-									currency={currency}
-								/>
-								<PerformanceCharts
-									byStrategy={(advanced as any).byStrategy}
-									bySymbol={(advanced as any).bySymbol}
-									byDayOfWeek={(advanced as any).byDayOfWeek}
-									byHour={(advanced as any).byHour}
-								/>
-							</>
+							advanced && (
+								<>
+									<RiskMetrics
+										metrics={advanced.riskMetrics}
+										currency={currency}
+									/>
+									<PerformanceCharts
+										byStrategy={advanced.byStrategy}
+										bySymbol={advanced.bySymbol}
+										byDayOfWeek={advanced.byDayOfWeek}
+										byHour={advanced.byHour}
+										currency={currency}
+									/>
+								</>
+							)
 						)}
 					</section>
 				)}

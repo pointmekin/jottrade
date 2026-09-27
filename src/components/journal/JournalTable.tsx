@@ -185,7 +185,7 @@ const buildJournalColumns = (currency: string): JournalColumn[] => [
 	},
 	{
 		id: "roi",
-		header: "ROI",
+		header: "Price return",
 		trade: (trade) => {
 			const roi = toNumber(trade.returnPercent);
 			if (roi === null) return <Dash />;
@@ -286,7 +286,7 @@ function TradeCard({ trade, currency }: { trade: Trade; currency: string }) {
 					className={`mt-2 text-right font-data text-xs font-medium ${returnPercent >= 0 ? "text-success" : "text-destructive"}`}
 				>
 					{returnPercent >= 0 ? "+" : ""}
-					{returnPercent.toFixed(2)}% ROI
+					{returnPercent.toFixed(2)}% price return
 				</p>
 			)}
 		</Link>

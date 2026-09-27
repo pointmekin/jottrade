@@ -5,15 +5,30 @@ import {
 	LineChart,
 	Pie,
 	PieChart,
+	ReferenceLine,
 	ResponsiveContainer,
 	Tooltip,
 	XAxis,
 	YAxis,
 } from "recharts";
+import type { EquityPoint } from "@/lib/analytics";
 import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
 
+export const EquitySeries = {
+	Balance: "balance",
+	Performance: "performance",
+} as const;
+
+export type EquitySeries = (typeof EquitySeries)[keyof typeof EquitySeries];
+
+export const EQUITY_SERIES_LABEL: Record<EquitySeries, string> = {
+	[EquitySeries.Balance]: "Balance",
+	[EquitySeries.Performance]: "Trading P&L",
+};
+
 interface EquityCurveProps {
-	data: { date: string; balance: number }[];
+	data: EquityPoint[];
+	series?: EquitySeries;
 	currency?: string;
 }
 
@@ -32,6 +47,7 @@ function formatAxisDate(value: string) {
 
 export function EquityCurveChart({
 	data,
+	series = EquitySeries.Balance,
 	currency = DEFAULT_CURRENCY,
 }: EquityCurveProps) {
 	const formatBalance = (value: number) =>
@@ -85,12 +101,15 @@ export function EquityCurveChart({
 						itemStyle={{ color: "var(--ring)" }}
 						formatter={(value) => [
 							`${formatMoney(Number(value), currency)} ${currency}`,
-							"Balance",
+							EQUITY_SERIES_LABEL[series],
 						]}
 					/>
+					{series === EquitySeries.Performance && (
+						<ReferenceLine y={0} stroke="var(--muted-foreground)" />
+					)}
 					<Line
 						type="monotone"
-						dataKey="balance"
+						dataKey={series}
 						stroke="var(--ring)"
 						strokeWidth={2}
 						dot={false}

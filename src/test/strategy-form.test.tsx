@@ -10,11 +10,10 @@ vi.mock("@/hooks/use-accounts", () => ({
 	useAccounts: () => ({ activeAccount: undefined }),
 }));
 
-vi.mock("@/server/getTrades", () => ({ getTrades: vi.fn() }));
-
 vi.mock("@/server/strategyActions", () => ({
 	createStrategy: vi.fn(),
 	updateStrategy: vi.fn(),
+	getStrategyPerformance: vi.fn(),
 }));
 
 function Wrapper({ children }: { children: ReactNode }) {
