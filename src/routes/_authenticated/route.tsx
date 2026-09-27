@@ -1,4 +1,9 @@
-import { createFileRoute, Navigate, Outlet } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	Navigate,
+	Outlet,
+	useHydrated,
+} from "@tanstack/react-router";
 import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "@/lib/auth-client";
 
@@ -8,8 +13,10 @@ export const Route = createFileRoute("/_authenticated")({
 
 function RouteComponent() {
 	const { data: session, isPending } = authClient.useSession();
+	// The server has no session, so the first client render must match it.
+	const isHydrated = useHydrated();
 
-	if (isPending) {
+	if (!isHydrated || isPending) {
 		return (
 			<div className="flex items-center justify-center h-screen w-full">
 				<Spinner className="size-10" />

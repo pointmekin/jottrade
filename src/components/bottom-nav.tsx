@@ -1,4 +1,9 @@
-import { Link, useLocation, useRouter } from "@tanstack/react-router";
+import {
+	Link,
+	useHydrated,
+	useLocation,
+	useRouter,
+} from "@tanstack/react-router";
 import { Check, Crosshair, LogOut, Plus, Search, Settings } from "lucide-react";
 import { useState } from "react";
 import { AccountFormDialog } from "@/components/account/account-form-dialog";
@@ -21,6 +26,7 @@ export function BottomNav({ onOpenCommands }: { onOpenCommands?: () => void }) {
 	const location = useLocation();
 	const router = useRouter();
 	const session = authClient.useSession();
+	const isHydrated = useHydrated();
 	const [sheetOpen, setSheetOpen] = useState(false);
 	const [accountFormOpen, setAccountFormOpen] = useState(false);
 	const { accounts, activeAccount, setActiveAccount } = useAccounts();
@@ -33,7 +39,9 @@ export function BottomNav({ onOpenCommands }: { onOpenCommands?: () => void }) {
 			fetchOptions: { onSuccess: () => router.navigate({ to: "/sign-in" }) },
 		});
 	};
-	const userInitial = session.data?.user.name?.charAt(0).toUpperCase() ?? "U";
+	const userInitial = isHydrated
+		? (session.data?.user.name?.charAt(0).toUpperCase() ?? "U")
+		: "";
 
 	return (
 		<>
