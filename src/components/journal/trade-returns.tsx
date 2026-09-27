@@ -1,66 +1,50 @@
-import type { ReactNode } from "react";
-import { MetricLabel } from "@/components/metric-label";
-import { type AccountReturn, TradeStatus } from "@/lib/analytics";
+import { MetricCard } from "@/components/metric-card";
+import { useCurrency } from "@/hooks/use-currency";
 import { formatMoney } from "@/lib/currency";
+import { MetricVariant, toneOf, UNAVAILABLE } from "@/lib/metric";
+import type { AccountReturn } from "@/lib/risk-metrics";
+import { type Trade, TradeStatus } from "@/lib/trade";
 
 interface TradeReturnsProps {
-	status: string | null;
-	returnPercent: string | null;
+	trade: Pick<Trade, "status" | "returnPercent">;
 	accountReturn: AccountReturn;
-	currency: string;
 }
 
 const NOT_CLOSED = "Trade is not closed";
 
-function ReturnCell({
-	label,
-	definition,
-	percent,
-	sub,
-}: {
-	label: string;
-	definition: ReactNode;
-	percent: number | null;
-	sub: string;
-}) {
-	let color = "";
-	if (percent !== null)
-		color = percent >= 0 ? "text-success" : "text-destructive";
-	return (
-		<div className="surface p-3">
-			<MetricLabel label={label}>{definition}</MetricLabel>
-			<p className={`mt-1 font-data text-sm font-semibold ${color}`}>
-				{percent === null ? "—" : `${percent.toFixed(2)}%`}
-			</p>
-			<p className="mt-1 text-xs text-muted-foreground">{sub}</p>
-		</div>
-	);
+const formatPercent = (percent: number | null) =>
+	percent === null ? UNAVAILABLE : `${percent.toFixed(2)}%`;
+
+function priceReturnSub(isClosed: boolean, priceReturn: number | null) {
+	if (!isClosed) return NOT_CLOSED;
+	if (priceReturn === null) return "Needs an entry and an exit price";
+	return "Entry to exit price";
 }
 
-export function TradeReturns({
-	status,
-	returnPercent,
-	accountReturn,
-	currency,
-}: TradeReturnsProps) {
-	const isClosed = status === TradeStatus.Closed;
-	const priceReturn = returnPercent === null ? null : Number(returnPercent);
+function accountReturnSub(
+	isClosed: boolean,
+	{ percent, balanceAtEntry }: AccountReturn,
+	currency: string,
+) {
+	if (!isClosed) return NOT_CLOSED;
+	if (percent === null) return "No positive balance at entry";
+	return `Of ${formatMoney(balanceAtEntry, currency)} at entry`;
+}
 
-	let priceSub = "Entry to exit price";
-	if (priceReturn === null)
-		priceSub = isClosed ? "Needs an entry and an exit price" : NOT_CLOSED;
-
-	let accountSub = `Of ${formatMoney(accountReturn.balanceAtEntry, currency)} at entry`;
-	if (!isClosed) accountSub = NOT_CLOSED;
-	else if (accountReturn.percent === null)
-		accountSub = "No positive balance at entry";
+export function TradeReturns({ trade, accountReturn }: TradeReturnsProps) {
+	const currency = useCurrency();
+	const isClosed = trade.status === TradeStatus.Closed;
+	const priceReturn =
+		trade.returnPercent === null ? null : Number(trade.returnPercent);
 
 	return (
 		<section className="grid grid-cols-2 gap-3" aria-label="Trade returns">
-			<ReturnCell
+			<MetricCard
+				variant={MetricVariant.Compact}
 				label="Price return"
-				percent={priceReturn}
-				sub={priceSub}
+				value={formatPercent(priceReturn)}
+				tone={toneOf(priceReturn)}
+				sub={priceReturnSub(isClosed, priceReturn)}
 				definition={
 					<p>
 						The move from entry to exit as a percent of the entry price. Fees,
@@ -68,10 +52,12 @@ export function TradeReturns({
 					</p>
 				}
 			/>
-			<ReturnCell
+			<MetricCard
+				variant={MetricVariant.Compact}
 				label="Account return"
-				percent={accountReturn.percent}
-				sub={accountSub}
+				value={formatPercent(accountReturn.percent)}
+				tone={toneOf(accountReturn.percent)}
+				sub={accountReturnSub(isClosed, accountReturn, currency)}
 				definition={
 					<p>
 						{

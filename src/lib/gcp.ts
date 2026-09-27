@@ -70,13 +70,15 @@ export async function createSignedUploadUrl(
 	const credential = `${sa.client_email}/${credentialScope}`;
 
 	// Canonical query string — params sorted alphabetically by key
-	const qp: [string, string][] = [
-		["X-Goog-Algorithm", "GOOG4-RSA-SHA256"],
-		["X-Goog-Credential", credential],
-		["X-Goog-Date", datetimeStr],
-		["X-Goog-Expires", String(expiresInSeconds)],
-		["X-Goog-SignedHeaders", "content-type;host"],
-	].sort(([a], [b]) => a.localeCompare(b));
+	const qp = (
+		[
+			["X-Goog-Algorithm", "GOOG4-RSA-SHA256"],
+			["X-Goog-Credential", credential],
+			["X-Goog-Date", datetimeStr],
+			["X-Goog-Expires", String(expiresInSeconds)],
+			["X-Goog-SignedHeaders", "content-type;host"],
+		] satisfies [string, string][]
+	).sort(([a], [b]) => a.localeCompare(b));
 
 	const canonicalQuery = qp
 		.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)

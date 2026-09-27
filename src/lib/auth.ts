@@ -1,12 +1,11 @@
+import { getRequestHeaders } from "@tanstack/react-start/server";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { db } from "@/db";
+
 export const auth = betterAuth({
-	//...your config
-	database: drizzleAdapter(db, {
-		provider: "pg", // or "mysql", "sqlite"
-	}),
+	database: drizzleAdapter(db, { provider: "pg" }),
 	emailAndPassword: {
 		enabled: true,
 	},
@@ -16,6 +15,12 @@ export const auth = betterAuth({
 			clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
 		},
 	},
-
-	plugins: [tanstackStartCookies()], // make sure this is the last plugin in the array
+	// tanstackStartCookies must stay the last plugin.
+	plugins: [tanstackStartCookies()],
 });
+
+export async function requireUserId(): Promise<string> {
+	const session = await auth.api.getSession({ headers: getRequestHeaders() });
+	if (!session) throw new Error("Unauthorized");
+	return session.user.id;
+}

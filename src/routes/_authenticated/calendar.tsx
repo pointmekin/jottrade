@@ -13,6 +13,7 @@ import { CalendarSkeleton } from "@/components/calendar/CalendarSkeleton";
 import { Button } from "@/components/ui/button";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useCurrency } from "@/hooks/use-currency";
+import { QueryKey } from "@/lib/query-keys";
 import { type CalendarDay, getCalendarData } from "@/server/calendarActions";
 
 const calendarSearchSchema = z.object({
@@ -41,7 +42,7 @@ function CalendarPage() {
 
 	const { data: calendarData = {} as Record<string, CalendarDay>, isLoading } =
 		useQuery({
-			queryKey: ["calendar", activeAccount?.id, year, month, timeZone],
+			queryKey: [QueryKey.Calendar, activeAccount?.id, year, month, timeZone],
 			queryFn: () =>
 				getCalendarData({
 					data: {

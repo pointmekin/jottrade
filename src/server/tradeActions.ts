@@ -1,19 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
-// import { getWebRequest } from 'vinxi/http';
-import { getRequestHeaders } from "@tanstack/react-start/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { portfolios, trades } from "@/db/schema";
-import { auth } from "@/lib/auth";
+import { requireUserId } from "@/lib/auth";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { calculateInstrumentPnL, shouldRecalculatePnl } from "@/lib/finance";
+import { TradeConfidence, TradeSide, TradeStatus } from "@/lib/trade";
 
 const tradeSchema = z.object({
 	symbol: z.string().min(1),
-	side: z.enum(["LONG", "SHORT"]),
-	entryDate: z.string().transform((str) => new Date(str)), // Input as string from form
-	entryPrice: z.string(), // Ensure string for numeric
+	side: z.enum(TradeSide),
+	entryDate: z.string().transform((str) => new Date(str)),
+	entryPrice: z.string(),
 	targetPrice: z
 		.string()
 		.trim()
@@ -27,8 +26,6 @@ const tradeSchema = z.object({
 	quantity: z.string(),
 	notes: z.string().optional(),
 	portfolioId: z.number().int().positive(),
-
-	// Optional Exit fields for "Closed" entry or updates
 	exitDate: z
 		.string()
 		.optional()
@@ -41,20 +38,14 @@ const tradeSchema = z.object({
 		.string()
 		.optional()
 		.transform((str) => (str?.trim() ? str : "0")),
-	status: z.string().optional(), // OPEN, CLOSED, PENDING
+	status: z.enum(TradeStatus).optional(),
 });
 
-// For update, we might need ID
 const updateTradeSchema = tradeSchema.partial().extend({
 	id: z.number(),
-	confidence: z.enum(["HIGH", "MEDIUM", "LOW"]).optional(),
+	confidence: z.enum(TradeConfidence).optional(),
 	mistake: z.string().optional(),
 	setupId: z.number().nullable().optional(),
-	// notes already in tradeSchema
-});
-
-const deleteTradeSchema = z.object({
-	id: z.number(),
 });
 
 async function requireOwnedPortfolio(userId: string, portfolioId: number) {
@@ -68,173 +59,99 @@ async function requireOwnedPortfolio(userId: string, portfolioId: number) {
 
 export const createTrade = createServerFn({ method: "POST" })
 	.validator(tradeSchema)
-	.handler(async ({ data: validatedData }) => {
-		// const request = getWebRequest();
-		const session = await auth.api.getSession({
-			headers: getRequestHeaders(),
-		});
+	.handler(async ({ data }) => {
+		const userId = await requireUserId();
+		const portfolio = await requireOwnedPortfolio(userId, data.portfolioId);
 
-		if (!session) {
-			throw new Error("Unauthorized");
-		}
-
-		const portfolioId = validatedData.portfolioId;
-		const portfolio = await requireOwnedPortfolio(session.user.id, portfolioId);
-
-		// Calculate P&L if exit exists
-		let netPnl: string | undefined;
-		let returnPercent: string | undefined;
-		let status = validatedData.status || "OPEN";
-
-		if (validatedData.exitPrice && validatedData.entryPrice) {
-			const pnl = calculateInstrumentPnL({
-				symbol: validatedData.symbol,
-				accountCurrency: portfolio.currency ?? DEFAULT_CURRENCY,
-				side: validatedData.side,
-				entryPrice: Number(validatedData.entryPrice),
-				exitPrice: Number(validatedData.exitPrice),
-				quantity: Number(validatedData.quantity),
-				feesAccount: Number(validatedData.fees),
-			});
-			netPnl = pnl.netPnl;
-			returnPercent = pnl.returnPercent;
-			if (!validatedData.status) status = "CLOSED";
-		}
+		const isClosing = Boolean(data.exitPrice && data.entryPrice);
+		const pnl = isClosing
+			? calculateInstrumentPnL({
+					symbol: data.symbol,
+					accountCurrency: portfolio.currency ?? DEFAULT_CURRENCY,
+					side: data.side,
+					entryPrice: Number(data.entryPrice),
+					exitPrice: Number(data.exitPrice),
+					quantity: Number(data.quantity),
+					feesAccount: Number(data.fees),
+				})
+			: undefined;
 
 		await db.insert(trades).values({
-			userId: session.user.id,
-			portfolioId: portfolioId,
-			symbol: validatedData.symbol,
-			side: validatedData.side,
-			entryDate: validatedData.entryDate,
-			entryPrice: validatedData.entryPrice,
-			targetPrice: validatedData.targetPrice || null,
-			quantity: validatedData.quantity,
-			notes: validatedData.notes,
-
-			exitDate: validatedData.exitDate,
-			exitPrice: validatedData.exitPrice,
-			fees: validatedData.fees,
-
-			netPnl,
-			returnPercent,
-			status,
+			...data,
+			userId,
+			targetPrice: data.targetPrice || null,
+			netPnl: pnl?.netPnl,
+			returnPercent: pnl?.returnPercent,
+			status:
+				data.status ?? (isClosing ? TradeStatus.Closed : TradeStatus.Open),
 		});
 
 		return { success: true };
 	});
 
-export const updateTrade = createServerFn({ method: "POST" }).handler(
-	async (ctx: any) => {
-		const data = ctx.data as z.infer<typeof updateTradeSchema>;
-		const validatedData = updateTradeSchema.parse(data);
-		const session = await auth.api.getSession({
-			headers: getRequestHeaders(),
-		});
-
-		if (!session) {
-			throw new Error("Unauthorized");
-		}
-
-		// Fetch existing trade to merge/recalc?
-		// For simplicity, we assume frontend sends necessary data or we just update fields present.
-		// But P&L calc needs entry price if we are just updating exit price.
-		// So let's fetch it.
-		const [existingTrade] = await db
+export const updateTrade = createServerFn({ method: "POST" })
+	.validator(updateTradeSchema)
+	.handler(async ({ data: { id, ...changes } }) => {
+		const userId = await requireUserId();
+		const [existing] = await db
 			.select()
 			.from(trades)
-			.where(
-				and(
-					eq(trades.id, validatedData.id),
-					eq(trades.userId, session.user.id),
-				),
-			);
+			.where(and(eq(trades.id, id), eq(trades.userId, userId)));
+		if (!existing) throw new Error("Trade not found");
 
-		if (!existingTrade) throw new Error("Trade not found");
+		const portfolio = await requireOwnedPortfolio(
+			userId,
+			changes.portfolioId ?? existing.portfolioId,
+		);
+		const merged = {
+			symbol: changes.symbol || existing.symbol,
+			side: changes.side || existing.side,
+			entryPrice: changes.entryPrice || existing.entryPrice,
+			exitPrice: changes.exitPrice || existing.exitPrice,
+			quantity: changes.quantity || existing.quantity,
+			fees: changes.fees || existing.fees || "0",
+		};
 
-		const portfolioId = validatedData.portfolioId ?? existingTrade.portfolioId;
-		const portfolio = await requireOwnedPortfolio(session.user.id, portfolioId);
-
-		const side = validatedData.side || (existingTrade.side as "LONG" | "SHORT");
-		const entryPrice = validatedData.entryPrice || existingTrade.entryPrice;
-		const exitPrice = validatedData.exitPrice || existingTrade.exitPrice;
-		const quantity = validatedData.quantity || existingTrade.quantity;
-		const fees = validatedData.fees || existingTrade.fees;
-
-		let netPnl = existingTrade.netPnl;
-		let returnPercent = existingTrade.returnPercent;
-		let status = validatedData.status || existingTrade.status;
-
-		if (
-			shouldRecalculatePnl(existingTrade.importHash) &&
-			exitPrice &&
-			entryPrice &&
-			quantity
-		) {
-			const pnl = calculateInstrumentPnL({
-				symbol: validatedData.symbol || existingTrade.symbol,
+		let { netPnl, returnPercent } = existing;
+		let status = changes.status ?? existing.status;
+		const canRecalculate =
+			shouldRecalculatePnl(existing.importHash) &&
+			merged.exitPrice &&
+			merged.entryPrice &&
+			merged.quantity;
+		if (canRecalculate) {
+			({ netPnl, returnPercent } = calculateInstrumentPnL({
+				symbol: merged.symbol,
 				accountCurrency: portfolio.currency ?? DEFAULT_CURRENCY,
-				side,
-				entryPrice: Number(entryPrice),
-				exitPrice: Number(exitPrice),
-				quantity: Number(quantity),
-				feesAccount: Number(fees || "0"),
-			});
-			netPnl = pnl.netPnl;
-			returnPercent = pnl.returnPercent;
-			// Auto-close if exit details filled?
-			if (validatedData.exitPrice && !validatedData.status) status = "CLOSED";
+				side: merged.side,
+				entryPrice: Number(merged.entryPrice),
+				exitPrice: Number(merged.exitPrice),
+				quantity: Number(merged.quantity),
+				feesAccount: Number(merged.fees),
+			}));
+			if (changes.exitPrice && !changes.status) status = TradeStatus.Closed;
 		}
-
-		// Build set object conditionally — Drizzle does NOT skip undefined in .set(), it sets to NULL.
-		const setValues: Record<string, any> = { status, netPnl, returnPercent };
-		if (validatedData.symbol !== undefined)
-			setValues.symbol = validatedData.symbol;
-		if (validatedData.side !== undefined) setValues.side = validatedData.side;
-		if (validatedData.entryDate !== undefined)
-			setValues.entryDate = validatedData.entryDate;
-		if (validatedData.entryPrice !== undefined)
-			setValues.entryPrice = validatedData.entryPrice;
-		if (validatedData.targetPrice !== undefined)
-			setValues.targetPrice = validatedData.targetPrice || null;
-		if (validatedData.quantity !== undefined)
-			setValues.quantity = validatedData.quantity;
-		if (validatedData.exitDate !== undefined)
-			setValues.exitDate = validatedData.exitDate;
-		if (validatedData.exitPrice !== undefined)
-			setValues.exitPrice = validatedData.exitPrice;
-		if (validatedData.fees !== undefined) setValues.fees = validatedData.fees;
-		if (validatedData.portfolioId !== undefined)
-			setValues.portfolioId = validatedData.portfolioId;
-		if (validatedData.notes !== undefined)
-			setValues.notes = validatedData.notes;
-		// Psychology fields
-		if (validatedData.confidence !== undefined)
-			setValues.confidence = validatedData.confidence;
-		if (validatedData.mistake !== undefined)
-			setValues.mistake = validatedData.mistake;
-		if ("setupId" in validatedData) setValues.setupId = validatedData.setupId; // allow null
 
 		await db
 			.update(trades)
-			.set(setValues)
-			.where(eq(trades.id, validatedData.id));
+			.set({
+				...changes,
+				targetPrice: changes.targetPrice === "" ? null : changes.targetPrice,
+				status,
+				netPnl,
+				returnPercent,
+			})
+			.where(eq(trades.id, id));
 
 		return { success: true };
-	},
-);
+	});
 
 export const deleteTrade = createServerFn({ method: "POST" })
-	.validator(deleteTradeSchema)
+	.validator(z.object({ id: z.number() }))
 	.handler(async ({ data }) => {
-		const session = await auth.api.getSession({
-			headers: getRequestHeaders(),
-		});
-		if (!session) throw new Error("Unauthorized");
-
+		const userId = await requireUserId();
 		await db
 			.delete(trades)
-			.where(and(eq(trades.id, data.id), eq(trades.userId, session.user.id)));
-
+			.where(and(eq(trades.id, data.id), eq(trades.userId, userId)));
 		return { success: true };
 	});

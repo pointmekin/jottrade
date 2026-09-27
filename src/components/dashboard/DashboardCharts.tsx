@@ -1,35 +1,26 @@
 import {
 	CartesianGrid,
-	Cell,
 	Line,
 	LineChart,
-	Pie,
-	PieChart,
 	ReferenceLine,
 	ResponsiveContainer,
 	Tooltip,
 	XAxis,
 	YAxis,
 } from "recharts";
+import { useCurrency } from "@/hooks/use-currency";
 import type { EquityPoint } from "@/lib/analytics";
-import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
-
-export const EquitySeries = {
-	Balance: "balance",
-	Performance: "performance",
-} as const;
-
-export type EquitySeries = (typeof EquitySeries)[keyof typeof EquitySeries];
-
-export const EQUITY_SERIES_LABEL: Record<EquitySeries, string> = {
-	[EquitySeries.Balance]: "Balance",
-	[EquitySeries.Performance]: "Trading P&L",
-};
+import { formatMoney } from "@/lib/currency";
+import { EQUITY_SERIES_LABEL, EquitySeries } from "@/lib/equity-series";
+import {
+	AXIS_TICK,
+	TOOLTIP_CONTENT_STYLE,
+	TOOLTIP_LABEL_STYLE,
+} from "./chart-theme";
 
 interface EquityCurveProps {
 	data: EquityPoint[];
-	series?: EquitySeries;
-	currency?: string;
+	series: EquitySeries;
 }
 
 const axisDateFormat = new Intl.DateTimeFormat("en-US", {
@@ -39,65 +30,38 @@ const axisDateFormat = new Intl.DateTimeFormat("en-US", {
 
 function formatAxisDate(value: string) {
 	const parsed = new Date(value);
-	if (Number.isNaN(parsed.getTime())) {
-		return value;
-	}
-	return axisDateFormat.format(parsed);
+	return Number.isNaN(parsed.getTime()) ? value : axisDateFormat.format(parsed);
 }
 
-export function EquityCurveChart({
-	data,
-	series = EquitySeries.Balance,
-	currency = DEFAULT_CURRENCY,
-}: EquityCurveProps) {
-	const formatBalance = (value: number) =>
-		formatMoney(value, currency, { maximumFractionDigits: 0 });
+export function EquityCurveChart({ data, series }: EquityCurveProps) {
+	const currency = useCurrency();
 
 	return (
 		<div className="h-full min-h-[300px] w-full font-data">
 			<ResponsiveContainer width="100%" height="100%">
-				<LineChart
-					data={data}
-					margin={{
-						top: 5,
-						right: 10,
-						left: 8,
-						bottom: 5,
-					}}
-				>
+				<LineChart data={data} margin={{ top: 5, right: 10, left: 8, bottom: 5 }}>
 					<CartesianGrid stroke="var(--border)" vertical={false} />
 					<XAxis
 						dataKey="date"
 						stroke="var(--border)"
-						tick={{
-							fill: "var(--muted-foreground)",
-							fontFamily: "var(--font-mono)",
-							fontSize: 11,
-						}}
+						tick={AXIS_TICK}
 						tickLine={false}
 						minTickGap={36}
 						tickFormatter={formatAxisDate}
 					/>
 					<YAxis
 						stroke="var(--border)"
-						tick={{
-							fill: "var(--muted-foreground)",
-							fontFamily: "var(--font-mono)",
-							fontSize: 11,
-						}}
+						tick={AXIS_TICK}
 						tickLine={false}
 						width={70}
 						domain={["auto", "auto"]}
-						tickFormatter={formatBalance}
+						tickFormatter={(value: number) =>
+							formatMoney(value, currency, { maximumFractionDigits: 0 })
+						}
 					/>
 					<Tooltip
-						contentStyle={{
-							backgroundColor: "var(--popover)",
-							borderColor: "var(--border)",
-							borderRadius: 8,
-							color: "var(--popover-foreground)",
-						}}
-						labelStyle={{ color: "var(--popover-foreground)" }}
+						contentStyle={TOOLTIP_CONTENT_STYLE}
+						labelStyle={TOOLTIP_LABEL_STYLE}
 						itemStyle={{ color: "var(--ring)" }}
 						formatter={(value) => [
 							`${formatMoney(Number(value), currency)} ${currency}`,
@@ -122,57 +86,6 @@ export function EquityCurveChart({
 					/>
 				</LineChart>
 			</ResponsiveContainer>
-		</div>
-	);
-}
-
-interface WinLossPieProps {
-	winRate: number;
-}
-
-export function WinLossPie({ winRate }: WinLossPieProps) {
-	const data = [
-		{ name: "Wins", value: winRate },
-		{ name: "Losses", value: 100 - winRate },
-	];
-	const COLORS = ["#22c55e", "#ef4444"]; // Green, Red
-
-	return (
-		<div className="w-full h-full min-h-[200px] flex flex-col items-center justify-center">
-			<ResponsiveContainer width="100%" height={200}>
-				<PieChart>
-					<Pie
-						data={data}
-						cx="50%"
-						cy="50%"
-						innerRadius={60}
-						outerRadius={80}
-						fill="#8884d8"
-						paddingAngle={5}
-						dataKey="value"
-						stroke="none"
-					>
-						{data.map((entry, index) => (
-							<Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
-						))}
-					</Pie>
-					<Tooltip
-						contentStyle={{
-							backgroundColor: "var(--popover)",
-							borderColor: "var(--border)",
-							color: "var(--popover-foreground)",
-						}}
-						labelStyle={{ color: "var(--popover-foreground)" }}
-						itemStyle={{ color: "var(--popover-foreground)" }}
-					/>
-				</PieChart>
-			</ResponsiveContainer>
-			<div className="text-center mt-2">
-				<div className="text-2xl font-bold text-foreground">
-					{winRate.toFixed(1)}%
-				</div>
-				<div className="text-xs text-muted-foreground">Win Rate</div>
-			</div>
 		</div>
 	);
 }

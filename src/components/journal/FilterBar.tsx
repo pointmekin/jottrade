@@ -13,6 +13,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { describePeriod, PeriodPreset } from "@/lib/period";
+import { QueryKey } from "@/lib/query-keys";
 import { getStrategies } from "@/server/strategyActions";
 
 // Filter state read/written to URL search params
@@ -45,7 +46,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 	const strategyLabelId = `${filterFieldsId}-strategy`;
 
 	const { data: strategies = [] } = useQuery({
-		queryKey: ["strategies"],
+		queryKey: [QueryKey.Strategies],
 		queryFn: () => getStrategies({ data: undefined }),
 	});
 

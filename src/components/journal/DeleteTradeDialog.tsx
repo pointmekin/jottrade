@@ -14,9 +14,9 @@ import {
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { invalidateTradeQueries } from "@/lib/trade-queries";
+import { invalidateTradeQueries } from "@/lib/query-keys";
 import { deleteTrade } from "@/server/tradeActions";
-import type { Trade } from "./JournalTable";
+import type { Trade } from "@/lib/trade";
 
 interface DeleteTradeDialogProps {
 	trade: Pick<Trade, "id" | "symbol" | "side" | "entryDate">;

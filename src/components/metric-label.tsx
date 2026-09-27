@@ -13,10 +13,10 @@ interface MetricLabelProps {
 	className?: string;
 }
 
-/** A metric label with its definition one tap away; a popover also works on touch. */
+/** A popover, not a tooltip, so the definition also opens on touch. */
 export function MetricLabel({ label, children, className }: MetricLabelProps) {
 	return (
-		<p className={cn("field-label flex items-center gap-1", className)}>
+		<div className={cn("field-label flex items-center gap-1", className)}>
 			{label}
 			<Popover>
 				<PopoverTrigger asChild>
@@ -35,6 +35,6 @@ export function MetricLabel({ label, children, className }: MetricLabelProps) {
 					</div>
 				</PopoverContent>
 			</Popover>
-		</p>
+		</div>
 	);
 }

@@ -4,13 +4,15 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { accountEntriesQueryKey } from "@/hooks/use-account-entries";
 import { useAccounts } from "@/hooks/use-accounts";
 import { AccountEntryKind } from "@/lib/account-entry";
 import { resolveCommandSymbol } from "@/lib/commands/aliases";
 import type { WriteIntent } from "@/lib/commands/types";
 import { resolveInstrumentSpec } from "@/lib/instruments";
-import { invalidateTradeQueries } from "@/lib/trade-queries";
+import {
+	invalidateAccountEntryQueries,
+	invalidateTradeQueries,
+} from "@/lib/query-keys";
 import { addCashFlow } from "@/server/portfolioActions";
 import { createTrade } from "@/server/tradeActions";
 
@@ -109,10 +111,9 @@ export function CommandPreview({
 			}
 		},
 		onSuccess: async () => {
-			await Promise.all([
-				invalidateTradeQueries(queryClient),
-				queryClient.invalidateQueries({ queryKey: accountEntriesQueryKey }),
-			]);
+			await (intent.type === "trade"
+				? invalidateTradeQueries(queryClient)
+				: invalidateAccountEntryQueries(queryClient));
 			toast.success(
 				intent.type === "trade" ? "Trade logged" : "Account entry added",
 			);

@@ -6,6 +6,7 @@ import { AppPageHeader } from "@/components/app-page-header";
 import { StrategyForm } from "@/components/strategies/StrategyForm";
 import { StrategyList } from "@/components/strategies/StrategyList";
 import { Button } from "@/components/ui/button";
+import { QueryKey } from "@/lib/query-keys";
 import { getStrategies } from "@/server/strategyActions";
 
 export const Route = createFileRoute("/_authenticated/strategies")({
@@ -19,7 +20,7 @@ function StrategiesPage() {
 	const [creating, setCreating] = useState(false);
 
 	const { data: strategyList = [], isLoading } = useQuery({
-		queryKey: ["strategies"],
+		queryKey: [QueryKey.Strategies],
 		queryFn: () => getStrategies({ data: undefined }),
 	});
 

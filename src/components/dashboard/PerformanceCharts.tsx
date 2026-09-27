@@ -7,36 +7,31 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
-import type { GroupSummary } from "@/lib/analytics";
+import { useCurrency } from "@/hooks/use-currency";
 import { formatMoney } from "@/lib/currency";
+import type { GroupSummary } from "@/lib/group-summary";
+import { UNAVAILABLE } from "@/lib/metric";
+import {
+	AXIS_TICK,
+	TOOLTIP_CONTENT_STYLE,
+	TOOLTIP_LABEL_STYLE,
+} from "./chart-theme";
 
-type GroupStats = GroupSummary & { name: string };
+type GroupStats = GroupSummary & { key: string; name: string };
 
 interface PerformanceChartsProps {
 	byStrategy: GroupStats[];
 	bySymbol: GroupStats[];
 	byDayOfWeek: GroupStats[];
 	byHour: GroupStats[];
-	currency: string;
 }
 
-const POSITIVE_COLOR = "var(--success)";
-const NEGATIVE_COLOR = "var(--destructive)";
+function AvgPnlBar({ data, title }: { data: GroupStats[]; title: string }) {
+	const currency = useCurrency();
 
-function PnLBar({
-	data,
-	dataKey = "avgPnl",
-	name,
-	currency,
-}: {
-	data: GroupStats[];
-	dataKey?: keyof GroupStats;
-	name: string;
-	currency: string;
-}) {
 	return (
 		<div className="surface p-3 sm:p-4">
-			<p className="mb-4 text-sm font-semibold">{name}</p>
+			<p className="mb-4 text-sm font-semibold">{title}</p>
 			<ResponsiveContainer width="100%" height={200}>
 				<BarChart
 					data={data}
@@ -45,59 +40,43 @@ function PnLBar({
 				>
 					<XAxis
 						dataKey="name"
-						tick={{
-							fontFamily: "var(--font-mono)",
-							fontSize: 11,
-							fill: "var(--muted-foreground)",
-						}}
+						tick={AXIS_TICK}
 						tickLine={false}
 						axisLine={{ stroke: "var(--border)" }}
 						minTickGap={12}
 					/>
 					<YAxis
-						tick={{
-							fontFamily: "var(--font-mono)",
-							fontSize: 11,
-							fill: "var(--muted-foreground)",
-						}}
+						tick={AXIS_TICK}
 						tickLine={false}
 						axisLine={{ stroke: "var(--border)" }}
 						width={42}
 					/>
 					<Tooltip
 						cursor={{ fill: "var(--accent)" }}
-						contentStyle={{
-							background: "var(--popover)",
-							border: "1px solid var(--border)",
-							borderRadius: 8,
-							color: "var(--popover-foreground)",
-						}}
-						labelStyle={{
-							color: "var(--popover-foreground)",
-							fontFamily: "var(--font-sans)",
-						}}
+						contentStyle={TOOLTIP_CONTENT_STYLE}
+						labelStyle={TOOLTIP_LABEL_STYLE}
 						itemStyle={{
 							color: "var(--popover-foreground)",
 							fontFamily: "var(--font-mono)",
 						}}
-						formatter={(val, _name, item) => {
+						formatter={(value, _name, item) => {
 							const group = item.payload as GroupStats;
 							const winRate =
-								group.winRate === null ? "—" : `${group.winRate.toFixed(0)}%`;
+								group.winRate === null
+									? UNAVAILABLE
+									: `${group.winRate.toFixed(0)}%`;
 							return [
-								`${formatMoney(Number(val), currency)} · ${group.count} trades · ${winRate} win`,
+								`${formatMoney(Number(value), currency)} · ${group.count} trades · ${winRate} win`,
 								"Avg P&L",
 							];
 						}}
 					/>
-					<Bar dataKey={dataKey as string} radius={[4, 4, 0, 0]}>
-						{data.map((entry, index) => (
+					<Bar dataKey="avgPnl" radius={[4, 4, 0, 0]}>
+						{data.map((group) => (
 							<Cell
-								key={`${entry.name}-${index}`}
+								key={group.key}
 								fill={
-									(entry[dataKey] as number) >= 0
-										? POSITIVE_COLOR
-										: NEGATIVE_COLOR
+									group.avgPnl >= 0 ? "var(--success)" : "var(--destructive)"
 								}
 							/>
 						))}
@@ -113,26 +92,13 @@ export function PerformanceCharts({
 	bySymbol,
 	byDayOfWeek,
 	byHour,
-	currency,
 }: PerformanceChartsProps) {
 	return (
 		<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-			<PnLBar
-				data={byStrategy}
-				name="Avg P&L by strategy"
-				currency={currency}
-			/>
-			<PnLBar
-				data={bySymbol}
-				name="Avg P&L by symbol (top 10)"
-				currency={currency}
-			/>
-			<PnLBar
-				data={byDayOfWeek}
-				name="Avg P&L by day of week"
-				currency={currency}
-			/>
-			<PnLBar data={byHour} name="Avg P&L by entry hour" currency={currency} />
+			<AvgPnlBar data={byStrategy} title="Avg P&L by strategy" />
+			<AvgPnlBar data={bySymbol} title="Avg P&L by symbol (top 10)" />
+			<AvgPnlBar data={byDayOfWeek} title="Avg P&L by day of week" />
+			<AvgPnlBar data={byHour} title="Avg P&L by entry hour" />
 		</div>
 	);
 }

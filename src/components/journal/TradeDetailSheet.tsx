@@ -16,7 +16,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { invalidateTradeQueries } from "@/lib/trade-queries";
+import { invalidateTradeQueries, QueryKey } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import {
 	deleteTradeImage,
@@ -26,7 +26,7 @@ import {
 import { getStrategies } from "@/server/strategyActions";
 import { updateTrade } from "@/server/tradeActions";
 import { DeleteTradeDialog } from "./DeleteTradeDialog";
-import type { Trade } from "./JournalTable";
+import type { Trade } from "@/lib/trade";
 
 const MISTAKE_OPTIONS = [
 	"FOMO",
@@ -65,10 +65,14 @@ export function TradeDetailContent({
 	"use no memo";
 
 	const qc = useQueryClient();
+	const refreshTrade = () => {
+		qc.invalidateQueries({ queryKey: [QueryKey.Trades] });
+		qc.invalidateQueries({ queryKey: [QueryKey.Trade] });
+	};
 	const [uploading, setUploading] = useState(false);
 
 	const { data: strategies = [] } = useQuery({
-		queryKey: ["strategies"],
+		queryKey: [QueryKey.Strategies],
 		queryFn: () => getStrategies({ data: undefined }),
 	});
 
@@ -108,8 +112,7 @@ export function TradeDetailContent({
 		mutationFn: (notes: string) =>
 			updateTrade({ data: { id: trade.id, notes } } as any),
 		onSuccess: () => {
-			qc.invalidateQueries({ queryKey: ["trades"] });
-			qc.invalidateQueries({ queryKey: ["trade"] });
+			refreshTrade();
 		},
 	});
 
@@ -117,8 +120,7 @@ export function TradeDetailContent({
 		mutationFn: (url: string) =>
 			deleteTradeImage({ data: { tradeId: trade.id, url } } as any),
 		onSuccess: () => {
-			qc.invalidateQueries({ queryKey: ["trades"] });
-			qc.invalidateQueries({ queryKey: ["trade"] });
+			refreshTrade();
 		},
 	});
 
@@ -144,8 +146,7 @@ export function TradeDetailContent({
 						data: { tradeId: trade.id, url: publicUrl },
 					} as any);
 				}
-				qc.invalidateQueries({ queryKey: ["trades"] });
-				qc.invalidateQueries({ queryKey: ["trade"] });
+				refreshTrade();
 			} finally {
 				setUploading(false);
 			}

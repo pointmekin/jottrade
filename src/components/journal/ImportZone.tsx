@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { useAccounts } from "@/hooks/use-accounts";
 import { parseUtcDate } from "@/lib/date";
-import { invalidateTradeQueries } from "@/lib/trade-queries";
+import { invalidateTradeQueries } from "@/lib/query-keys";
 import { importTrades } from "@/server/importActions";
 
 type ImportedTrade = {

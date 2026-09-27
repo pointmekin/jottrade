@@ -1,62 +1,19 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
-import { and, eq } from "drizzle-orm";
-import { db } from "@/db";
-import { cashFlows, trades } from "@/db/schema";
+import { loadAccountHistory } from "@/db/account-history";
 import { summarizeTrades } from "@/lib/analytics";
-import { auth } from "@/lib/auth";
+import { requireUserId } from "@/lib/auth";
 import { rangeSchema, toDateRange } from "./rangeInput";
 
-export const getAnalytics = createServerFn({ method: "GET" }).handler(
-	async (ctx: any) => {
-		const session = await auth.api.getSession({
-			headers: getRequestHeaders(),
-		});
-
-		if (!session) {
-			throw new Error("Unauthorized");
-		}
-
-		const userId = session.user.id;
-		const input = rangeSchema.parse(ctx.data ?? {});
-		const range = toDateRange(input);
-
-		// The whole history is loaded because the window needs the balance carried into it.
-		const [userTrades, userCashFlows] = await Promise.all([
-			db
-				.select()
-				.from(trades)
-				.where(
-					and(
-						eq(trades.userId, userId),
-						eq(trades.portfolioId, input.portfolioId),
-					),
-				),
-			db
-				.select()
-				.from(cashFlows)
-				.where(
-					and(
-						eq(cashFlows.userId, userId),
-						eq(cashFlows.portfolioId, input.portfolioId),
-					),
-				),
-		]);
-
+export const getAnalytics = createServerFn({ method: "GET" })
+	.validator(rangeSchema)
+	.handler(async ({ data }) => {
+		const userId = await requireUserId();
+		// The whole history loads because the window needs the balance carried into it.
+		const history = await loadAccountHistory(userId, data.portfolioId);
 		return summarizeTrades(
-			userTrades.map((trade) => ({
-				status: trade.status,
-				entryDate: trade.entryDate,
-				exitDate: trade.exitDate,
-				netPnl: Number(trade.netPnl ?? 0),
-			})),
-			userCashFlows.map((flow) => ({
-				occurredAt: flow.occurredAt,
-				amount: Number(flow.amount),
-				kind: flow.kind,
-			})),
-			range,
-			input.timeZone,
+			history.trades,
+			history.cashFlows,
+			toDateRange(data),
+			data.timeZone,
 		);
-	},
-);
+	});
