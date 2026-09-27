@@ -33,13 +33,18 @@ vi.mock("@/components/command-palette/command-preview", () => ({
 }));
 
 type Handler = ((event: unknown) => void) | null;
-class FakeRecognition {
-	static instances: FakeRecognition[] = [];
-	static failOnStart = false;
-	static available?: (options: {
+const fakeSpeech: {
+	instances: FakeRecognition[];
+	failOnStart: boolean;
+	available?: (options: {
 		langs: string[];
 		processLocally?: boolean;
 	}) => Promise<string>;
+} = { instances: [], failOnStart: false };
+class FakeRecognition {
+	static get available() {
+		return fakeSpeech.available;
+	}
 	lang = "";
 	continuous = false;
 	interimResults = false;
@@ -50,17 +55,17 @@ class FakeRecognition {
 	onerror: Handler = null;
 	onend: Handler = null;
 	constructor() {
-		FakeRecognition.instances.push(this);
+		fakeSpeech.instances.push(this);
 	}
 	start() {
-		if (FakeRecognition.failOnStart) throw new Error("blocked");
+		if (fakeSpeech.failOnStart) throw new Error("blocked");
 		this.started++;
 	}
 	abort() {
 		this.aborted++;
 	}
 }
-const latest = () => FakeRecognition.instances.at(-1) as FakeRecognition;
+const latest = () => fakeSpeech.instances.at(-1) as FakeRecognition;
 function results(entries: { transcript: string; isFinal: boolean }[]) {
 	return {
 		results: entries.map((entry) => ({
@@ -88,9 +93,9 @@ beforeAll(() => {
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
-	FakeRecognition.instances = [];
-	FakeRecognition.failOnStart = false;
-	FakeRecognition.available = undefined;
+	fakeSpeech.instances = [];
+	fakeSpeech.failOnStart = false;
+	fakeSpeech.available = undefined;
 	Reflect.deleteProperty(window, "SpeechRecognition");
 	Reflect.deleteProperty(window, "webkitSpeechRecognition");
 });
@@ -130,7 +135,7 @@ describe("palette dictation", () => {
 			support(key);
 			setup();
 			await waitFor(() => expect(mic()).toBeTruthy());
-			expect(FakeRecognition.instances).toHaveLength(0);
+			expect(fakeSpeech.instances).toHaveLength(0);
 
 			fireEvent.click(mic() as HTMLElement);
 			expect(latest().started).toBe(1);
@@ -255,7 +260,7 @@ describe("palette dictation", () => {
 	it("processes on device when a local language pack is installed", async () => {
 		support("SpeechRecognition");
 		const available = vi.fn().mockResolvedValue("available");
-		FakeRecognition.available = available;
+		fakeSpeech.available = available;
 		setup();
 		await waitFor(() => expect(mic()).toBeTruthy());
 		await waitFor(() => expect(available).toHaveBeenCalled());
@@ -273,7 +278,7 @@ describe("palette dictation", () => {
 		async (state) => {
 			support("SpeechRecognition");
 			const available = vi.fn().mockResolvedValue(state);
-			FakeRecognition.available = available;
+			fakeSpeech.available = available;
 			setup();
 			await waitFor(() => expect(available).toHaveBeenCalled());
 			fireEvent.click(mic() as HTMLElement);
@@ -285,7 +290,7 @@ describe("palette dictation", () => {
 
 	it("still dictates when the availability check is missing or fails", async () => {
 		support("SpeechRecognition");
-		FakeRecognition.available = vi.fn().mockRejectedValue(new Error("no"));
+		fakeSpeech.available = vi.fn().mockRejectedValue(new Error("no"));
 		setup();
 		await waitFor(() => expect(mic()).toBeTruthy());
 		fireEvent.click(mic() as HTMLElement);
@@ -296,7 +301,7 @@ describe("palette dictation", () => {
 
 	it("reports a start failure without leaving a listening state", async () => {
 		support("SpeechRecognition");
-		FakeRecognition.failOnStart = true;
+		fakeSpeech.failOnStart = true;
 		setup();
 		await waitFor(() => expect(mic()).toBeTruthy());
 		fireEvent.click(mic() as HTMLElement);

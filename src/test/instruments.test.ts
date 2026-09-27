@@ -113,9 +113,7 @@ describe("resolveInstrumentSpec", () => {
 });
 
 describe("normalizeInstrumentSymbol", () => {
-	it("normalizes casing and separators without changing stored input", () => {
-		const rawSymbol = "eur/usd";
-		expect(normalizeInstrumentSymbol(rawSymbol)).toBe("EURUSD");
-		expect(rawSymbol).toBe("eur/usd");
+	it("normalizes casing and separators", () => {
+		expect(normalizeInstrumentSymbol("eur/usd")).toBe("EURUSD");
 	});
 });
