@@ -5,16 +5,18 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 interface MetricLabelProps {
 	label: string;
 	children: ReactNode;
+	className?: string;
 }
 
 /** A metric label with its definition one tap away; a popover also works on touch. */
-export function MetricLabel({ label, children }: MetricLabelProps) {
+export function MetricLabel({ label, children, className }: MetricLabelProps) {
 	return (
-		<p className="field-label flex items-center gap-1">
+		<p className={cn("field-label flex items-center gap-1", className)}>
 			{label}
 			<Popover>
 				<PopoverTrigger asChild>

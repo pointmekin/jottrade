@@ -8,6 +8,7 @@ import {
 import { format } from "date-fns";
 import { SlidersHorizontal } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
+import { MetricLabel } from "@/components/metric-label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
@@ -51,7 +52,7 @@ type JournalRow = JournalEntry<Trade>;
  */
 type JournalColumn = {
 	id: string;
-	header: string;
+	header: string | (() => ReactNode);
 	trade: (trade: Trade) => ReactNode;
 	adjustment?: (adjustment: AccountEntryRecord) => ReactNode;
 };
@@ -185,7 +186,15 @@ const buildJournalColumns = (currency: string): JournalColumn[] => [
 	},
 	{
 		id: "roi",
-		header: "Price return",
+		header: () => (
+			<MetricLabel label="Price return" className="font-medium">
+				<p>
+					The move from entry to exit as a percent of the entry price. It is
+					positive when the price moved in the trade direction.
+				</p>
+				<p>Fees, leverage, swaps and currency conversion are not in it.</p>
+			</MetricLabel>
+		),
 		trade: (trade) => {
 			const roi = toNumber(trade.returnPercent);
 			if (roi === null) return <Dash />;
