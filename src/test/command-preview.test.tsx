@@ -19,11 +19,9 @@ const state = vi.hoisted(() => ({
 	activeAccount: { id: 7, name: "Main account", currency: "USD" },
 }));
 vi.mock("@/hooks/use-accounts", () => ({
-	accountsQueryKey: ["accounts"],
 	useAccounts: () => state,
 }));
 vi.mock("@/hooks/use-account-entries", () => ({
-	accountEntriesQueryKey: ["cash-flows"],
 }));
 vi.mock("@/server/tradeActions", () => ({ createTrade: vi.fn() }));
 vi.mock("@/server/portfolioActions", () => ({ addCashFlow: vi.fn() }));

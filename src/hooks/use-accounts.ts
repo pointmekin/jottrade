@@ -1,16 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAccountStore } from "@/lib/account-store";
 import { authClient } from "@/lib/auth-client";
+import { QueryKey } from "@/lib/query-keys";
 import { type AccountRecord, getAccounts } from "@/server/portfolioActions";
-
-export const accountsQueryKey = ["accounts"] as const;
 
 export function useAccounts() {
 	const { data: session } = authClient.useSession();
 	const userId = session?.user?.id;
 
 	const query = useQuery({
-		queryKey: [...accountsQueryKey, userId],
+		queryKey: [QueryKey.Accounts, userId],
 		queryFn: () => getAccounts(),
 		enabled: !!userId,
 		staleTime: 10 * 60 * 1000,

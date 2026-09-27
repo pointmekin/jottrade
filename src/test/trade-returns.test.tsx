@@ -1,17 +1,18 @@
 // @vitest-environment jsdom
 
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { TradeReturns } from "@/components/journal/trade-returns";
+import { TradeStatus } from "@/lib/trade";
+
+vi.mock("@/hooks/use-currency", () => ({ useCurrency: () => "USD" }));
 
 describe("TradeReturns", () => {
 	it("shows price return and account return with the balance at entry", () => {
 		render(
 			<TradeReturns
-				status="CLOSED"
-				returnPercent="1.25"
+				trade={{ status: TradeStatus.Closed, returnPercent: "1.25" }}
 				accountReturn={{ percent: 2, balanceAtEntry: 10500 }}
-				currency="USD"
 			/>,
 		);
 
@@ -23,10 +24,8 @@ describe("TradeReturns", () => {
 	it("marks account return unavailable, not zero, with the reason", () => {
 		const { rerender } = render(
 			<TradeReturns
-				status="CLOSED"
-				returnPercent={null}
+				trade={{ status: TradeStatus.Closed, returnPercent: null }}
 				accountReturn={{ percent: null, balanceAtEntry: 0 }}
-				currency="USD"
 			/>,
 		);
 		expect(screen.getAllByText("—")).toHaveLength(2);
@@ -34,10 +33,8 @@ describe("TradeReturns", () => {
 
 		rerender(
 			<TradeReturns
-				status="OPEN"
-				returnPercent={null}
+				trade={{ status: TradeStatus.Open, returnPercent: null }}
 				accountReturn={{ percent: null, balanceAtEntry: 10000 }}
-				currency="USD"
 			/>,
 		);
 		expect(screen.getAllByText("Trade is not closed")).toHaveLength(2);

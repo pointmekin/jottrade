@@ -12,7 +12,7 @@ import { AccountEntriesPanel } from "@/components/journal/AccountEntriesPanel";
 import { AdjustmentImportZone } from "@/components/journal/AdjustmentImportZone";
 import { FilterBar, type JournalFilters } from "@/components/journal/FilterBar";
 import { ImportZone } from "@/components/journal/ImportZone";
-import type { Trade } from "@/components/journal/JournalTable";
+import type { Trade } from "@/lib/trade";
 import {
 	JournalTable,
 	JournalTableSkeleton,
@@ -40,6 +40,7 @@ import { useAccounts } from "@/hooks/use-accounts";
 import { AccountEntryKind } from "@/lib/account-entry";
 import { mergeJournalEntries } from "@/lib/journal-entries";
 import { describePeriod, PeriodPreset, resolvePeriod } from "@/lib/period";
+import { QueryKey } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { getTrades } from "@/server/getTrades";
 
@@ -118,7 +119,7 @@ function JournalPage() {
 	const portfolioId = activeAccount?.id;
 
 	const { data: result, isLoading } = useQuery({
-		queryKey: ["trades", portfolioId, queryParams],
+		queryKey: [QueryKey.Trades, portfolioId, queryParams],
 		queryFn: () =>
 			getTrades({ data: { ...queryParams, portfolioId } } as never),
 		enabled: portfolioId !== undefined,

@@ -17,7 +17,6 @@ vi.mock("@/server/portfolioActions", () => ({
 }));
 
 vi.mock("@/hooks/use-accounts", () => ({
-	accountsQueryKey: ["accounts"],
 	useAccounts: () => ({
 		activeAccount: {
 			id: state.activeAccountId,

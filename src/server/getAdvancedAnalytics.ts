@@ -1,24 +1,25 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { cashFlows, strategies, trades } from "@/db/schema";
+import { loadAccountHistory } from "@/db/account-history";
+import { strategies } from "@/db/schema";
 import {
-	type ClosedTrade,
 	closedTradesInRange,
+	realizedAt,
+	summarizeTrades,
+} from "@/lib/analytics";
+import { requireUserId } from "@/lib/auth";
+import { toDayKey, zonedDayOfWeek, zonedHour } from "@/lib/date";
+import { summarizeGroup, summarizeGroups } from "@/lib/group-summary";
+import {
 	computeAvgHoldTime,
 	computeMaxDrawdown,
 	computePayoffRatio,
 	computeSharpe,
-	summarizeGroup,
-	summarizeGroups,
-	summarizeTrades,
-} from "@/lib/analytics";
-import { auth } from "@/lib/auth";
-import { toDayKey, zonedDayOfWeek, zonedHour } from "@/lib/date";
+} from "@/lib/risk-metrics";
 import { rangeSchema, toDateRange } from "./rangeInput";
 
-const DOW_NAMES = [
+const DAY_NAMES = [
 	"Sunday",
 	"Monday",
 	"Tuesday",
@@ -27,120 +28,81 @@ const DOW_NAMES = [
 	"Friday",
 	"Saturday",
 ];
-const DOW_ORDER = [1, 2, 3, 4, 5, 6, 0];
+const MONDAY_FIRST = [1, 2, 3, 4, 5, 6, 0];
+const TOP_SYMBOLS = 10;
 
-export const getAdvancedAnalytics = createServerFn({ method: "GET" }).handler(
-	async (ctx: any) => {
-		const session = await auth.api.getSession({ headers: getRequestHeaders() });
-		if (!session) throw new Error("Unauthorized");
-
-		const userId = session.user.id;
-		const input = rangeSchema.parse(ctx.data ?? {});
-		const range = toDateRange(input);
-
-		const [historyTrades, allStrategies, userCashFlows] = await Promise.all([
-			db
-				.select()
-				.from(trades)
-				.where(
-					and(
-						eq(trades.userId, userId),
-						eq(trades.portfolioId, input.portfolioId),
-					),
-				),
+export const getAdvancedAnalytics = createServerFn({ method: "GET" })
+	.validator(rangeSchema)
+	.handler(async ({ data }) => {
+		const userId = await requireUserId();
+		const range = toDateRange(data);
+		const [history, userStrategies] = await Promise.all([
+			loadAccountHistory(userId, data.portfolioId),
 			db.select().from(strategies).where(eq(strategies.userId, userId)),
-			db
-				.select()
-				.from(cashFlows)
-				.where(
-					and(
-						eq(cashFlows.userId, userId),
-						eq(cashFlows.portfolioId, input.portfolioId),
-					),
-				),
 		]);
 
-		const records = historyTrades.map((t) => ({
-			...t,
-			netPnl: Number(t.netPnl ?? 0),
-		}));
-		// The same trade set as the headline: a closed trade without an exit date
-		// is realized at entry.
-		const allTrades = closedTradesInRange(records, range);
-		const pnlOf = (t: (typeof allTrades)[number]) => t.netPnl;
-
-		const analyticsInput: ClosedTrade[] = allTrades.map((t) => ({
-			exitDate: t.exitDate ?? t.entryDate,
-			entryDate: t.entryDate,
-			netPnl: t.netPnl,
-		}));
-
+		const closed = closedTradesInRange(history.trades, range);
+		const pnlOf = (trade: (typeof closed)[number]) => trade.netPnl;
 		const { equityCurve } = summarizeTrades(
-			records,
-			userCashFlows.map((flow) => ({
-				occurredAt: flow.occurredAt,
-				amount: Number(flow.amount),
-				kind: flow.kind,
-			})),
+			history.trades,
+			history.cashFlows,
 			range,
-			input.timeZone,
+			data.timeZone,
 		);
-
 		const now = new Date();
 		const windowEnd = range.to && range.to < now ? range.to : now;
 
 		const riskMetrics = {
-			closedTrades: allTrades.length,
-			sharpe: computeSharpe(equityCurve, toDayKey(windowEnd, input.timeZone)),
+			closedTrades: closed.length,
+			sharpe: computeSharpe(equityCurve, toDayKey(windowEnd, data.timeZone)),
 			maxDrawdown: computeMaxDrawdown(equityCurve),
-			payoff: computePayoffRatio(analyticsInput),
-			avgHoldTimeHours: computeAvgHoldTime(analyticsInput),
+			payoff: computePayoffRatio(closed),
+			avgHoldTimeHours: computeAvgHoldTime(closed),
 		};
 
-		// Keyed by id, so two strategies with one name stay separate.
-		const strategyNameMap = new Map(allStrategies.map((s) => [s.id, s.name]));
+		const strategyNames = new Map(userStrategies.map((s) => [s.id, s.name]));
 		const byStrategy = Array.from(
-			summarizeGroups(allTrades, (t) => t.setupId, pnlOf),
+			summarizeGroups(closed, (trade) => trade.setupId, pnlOf),
 			([setupId, summary]) => ({
+				key: String(setupId),
 				name:
 					setupId === null
 						? "Unassigned"
-						: (strategyNameMap.get(setupId) ?? "Unknown"),
+						: (strategyNames.get(setupId) ?? "Unknown"),
 				...summary,
 			}),
 		);
 
 		const bySymbol = Array.from(
-			summarizeGroups(allTrades, (t) => t.symbol, pnlOf),
-			([name, summary]) => ({ name, ...summary }),
+			summarizeGroups(closed, (trade) => trade.symbol, pnlOf),
+			([name, summary]) => ({ key: name, name, ...summary }),
 		)
 			.sort((a, b) => b.count - a.count)
-			.slice(0, 10);
+			.slice(0, TOP_SYMBOLS);
 
-		// Use the same local day as the daily P&L and equity curve.
-		const dowGroups = summarizeGroups(
-			allTrades,
-			(t) => zonedDayOfWeek(t.exitDate ?? t.entryDate, input.timeZone),
+		const dayGroups = summarizeGroups(
+			closed,
+			(trade) => zonedDayOfWeek(realizedAt(trade), data.timeZone),
 			pnlOf,
 		);
-		const byDayOfWeek = DOW_ORDER.map((d) => ({
-			name: DOW_NAMES[d],
-			...(dowGroups.get(d) ?? summarizeGroup([])),
+		const byDayOfWeek = MONDAY_FIRST.map((day) => ({
+			key: DAY_NAMES[day],
+			name: DAY_NAMES[day],
+			...(dayGroups.get(day) ?? summarizeGroup([])),
 		}));
 
 		const byHour = Array.from(
 			summarizeGroups(
-				allTrades,
-				(t) => zonedHour(t.entryDate, input.timeZone),
+				closed,
+				(trade) => zonedHour(trade.entryDate, data.timeZone),
 				pnlOf,
 			),
 		)
 			.sort(([a], [b]) => a - b)
-			.map(([hour, summary]) => ({
-				name: `${String(hour).padStart(2, "0")}:00`,
-				...summary,
-			}));
+			.map(([hour, summary]) => {
+				const name = `${String(hour).padStart(2, "0")}:00`;
+				return { key: name, name, ...summary };
+			});
 
 		return { riskMetrics, byStrategy, bySymbol, byDayOfWeek, byHour };
-	},
-);
+	});

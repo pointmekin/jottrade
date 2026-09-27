@@ -14,7 +14,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAccounts } from "@/hooks/use-accounts";
-import { invalidateTradeQueries } from "@/lib/trade-queries";
+import {
+	invalidateAccountEntryQueries,
+	invalidateTradeQueries,
+} from "@/lib/query-keys";
 import { type AccountRecord, deleteAccount } from "@/server/portfolioActions";
 
 interface DeleteAccountDialogProps {
@@ -46,7 +49,7 @@ export function DeleteAccountDialog({
 		onSuccess: () => {
 			if (account && activeAccount?.id === account.id) clearActiveAccount();
 			invalidateTradeQueries(queryClient);
-			queryClient.invalidateQueries({ queryKey: ["cash-flows"] });
+			invalidateAccountEntryQueries(queryClient);
 			toast.success(`Deleted ${account?.name}`);
 			setConfirmText("");
 			onOpenChange(false);

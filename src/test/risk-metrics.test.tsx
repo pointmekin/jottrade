@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
 	RiskMetrics,
 	type RiskMetricsData,
 } from "@/components/dashboard/RiskMetrics";
+
+vi.mock("@/hooks/use-currency", () => ({ useCurrency: () => "USD" }));
 
 const insufficient: RiskMetricsData = {
 	sharpe: { value: null, days: 4 },
@@ -17,7 +19,7 @@ const insufficient: RiskMetricsData = {
 
 describe("RiskMetrics", () => {
 	it("marks unavailable statistics as unavailable, not zero, with the reason", () => {
-		render(<RiskMetrics metrics={insufficient} currency="USD" />);
+		render(<RiskMetrics metrics={insufficient} />);
 
 		expect(screen.getAllByText("—")).toHaveLength(3);
 		expect(screen.queryByText("0.00")).toBeNull();
@@ -33,7 +35,6 @@ describe("RiskMetrics", () => {
 					...insufficient,
 					payoff: { ratio: 1.5, avgWin: 150, avgLoss: 100, wins: 2, losses: 1 },
 				}}
-				currency="USD"
 			/>,
 		);
 
@@ -50,7 +51,6 @@ describe("RiskMetrics", () => {
 					sharpe: { value: 1.234, days: 42 },
 					maxDrawdown: { dollars: 300, percent: 2.5 },
 				}}
-				currency="USD"
 			/>,
 		);
 

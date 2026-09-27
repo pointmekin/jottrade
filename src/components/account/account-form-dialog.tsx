@@ -30,13 +30,13 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { accountsQueryKey } from "@/hooks/use-accounts";
 import { ACCOUNT_KIND_LABELS, AccountKind } from "@/lib/account";
 import {
 	currencySymbol,
 	DEFAULT_CURRENCY,
 	SUPPORTED_CURRENCIES,
 } from "@/lib/currency";
+import { QueryKey } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import {
 	type AccountRecord,
@@ -109,7 +109,7 @@ export function AccountFormDialog({
 				? updateAccount({ data: { id: account.id, ...values } })
 				: createAccount({ data: values }),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: accountsQueryKey });
+			queryClient.invalidateQueries({ queryKey: [QueryKey.Accounts] });
 			toast.success(account ? "Account updated" : "Account created");
 			onOpenChange(false);
 		},

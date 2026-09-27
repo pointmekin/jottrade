@@ -13,6 +13,12 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { AccountKind } from "@/lib/account";
+import { AccountEntryKind } from "@/lib/account-entry";
+import {
+	type TradeConfidence,
+	type TradeSide,
+	TradeStatus,
+} from "@/lib/trade";
 
 // --- Auth Schema (BetterAuth) ---
 
@@ -127,7 +133,10 @@ export const cashFlows = pgTable(
 			}),
 		occurredAt: timestamp("occurred_at").notNull(),
 		amount: numeric("amount").notNull(),
-		kind: text("kind").default("DEPOSIT").notNull(),
+		kind: text("kind")
+			.$type<AccountEntryKind>()
+			.default(AccountEntryKind.Deposit)
+			.notNull(),
 		note: text("note"),
 		importHash: text("import_hash").unique(),
 		createdAt: timestamp("created_at").defaultNow(),
@@ -155,8 +164,8 @@ export const trades = pgTable(
 
 		// Basic Info
 		symbol: text("symbol").notNull(), // AAPL, BTC-USD
-		side: text("side").notNull(), // LONG, SHORT
-		status: text("status").default("OPEN"), // OPEN, CLOSED, PENDING
+		side: text("side").$type<TradeSide>().notNull(),
+		status: text("status").$type<TradeStatus>().default(TradeStatus.Open),
 
 		// Numbers (Use numeric for money to avoid float errors)
 		entryDate: timestamp("entry_date").notNull(),
@@ -174,9 +183,9 @@ export const trades = pgTable(
 		// Analysis & Psychology (StonkJournal Features)
 		setupId: integer("setup_id"), // Link to specific strategy (will add relation below if needed, or keeping loose for now based on spec)
 		mistake: text("mistake"), // e.g., "Fomo", "Revenge Trading"
-		confidence: text("confidence"), // HIGH, MEDIUM, LOW
+		confidence: text("confidence").$type<TradeConfidence>(),
 		notes: text("notes"), // Rich text/Markdown
-		screenshots: jsonb("screenshots").default([]), // Array of URLs
+		screenshots: jsonb("screenshots").$type<string[]>().default([]),
 
 		// Import Deduplication
 		importHash: text("import_hash").unique(), // SHA256 of trade details

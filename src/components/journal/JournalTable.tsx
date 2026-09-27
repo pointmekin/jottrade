@@ -22,27 +22,7 @@ import { useCurrency } from "@/hooks/use-currency";
 import type { AccountEntryRecord } from "@/lib/account-entry";
 import { formatMoney } from "@/lib/currency";
 import type { JournalEntry } from "@/lib/journal-entries";
-
-export type Trade = {
-	id: number;
-	symbol: string;
-	side: "LONG" | "SHORT" | string;
-	status: string | null;
-	entryDate: Date;
-	exitDate: Date | null;
-	entryPrice: string | null;
-	targetPrice?: string | null;
-	exitPrice: string | null;
-	quantity: string | null;
-	netPnl: string | null;
-	returnPercent: string | null;
-	fees?: string | null;
-	confidence?: "HIGH" | "MEDIUM" | "LOW" | null;
-	mistake?: string | null;
-	setupId?: number | null;
-	notes?: string | null;
-	screenshots?: string[] | null;
-};
+import { type Trade, TradeSide } from "@/lib/trade";
 
 type JournalRow = JournalEntry<Trade>;
 

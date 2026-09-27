@@ -21,6 +21,7 @@ import { useCurrency } from "@/hooks/use-currency";
 import { AccountEntryKind, type AccountEntryRecord } from "@/lib/account-entry";
 import { formatMoney } from "@/lib/currency";
 import { localDateTimeToIso, toDateTimeLocalValue } from "@/lib/date";
+import { invalidateAccountEntryQueries } from "@/lib/query-keys";
 import {
 	addCashFlow,
 	deleteCashFlow,
@@ -82,9 +83,7 @@ export function AccountEntriesPanel({ mode }: { mode: PanelMode }) {
 	);
 
 	const invalidate = () => {
-		queryClient.invalidateQueries({ queryKey: ["cash-flows"] });
-		queryClient.invalidateQueries({ queryKey: ["analytics"] });
-		queryClient.invalidateQueries({ queryKey: ["advanced-analytics"] });
+		invalidateAccountEntryQueries(queryClient);
 	};
 
 	const resetForm = () => {

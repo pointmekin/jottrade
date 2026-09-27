@@ -23,7 +23,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useAccounts } from "@/hooks/use-accounts";
 import { localDateTimeToIso, toDateTimeLocalValue } from "@/lib/date";
-import { invalidateTradeQueries } from "@/lib/trade-queries";
+import { invalidateTradeQueries } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { createTrade } from "@/server/tradeActions";
 

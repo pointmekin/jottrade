@@ -63,3 +63,7 @@ export function currencySymbol(currency: string = DEFAULT_CURRENCY): string {
 	}).formatToParts(0);
 	return parts.find((part) => part.type === "currency")?.value ?? currency;
 }
+
+export function roundCents(value: number): number {
+	return Math.round(value * 100) / 100;
+}

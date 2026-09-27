@@ -23,6 +23,7 @@ import {
 	type ImportedAdjustment,
 	parseAdjustmentCsv,
 } from "@/lib/adjustment-import";
+import { invalidateAccountEntryQueries } from "@/lib/query-keys";
 import { importAdjustments } from "@/server/portfolioActions";
 
 const MAX_CSV_SIZE = 5 * 1024 * 1024;
@@ -100,9 +101,7 @@ export function AdjustmentImportZone({
 			} as never);
 		},
 		onSuccess: (result) => {
-			queryClient.invalidateQueries({ queryKey: ["cash-flows"] });
-			queryClient.invalidateQueries({ queryKey: ["analytics"] });
-			queryClient.invalidateQueries({ queryKey: ["advanced-analytics"] });
+			invalidateAccountEntryQueries(queryClient);
 			const duplicates = result.skipped
 				? ` ${result.skipped} duplicate(s) skipped.`
 				: "";

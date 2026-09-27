@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StrategyPerformance } from "@/components/strategies/StrategyPerformance";
-import { type GroupSummary, summarizeGroup } from "@/lib/analytics";
+import { type GroupSummary, summarizeGroup } from "@/lib/group-summary";
 import { getStrategyPerformance } from "@/server/strategyActions";
 
 vi.mock("@/hooks/use-accounts", () => ({

@@ -1,27 +1,25 @@
 import { resolveQuoteToAccountConversion } from "@/lib/fx";
 import { resolveInstrumentSpec } from "@/lib/instruments";
+import { TradeSide } from "@/lib/trade";
 
 export function shouldRecalculatePnl(importHash: string | null): boolean {
 	return importHash === null;
 }
 
-/**
- * Signed percent move from entry to exit in the trade direction. It ignores
- * fees, leverage and currency conversion, so imported and manual trades agree.
- */
+/** Ignores fees, leverage and currency conversion, so imported and manual trades agree. */
 export function priceReturnPercent(
-	side: "LONG" | "SHORT",
+	side: TradeSide,
 	entryPrice: number,
 	exitPrice: number,
 ): number | null {
 	if (!Number.isFinite(entryPrice) || !Number.isFinite(exitPrice)) return null;
 	if (entryPrice === 0) return null;
 	const move = ((exitPrice - entryPrice) / entryPrice) * 100;
-	return side === "SHORT" ? -move : move;
+	return side === TradeSide.Short ? -move : move;
 }
 
 export type CalculatePnlInput = {
-	side: "LONG" | "SHORT";
+	side: TradeSide;
 	entryPrice: number;
 	exitPrice: number;
 	quantity: number;
@@ -64,7 +62,7 @@ export function calculatePnL({
 
 	const positionUnits = quantity * contractSize;
 	const priceMove =
-		side === "LONG" ? exitPrice - entryPrice : entryPrice - exitPrice;
+		side === TradeSide.Long ? exitPrice - entryPrice : entryPrice - exitPrice;
 	const grossPnlQuote = priceMove * positionUnits;
 	const grossPnlAccount = grossPnlQuote * exitQuoteToAccountRate;
 	const netPnlAccount = grossPnlAccount - feesAccount;

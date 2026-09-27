@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TradeSide, TradeStatus } from "@/lib/trade";
 import { createTrade, updateTrade } from "@/server/tradeActions";
 
 const mocks = vi.hoisted(() => ({
@@ -23,10 +24,13 @@ vi.mock("@tanstack/react-start", () => ({
 		return builder;
 	},
 }));
-vi.mock("@tanstack/react-start/server", () => ({
-	getRequestHeaders: () => new Headers(),
+vi.mock("@/lib/auth", () => ({
+	requireUserId: async () => {
+		const session = await mocks.session();
+		if (!session) throw new Error("Unauthorized");
+		return session.user.id;
+	},
 }));
-vi.mock("@/lib/auth", () => ({ auth: { api: { getSession: mocks.session } } }));
 vi.mock("@/db", () => ({
 	db: {
 		select: () => ({ from: () => ({ where: mocks.where }) }),
@@ -37,7 +41,7 @@ vi.mock("@/db", () => ({
 const data = {
 	portfolioId: 7,
 	symbol: "XAUUSDM",
-	side: "SHORT" as const,
+	side: TradeSide.Short,
 	entryPrice: "4550",
 	quantity: "0.01",
 	entryDate: "2026-09-16T12:00:00Z",
@@ -54,7 +58,7 @@ describe("planned trade targets", () => {
 		expect(mocks.values).toHaveBeenCalledWith(
 			expect.objectContaining({
 				targetPrice: "4500",
-				status: "OPEN",
+				status: TradeStatus.Open,
 				netPnl: undefined,
 				quantity: "0.01",
 			}),
@@ -78,9 +82,9 @@ describe("planned trade targets", () => {
 	});
 	it("clears the target on update", async () => {
 		mocks.where.mockResolvedValueOnce([
-			{ ...data, id: 2, userId: "user1", status: "OPEN", importHash: null },
+			{ ...data, id: 2, userId: "user1", status: TradeStatus.Open, importHash: null },
 		]);
-		await updateTrade({ data: { id: 2, targetPrice: "" } } as never);
+		await updateTrade({ data: { id: 2, targetPrice: "" } });
 		expect(mocks.set).toHaveBeenCalledWith(
 			expect.objectContaining({ targetPrice: null }),
 		);

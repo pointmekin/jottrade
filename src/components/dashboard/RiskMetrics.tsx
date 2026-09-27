@@ -1,45 +1,20 @@
-import type { ReactNode } from "react";
-import { MetricLabel } from "@/components/metric-label";
+import { MetricCard } from "@/components/metric-card";
+import { useCurrency } from "@/hooks/use-currency";
+import { formatMoney } from "@/lib/currency";
+import { UNAVAILABLE } from "@/lib/metric";
 import {
+	type Drawdown,
 	MIN_SHARPE_DAYS,
 	type PayoffRatio,
 	type SharpeResult,
-} from "@/lib/analytics";
-import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
+} from "@/lib/risk-metrics";
 
 export interface RiskMetricsData {
 	sharpe: SharpeResult;
-	maxDrawdown: { dollars: number; percent: number | null };
+	maxDrawdown: Drawdown;
 	payoff: PayoffRatio;
 	avgHoldTimeHours: number | null;
 	closedTrades: number;
-}
-
-interface RiskMetricsProps {
-	metrics: RiskMetricsData;
-	currency?: string;
-}
-
-const UNAVAILABLE = "—";
-
-function MetricCard({
-	label,
-	definition,
-	value,
-	sub,
-}: {
-	label: string;
-	definition: ReactNode;
-	value: string;
-	sub: string;
-}) {
-	return (
-		<div className="surface p-4">
-			<MetricLabel label={label}>{definition}</MetricLabel>
-			<p className="metric-value mt-1">{value}</p>
-			<p className="mt-1 text-xs text-muted-foreground">{sub}</p>
-		</div>
-	);
 }
 
 function formatHold(hours: number): string {
@@ -55,28 +30,24 @@ function sharpeSub({ value, days }: SharpeResult): string {
 	return "Daily returns do not vary";
 }
 
-export function RiskMetrics({
-	metrics,
-	currency = DEFAULT_CURRENCY,
-}: RiskMetricsProps) {
+function drawdownSub({ dollars, percent }: Drawdown): string {
+	if (dollars <= 0) return "No drawdown in this period";
+	if (percent === null) return "Peak balance was not positive";
+	return `${percent.toFixed(1)}% from peak`;
+}
+
+export function RiskMetrics({ metrics }: { metrics: RiskMetricsData }) {
+	const currency = useCurrency();
 	const { sharpe, maxDrawdown, payoff, avgHoldTimeHours, closedTrades } =
 		metrics;
 	const money = (value: number) =>
 		formatMoney(value, currency, { maximumFractionDigits: 0 });
 
-	let drawdownSub = "No drawdown in this period";
-	if (maxDrawdown.dollars > 0) {
-		drawdownSub =
-			maxDrawdown.percent === null
-				? "Peak balance was not positive"
-				: `${maxDrawdown.percent.toFixed(1)}% from peak`;
-	}
-
 	return (
 		<div className="metric-row grid-cols-2 md:grid-cols-4">
 			<MetricCard
 				label="Sharpe (realized)"
-				value={sharpe.value === null ? UNAVAILABLE : sharpe.value.toFixed(2)}
+				value={sharpe.value?.toFixed(2) ?? UNAVAILABLE}
 				sub={sharpeSub(sharpe)}
 				definition={
 					<>
@@ -94,7 +65,7 @@ export function RiskMetrics({
 			<MetricCard
 				label="Max drawdown"
 				value={money(-maxDrawdown.dollars || 0)}
-				sub={drawdownSub}
+				sub={drawdownSub(maxDrawdown)}
 				definition={
 					<>
 						<p>
@@ -112,7 +83,7 @@ export function RiskMetrics({
 			/>
 			<MetricCard
 				label="Payoff ratio"
-				value={payoff.ratio === null ? UNAVAILABLE : payoff.ratio.toFixed(2)}
+				value={payoff.ratio?.toFixed(2) ?? UNAVAILABLE}
 				sub={
 					payoff.avgWin !== null && payoff.avgLoss !== null
 						? `Avg win ${money(payoff.avgWin)} ÷ avg loss ${money(payoff.avgLoss)}`

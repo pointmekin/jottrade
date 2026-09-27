@@ -18,7 +18,6 @@ vi.mock("@/server/tradeActions", () => ({
 }));
 
 vi.mock("@/hooks/use-accounts", () => ({
-	accountsQueryKey: ["accounts"],
 }));
 
 const trade = {

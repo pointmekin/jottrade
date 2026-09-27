@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { QueryKey } from "@/lib/query-keys";
 import { createStrategy, updateStrategy } from "@/server/strategyActions";
 import { StrategyPerformance } from "./StrategyPerformance";
 
@@ -48,7 +49,7 @@ export function StrategyForm({ strategy, onSaved }: StrategyFormProps) {
 				? updateStrategy({ data: { id: strategy.id, ...values } })
 				: createStrategy({ data: values }),
 		onSuccess: (saved) => {
-			qc.invalidateQueries({ queryKey: ["strategies"] });
+			qc.invalidateQueries({ queryKey: [QueryKey.Strategies] });
 			onSaved(saved as Strategy);
 			if (!strategy) reset();
 		},

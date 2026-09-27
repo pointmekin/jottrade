@@ -1,40 +1,42 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { strategies, trades } from "@/db/schema";
-import { summarizeGroup, TradeStatus } from "@/lib/analytics";
-import { auth } from "@/lib/auth";
+import { requireUserId } from "@/lib/auth";
+import { summarizeGroup } from "@/lib/group-summary";
+import { TradeStatus } from "@/lib/trade";
+
+const strategyFieldsSchema = z.object({
+	name: z.string().min(1).max(100),
+	description: z.string().max(1000).optional(),
+});
+
+const strategyIdSchema = z.object({ id: z.number() });
 
 export const getStrategies = createServerFn({ method: "GET" }).handler(
 	async () => {
-		const session = await auth.api.getSession({ headers: getRequestHeaders() });
-		if (!session) throw new Error("Unauthorized");
-		return db
-			.select()
-			.from(strategies)
-			.where(eq(strategies.userId, session.user.id));
+		const userId = await requireUserId();
+		return db.select().from(strategies).where(eq(strategies.userId, userId));
 	},
 );
 
-const strategyPerformanceSchema = z.object({
-	portfolioId: z.number().int().positive(),
-	strategyId: z.number().int().positive(),
-});
-
-/** All-time totals for one strategy in one account, over every closed trade. */
+/** All time, over every closed trade of the strategy, so it does not depend on journal pages. */
 export const getStrategyPerformance = createServerFn({ method: "GET" })
-	.validator(strategyPerformanceSchema)
+	.validator(
+		z.object({
+			portfolioId: z.number().int().positive(),
+			strategyId: z.number().int().positive(),
+		}),
+	)
 	.handler(async ({ data }) => {
-		const session = await auth.api.getSession({ headers: getRequestHeaders() });
-		if (!session) throw new Error("Unauthorized");
+		const userId = await requireUserId();
 		const rows = await db
 			.select({ netPnl: trades.netPnl })
 			.from(trades)
 			.where(
 				and(
-					eq(trades.userId, session.user.id),
+					eq(trades.userId, userId),
 					eq(trades.portfolioId, data.portfolioId),
 					eq(trades.setupId, data.strategyId),
 					eq(trades.status, TradeStatus.Closed),
@@ -43,75 +45,44 @@ export const getStrategyPerformance = createServerFn({ method: "GET" })
 		return summarizeGroup(rows.map((row) => Number(row.netPnl ?? 0)));
 	});
 
-const createStrategySchema = z.object({
-	name: z.string().min(1).max(100),
-	description: z.string().max(1000).optional(),
-});
-
-export const createStrategy = createServerFn({ method: "POST" }).handler(
-	async (ctx: any) => {
-		const session = await auth.api.getSession({ headers: getRequestHeaders() });
-		if (!session) throw new Error("Unauthorized");
-		const data = createStrategySchema.parse(ctx.data);
+export const createStrategy = createServerFn({ method: "POST" })
+	.validator(strategyFieldsSchema)
+	.handler(async ({ data }) => {
+		const userId = await requireUserId();
 		const [strategy] = await db
 			.insert(strategies)
-			.values({
-				userId: session.user.id,
-				name: data.name,
-				description: data.description,
-			})
+			.values({ ...data, userId })
 			.returning();
 		return strategy;
-	},
-);
+	});
 
-const updateStrategySchema = z.object({
-	id: z.number(),
-	name: z.string().min(1).max(100),
-	description: z.string().max(1000).optional(),
-});
-
-const deleteStrategySchema = z.object({ id: z.number() });
-
-export const updateStrategy = createServerFn({ method: "POST" }).handler(
-	async (ctx: any) => {
-		const session = await auth.api.getSession({ headers: getRequestHeaders() });
-		if (!session) throw new Error("Unauthorized");
-		const data = updateStrategySchema.parse(ctx.data);
-		const setValues: Record<string, unknown> = { name: data.name };
-		if (data.description !== undefined)
-			setValues.description = data.description;
+export const updateStrategy = createServerFn({ method: "POST" })
+	.validator(strategyFieldsSchema.extend(strategyIdSchema.shape))
+	.handler(async ({ data: { id, ...fields } }) => {
+		const userId = await requireUserId();
 		const [strategy] = await db
 			.update(strategies)
-			.set(setValues)
-			.where(
-				and(eq(strategies.id, data.id), eq(strategies.userId, session.user.id)),
-			)
+			.set(fields)
+			.where(and(eq(strategies.id, id), eq(strategies.userId, userId)))
 			.returning();
 		if (!strategy) throw new Error("Strategy not found");
 		return strategy;
-	},
-);
+	});
 
-export const deleteStrategy = createServerFn({ method: "POST" }).handler(
-	async (ctx: any) => {
-		const session = await auth.api.getSession({ headers: getRequestHeaders() });
-		if (!session) throw new Error("Unauthorized");
-		const { id } = deleteStrategySchema.parse(ctx.data);
-		// Transaction: nullify FK references first, then delete
+export const deleteStrategy = createServerFn({ method: "POST" })
+	.validator(strategyIdSchema)
+	.handler(async ({ data: { id } }) => {
+		const userId = await requireUserId();
 		await db.transaction(async (tx) => {
 			await tx
 				.update(trades)
 				.set({ setupId: null })
-				.where(and(eq(trades.setupId, id), eq(trades.userId, session.user.id)));
+				.where(and(eq(trades.setupId, id), eq(trades.userId, userId)));
 			const [deleted] = await tx
 				.delete(strategies)
-				.where(
-					and(eq(strategies.id, id), eq(strategies.userId, session.user.id)),
-				)
+				.where(and(eq(strategies.id, id), eq(strategies.userId, userId)))
 				.returning();
 			if (!deleted) throw new Error("Strategy not found");
 		});
 		return { success: true };
-	},
-);
+	});

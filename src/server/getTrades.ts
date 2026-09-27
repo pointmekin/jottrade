@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
 import {
 	and,
 	count,
@@ -13,137 +12,109 @@ import {
 } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { cashFlows, trades } from "@/db/schema";
-import { computeAccountReturn } from "@/lib/analytics";
-import { auth } from "@/lib/auth";
+import { loadAccountHistory } from "@/db/account-history";
+import { trades } from "@/db/schema";
+import { computeAccountReturn } from "@/lib/risk-metrics";
+import { requireUserId } from "@/lib/auth";
+import { TradeConfidence, TradeSide, TradeStatus } from "@/lib/trade";
 
 const PAGE_SIZE = 50;
 
-const tradeByIdSchema = z.object({
+const filterSchema = z.object({
 	portfolioId: z.number().int().positive(),
-	id: z.coerce.number().int().positive(),
+	symbol: z.string().optional(),
+	side: z.enum(TradeSide).optional(),
+	status: z.enum(TradeStatus).optional(),
+	setupId: z.union([z.number(), z.literal("none")]).optional(),
+	confidence: z.array(z.enum(TradeConfidence)).optional(),
+	mistake: z.array(z.string()).optional(),
+	dateFrom: z.string().optional(),
+	dateTo: z.string().optional(),
+	page: z.number().default(1),
 });
 
-const filterSchema = z
-	.object({
-		portfolioId: z.number().int().positive(),
-		symbol: z.string().optional(),
-		side: z.enum(["LONG", "SHORT"]).optional(),
-		status: z.enum(["OPEN", "CLOSED", "PENDING"]).optional(),
-		setupId: z.union([z.number(), z.literal("none")]).optional(),
-		confidence: z.array(z.enum(["HIGH", "MEDIUM", "LOW"])).optional(),
-		mistake: z.array(z.string()).optional(),
-		dateFrom: z.string().optional(),
-		dateTo: z.string().optional(),
-		page: z.number().default(1),
-	})
-	.optional();
+type TradeFilter = z.infer<typeof filterSchema>;
 
-export const getTrades = createServerFn({ method: "GET" }).handler(
-	async (ctx: any) => {
-		const session = await auth.api.getSession({ headers: getRequestHeaders() });
-		if (!session) throw new Error("Unauthorized");
+function setupCondition(setupId: TradeFilter["setupId"]) {
+	if (setupId === "none") return isNull(trades.setupId);
+	if (setupId === undefined) return undefined;
+	return eq(trades.setupId, setupId);
+}
 
-		type FilterData = NonNullable<z.infer<typeof filterSchema>>;
-		const data: FilterData = (filterSchema.parse(ctx.data ?? {}) ??
-			{}) as FilterData;
-		const page = data.page ?? 1;
-		const offset = (page - 1) * PAGE_SIZE;
+function tradeConditions(userId: string, filter: TradeFilter) {
+	return and(
+		eq(trades.userId, userId),
+		eq(trades.portfolioId, filter.portfolioId),
+		filter.symbol ? like(trades.symbol, `%${filter.symbol}%`) : undefined,
+		filter.side ? eq(trades.side, filter.side) : undefined,
+		filter.status ? eq(trades.status, filter.status) : undefined,
+		setupCondition(filter.setupId),
+		filter.confidence?.length
+			? inArray(trades.confidence, filter.confidence)
+			: undefined,
+		filter.mistake?.length ? inArray(trades.mistake, filter.mistake) : undefined,
+		filter.dateFrom
+			? gte(trades.entryDate, new Date(filter.dateFrom))
+			: undefined,
+		filter.dateTo ? lte(trades.entryDate, new Date(filter.dateTo)) : undefined,
+	);
+}
 
-		const conditions = [eq(trades.userId, session.user.id)];
+export const getTrades = createServerFn({ method: "GET" })
+	.validator(filterSchema)
+	.handler(async ({ data }) => {
+		const userId = await requireUserId();
+		const where = tradeConditions(userId, data);
 
-		if (data.portfolioId)
-			conditions.push(eq(trades.portfolioId, data.portfolioId));
-		if (data.symbol) conditions.push(like(trades.symbol, `%${data.symbol}%`));
-		if (data.side) conditions.push(eq(trades.side, data.side));
-		if (data.status) conditions.push(eq(trades.status, data.status));
-		if (data.setupId === "none") conditions.push(isNull(trades.setupId));
-		else if (data.setupId !== undefined)
-			conditions.push(eq(trades.setupId, data.setupId));
-		if (data.confidence?.length)
-			conditions.push(inArray(trades.confidence, data.confidence));
-		if (data.mistake?.length)
-			conditions.push(inArray(trades.mistake, data.mistake));
-		if (data.dateFrom)
-			conditions.push(gte(trades.entryDate, new Date(data.dateFrom)));
-		if (data.dateTo)
-			conditions.push(lte(trades.entryDate, new Date(data.dateTo)));
-
-		const where = and(...conditions);
-
-		const [tradeRows, [{ total }]] = await Promise.all([
+		const [rows, [{ total }]] = await Promise.all([
 			db
 				.select()
 				.from(trades)
 				.where(where)
 				.orderBy(desc(trades.entryDate))
 				.limit(PAGE_SIZE)
-				.offset(offset),
+				.offset((data.page - 1) * PAGE_SIZE),
 			db.select({ total: count() }).from(trades).where(where),
 		]);
 
 		return {
-			trades: tradeRows as any[],
+			trades: rows,
 			total: Number(total),
-			page,
+			page: data.page,
 			pageSize: PAGE_SIZE,
 		};
-	},
-);
+	});
 
 export const getTradeById = createServerFn({ method: "GET" })
-	.validator(tradeByIdSchema)
+	.validator(
+		z.object({
+			portfolioId: z.number().int().positive(),
+			id: z.coerce.number().int().positive(),
+		}),
+	)
 	.handler(async ({ data }) => {
-		const session = await auth.api.getSession({ headers: getRequestHeaders() });
-		if (!session) throw new Error("Unauthorized");
-
-		const inAccount = and(
-			eq(trades.portfolioId, data.portfolioId),
-			eq(trades.userId, session.user.id),
-		);
-		const [trade] = await db
-			.select()
-			.from(trades)
-			.where(and(eq(trades.id, data.id), inAccount));
-
-		if (!trade) return null;
-
-		const [history, flows] = await Promise.all([
+		const userId = await requireUserId();
+		const [history, [trade]] = await Promise.all([
+			loadAccountHistory(userId, data.portfolioId),
 			db
-				.select({
-					status: trades.status,
-					entryDate: trades.entryDate,
-					exitDate: trades.exitDate,
-					netPnl: trades.netPnl,
-				})
+				.select()
 				.from(trades)
-				.where(inAccount),
-			db
-				.select({
-					occurredAt: cashFlows.occurredAt,
-					amount: cashFlows.amount,
-					kind: cashFlows.kind,
-				})
-				.from(cashFlows)
 				.where(
 					and(
-						eq(cashFlows.portfolioId, data.portfolioId),
-						eq(cashFlows.userId, session.user.id),
+						eq(trades.id, data.id),
+						eq(trades.portfolioId, data.portfolioId),
+						eq(trades.userId, userId),
 					),
 				),
 		]);
-		const toRecord = (row: typeof trade | (typeof history)[number]) => ({
-			...row,
-			netPnl: Number(row.netPnl ?? 0),
-		});
+		if (!trade) return null;
 
 		return {
 			...trade,
-			screenshots: (trade.screenshots as string[] | null) ?? [],
 			accountReturn: computeAccountReturn(
-				toRecord(trade),
-				history.map(toRecord),
-				flows.map((flow) => ({ ...flow, amount: Number(flow.amount) })),
+				{ ...trade, netPnl: Number(trade.netPnl ?? 0) },
+				history.trades,
+				history.cashFlows,
 			),
 		};
 	});

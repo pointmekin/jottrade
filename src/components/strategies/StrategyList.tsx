@@ -12,6 +12,7 @@ import {
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { QueryKey } from "@/lib/query-keys";
 import { deleteStrategy } from "@/server/strategyActions";
 
 type Strategy = { id: number; name: string; description: string | null };
@@ -33,7 +34,7 @@ export function StrategyList({
 	const deleteMut = useMutation({
 		mutationFn: (id: number) => deleteStrategy({ data: { id } }),
 		onSuccess: (_, id) => {
-			qc.invalidateQueries({ queryKey: ["strategies"] });
+			qc.invalidateQueries({ queryKey: [QueryKey.Strategies] });
 			onDeleted?.(id);
 		},
 	});
