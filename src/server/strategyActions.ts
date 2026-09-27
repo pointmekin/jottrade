@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { strategies, trades } from "@/db/schema";
+import { summarizeGroup, TradeStatus } from "@/lib/analytics";
 import { auth } from "@/lib/auth";
 
 export const getStrategies = createServerFn({ method: "GET" }).handler(
@@ -16,6 +17,31 @@ export const getStrategies = createServerFn({ method: "GET" }).handler(
 			.where(eq(strategies.userId, session.user.id));
 	},
 );
+
+const strategyPerformanceSchema = z.object({
+	portfolioId: z.number().int().positive(),
+	strategyId: z.number().int().positive(),
+});
+
+/** All-time totals for one strategy in one account, over every closed trade. */
+export const getStrategyPerformance = createServerFn({ method: "GET" })
+	.validator(strategyPerformanceSchema)
+	.handler(async ({ data }) => {
+		const session = await auth.api.getSession({ headers: getRequestHeaders() });
+		if (!session) throw new Error("Unauthorized");
+		const rows = await db
+			.select({ netPnl: trades.netPnl })
+			.from(trades)
+			.where(
+				and(
+					eq(trades.userId, session.user.id),
+					eq(trades.portfolioId, data.portfolioId),
+					eq(trades.setupId, data.strategyId),
+					eq(trades.status, TradeStatus.Closed),
+				),
+			);
+		return summarizeGroup(rows.map((row) => Number(row.netPnl ?? 0)));
+	});
 
 const createStrategySchema = z.object({
 	name: z.string().min(1).max(100),
