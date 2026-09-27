@@ -44,9 +44,11 @@ Broker adjustments (swaps, dividends) are trading results, so they are in Net P&
 |---|---|---|
 | Price return | signed (exit − entry) ÷ entry × 100 | Stored as `return_percent` for imported and manual trades. Shown in the journal. |
 | Notional return | net P&L ÷ entry notional in account currency × 100 | Not shown. Manual trades stored it before issue #8. |
-| Account return | net P&L ÷ account balance at entry × 100 | Not shown yet. |
+| Account return | net P&L ÷ account balance at entry × 100 | Calculated on request by `computeAccountReturn`. Shown on the trade page. |
 
 "Signed" means the sign flips for a short, so a profitable short has a positive price return. Price return ignores fees, leverage, swaps and currency conversion.
+
+The **balance at entry** is every deposit, withdrawal, adjustment and closed trade realized before the entry time. A trade that is open at the same time and closes later is not in it. The account return is unavailable for a trade that is not closed, or when the balance at entry is not positive. The journal list does not show it, because each row needs the full account history.
 
 ## Strategy totals
 
