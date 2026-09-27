@@ -54,10 +54,4 @@ Branch `refactor/code-quality`, on top of `feat/metrics-phase-2`. No behavior ch
 - An upload and a GCP token request did not check the response status.
 - Two strategies with the same name shared a chart bar key.
 
-`npm run quality` is the gate (see AGENTS.md). It checks the changed files only. These older findings on `main` stay for a later pass:
-
-- SonarJS: cognitive complexity in `command-palette.tsx` and `commands/intent-schema.ts`; regex complexity in `commands/parsers/*`; nested ternaries in `registry.ts` and `CalendarDayCell.tsx`.
-- Biome: `dangerouslySetInnerHtml` in `__root.tsx`; the template demo routes (`src/routes/demo/*`).
-- React Doctor: a ref mutated during render in `use-speech-input.ts`; `getAccounts` creates the default account in a GET (suppressed with a reason; a sign-up hook is the real fix).
-- The calendar sums trades by exit date, not by the `closedTradesInRange` rule. A closed trade without an exit date is missing from the calendar.
-- The command module (`src/lib/commands/*`) still compares intent types with inline strings. `IntentType` exists for it.
+`npm run quality` is the gate (see AGENTS.md). The older findings on `main` are in `docs/handoffs/code-quality.md`.
