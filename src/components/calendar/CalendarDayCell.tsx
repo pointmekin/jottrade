@@ -1,3 +1,4 @@
+import { format, parseISO } from "date-fns";
 import { useCurrency } from "@/hooks/use-currency";
 import { formatMoney } from "@/lib/currency";
 import type { CalendarDay } from "@/server/calendarActions";
@@ -7,6 +8,12 @@ interface CalendarDayCellProps {
 	day: CalendarDay | undefined;
 	isCurrentMonth: boolean;
 	onClick?: (date: string) => void;
+}
+
+function pnlTextClass(netPnl: number) {
+	if (netPnl > 0) return "text-success";
+	if (netPnl < 0) return "text-destructive";
+	return "text-muted-foreground";
 }
 
 function formatCompactMoney(value: number, currency: string) {
@@ -44,15 +51,7 @@ export function CalendarDayCell({
 				maximumFractionDigits: 0,
 			})
 		: null;
-	const accessibleDate = new Date(`${date}T00:00:00`).toLocaleDateString(
-		"en-US",
-		{
-			weekday: "long",
-			month: "long",
-			day: "numeric",
-			year: "numeric",
-		},
-	);
+	const accessibleDate = format(parseISO(date), "EEEE, MMMM d, yyyy");
 
 	const cellClassName = `min-h-11 min-w-0 border-b border-r border-border p-1 text-left transition-colors sm:min-h-[88px] sm:p-2
 		${isCurrentMonth ? "" : "opacity-30"}
@@ -83,7 +82,7 @@ export function CalendarDayCell({
 			</p>
 			<div className="min-w-0">
 				<p
-					className={`truncate font-data text-xs font-semibold leading-tight ${isProfit ? "text-success" : isLoss ? "text-destructive" : "text-muted-foreground"}`}
+					className={`truncate font-data text-xs font-semibold leading-tight ${pnlTextClass(day.netPnl)}`}
 					title={fullPnlLabel ?? undefined}
 				>
 					<span className="sm:hidden">
