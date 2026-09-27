@@ -13,8 +13,9 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { accountsQueryKey, useAccounts } from "@/hooks/use-accounts";
+import { useAccounts } from "@/hooks/use-accounts";
 import { parseUtcDate } from "@/lib/date";
+import { invalidateTradeQueries } from "@/lib/trade-queries";
 import { importTrades } from "@/server/importActions";
 
 type ImportedTrade = {
@@ -229,8 +230,7 @@ export function ImportZone({ onSuccess }: { onSuccess?: () => void }) {
 			} as never);
 		},
 		onSuccess: (res) => {
-			queryClient.invalidateQueries({ queryKey: ["trades"] });
-			queryClient.invalidateQueries({ queryKey: accountsQueryKey });
+			invalidateTradeQueries(queryClient);
 			setParsedData([]);
 			setPreviewOpen(false);
 			// Toast success?

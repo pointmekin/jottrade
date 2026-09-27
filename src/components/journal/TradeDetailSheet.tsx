@@ -16,6 +16,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { invalidateTradeQueries } from "@/lib/trade-queries";
 import { cn } from "@/lib/utils";
 import {
 	deleteTradeImage,
@@ -100,10 +101,7 @@ export function TradeDetailContent({
 					setupId: values.setupId === "none" ? null : Number(values.setupId),
 				},
 			} as any),
-		onSuccess: () => {
-			qc.invalidateQueries({ queryKey: ["trades"] });
-			qc.invalidateQueries({ queryKey: ["trade"] });
-		},
+		onSuccess: () => invalidateTradeQueries(qc),
 	});
 
 	const noteMut = useMutation({

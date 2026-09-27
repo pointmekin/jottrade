@@ -89,6 +89,7 @@ describe("DeleteTradeDialog", () => {
 				["calendar"],
 				["analytics"],
 				["advanced-analytics"],
+				["strategy-performance"],
 				["accounts"],
 			],
 		);

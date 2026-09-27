@@ -79,6 +79,9 @@ describe("command confirmation", () => {
 			}),
 		});
 		expect(invalidate).toHaveBeenCalledWith({ queryKey: ["analytics"] });
+		expect(invalidate).toHaveBeenCalledWith({
+			queryKey: ["strategy-performance"],
+		});
 	});
 	it("lets users complete missing fields", async () => {
 		setup({ type: "trade", params: { symbol: "EURUSD", side: "LONG" } });
