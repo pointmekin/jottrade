@@ -35,7 +35,7 @@ Broker adjustments (swaps, dividends) are trading results, so they are in Net P&
   - It is unavailable below 20 eligible days, or when every return is equal. The app shows the day count.
   - Only realized P&L counts. Open positions are not marked to market, so the value can be higher than a mark-to-market Sharpe.
 - **Payoff ratio** = average win ÷ absolute average loss. Breakeven trades are out. It is unavailable without at least one win and one loss. It is not a reward-to-risk ratio.
-- **R-multiple** is P&L ÷ initial risk to the stop. The journal does not record a stop at entry, so the app does not show R.
+- **R-multiple** is P&L ÷ initial risk to the stop. The journal does not record a stop at entry, so the app does not show R. The design for a stop column is in `docs/plans/performance-metrics-phase-2.md`.
 - **Avg hold time** is the mean time from entry to exit of the closed trades in the period.
 
 ## Returns
