@@ -1,6 +1,7 @@
+import { TradeSide } from "@/lib/trade";
 import { resolveCommandSymbol } from "../aliases";
 import { correctTypos } from "../fuzzy";
-import type { CommandCandidate, TradeParams } from "../types";
+import { type CommandCandidate, IntentType, type TradeParams } from "../types";
 
 // The lookbehind keeps a minus sign attached, so a negative number never matches.
 const number = "(?<![\\w.-])(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?![\\w.])";
@@ -27,8 +28,17 @@ const vocabulary = [
 	"shares",
 	"from",
 ] as const;
-const leadIn =
-	/^(?:i\s+(?:want|would\s+like|wanna|need)\s+to\s+|please\s+|let'?s\s+|log\s+|add\s+|open\s+|new\s+|a\s+)+/i;
+const leadInPhrases = [
+	"i\\s+(?:want|would\\s+like|wanna|need)\\s+to",
+	"please",
+	"let'?s",
+	"log",
+	"add",
+	"open",
+	"new",
+	"a",
+];
+const leadIn = new RegExp(`^(?:(?:${leadInPhrases.join("|")})\\s+)+`, "i");
 
 const targetPatterns = [
 	`\\b(?:target|tp|take\\s+profit)(?:\\s+price)?${connector}(${number})`,
@@ -59,6 +69,8 @@ function take(rest: string, patterns: string[]) {
 	return { value: undefined, rest };
 }
 
+const isPositive = (value: number) => value > 0;
+
 function isPlausibleTarget(
 	entryPrice: string,
 	targetPrice: string,
@@ -66,11 +78,11 @@ function isPlausibleTarget(
 ): boolean {
 	const entry = Number(entryPrice);
 	const target = Number(targetPrice);
-	if (!(entry > 0) || !(target > 0)) return false;
+	if (!isPositive(entry) || !isPositive(target)) return false;
 	const ratio = target / entry;
 	if (ratio < TARGET_RATIO_RANGE[0] || ratio > TARGET_RATIO_RANGE[1])
 		return false;
-	if (side === "SHORT") return target < entry;
+	if (side === TradeSide.Short) return target < entry;
 	return target > entry;
 }
 
@@ -106,7 +118,7 @@ export function parseTrade(query: string): CommandCandidate | null {
 	);
 	if (!action) return null;
 	let params: TradeParams = {
-		side: /^(sell|short)$/i.test(action[1]) ? "SHORT" : "LONG",
+		side: /^(sell|short)$/i.test(action[1]) ? TradeSide.Short : TradeSide.Long,
 	};
 	if (action[2]) params.symbol = resolveCommandSymbol(action[2]);
 
@@ -142,7 +154,7 @@ export function parseTrade(query: string): CommandCandidate | null {
 				/ +/g,
 				" ",
 			),
-		intent: { type: "trade", params },
+		intent: { type: IntentType.Trade, params },
 		confidence: valid ? 0.95 : 0.75,
 		...(rest
 			? {

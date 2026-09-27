@@ -1,29 +1,24 @@
 import { useNavigate } from "@tanstack/react-router";
-import { MicIcon, SquareIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { CommandPreview } from "@/components/command-palette/command-preview";
+import { CommandSearch } from "@/components/command-palette/command-search";
 import { useTheme } from "@/components/theme-provider";
-import { Button } from "@/components/ui/button";
-import {
-	Command,
-	CommandEmpty,
-	CommandInput,
-	CommandItem,
-	CommandList,
-} from "@/components/ui/command";
 import {
 	Dialog,
 	DialogContent,
 	DialogDescription,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { Kbd, KbdGroup } from "@/components/ui/kbd";
-import { Spinner } from "@/components/ui/spinner";
+import { useCommandShortcut } from "@/hooks/use-command-shortcut";
 import { useSpeechInput } from "@/hooks/use-speech-input";
 import { authClient } from "@/lib/auth-client";
 import { toCommandCandidate } from "@/lib/commands/intent-schema";
 import { matchCommands } from "@/lib/commands/matcher";
-import type { CommandCandidate } from "@/lib/commands/types";
+import {
+	type CommandCandidate,
+	IntentType,
+	isWriteIntent,
+} from "@/lib/commands/types";
 import { extractCommandIntent } from "@/server/commandIntentActions";
 
 /** Below this, a local match is a guess, so offer the Gemini fallback. */
@@ -83,30 +78,19 @@ export function CommandPalette({
 	useEffect(() => {
 		if (!open || selected) stopSpeech();
 	}, [open, selected, stopSpeech]);
-	useEffect(() => {
-		if (!session) return;
-		const handleKey = (event: KeyboardEvent) => {
-			if (
-				event.key.toLowerCase() !== "k" ||
-				!(event.metaKey || event.ctrlKey) ||
-				event.altKey ||
-				event.isComposing ||
-				event.repeat
-			)
-				return;
-			event.preventDefault();
+	useCommandShortcut({
+		enabled: Boolean(session),
+		onToggle: () => {
 			if (!saving) onOpenChange(!open);
-		};
-		document.addEventListener("keydown", handleKey);
-		return () => document.removeEventListener("keydown", handleKey);
-	}, [session, open, onOpenChange, saving]);
+		},
+	});
 	if (!session) return null;
 	const choose = (candidate: CommandCandidate) => {
 		const intent = candidate.intent;
-		if (intent.type === "navigation") {
+		if (intent.type === IntentType.Navigation) {
 			void navigate({ to: intent.path });
 			onOpenChange(false);
-		} else if (intent.type === "theme") {
+		} else if (intent.type === IntentType.Theme) {
 			setTheme(intent.theme);
 			onOpenChange(false);
 		} else setSelected(candidate);
@@ -154,9 +138,7 @@ export function CommandPalette({
 					Navigate, change the theme, or review a trade or account entry before
 					saving.
 				</DialogDescription>
-				{selected &&
-				(selected.intent.type === "trade" ||
-					selected.intent.type === "account-entry") ? (
+				{selected && isWriteIntent(selected.intent) ? (
 					<CommandPreview
 						intent={selected.intent}
 						warning={selected.warning}
@@ -165,127 +147,19 @@ export function CommandPalette({
 						onSavingChange={setSaving}
 					/>
 				) : (
-					<Command shouldFilter={false}>
-						<div className="relative">
-							<CommandInput
-								aria-label="Search commands"
-								placeholder="Search or tell JotTrade what to do"
-								value={query}
-								onValueChange={typeQuery}
-								className={speech.supported ? "pr-16" : "pr-8"}
-							/>
-							{/* Sits left of the dialog close button, on its centre line. */}
-							{speech.supported && (
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon"
-									aria-label={
-										speech.listening ? "Stop dictation" : "Dictate a command"
-									}
-									aria-pressed={speech.listening}
-									disabled={interpreting}
-									className="absolute top-2 right-7 size-8 opacity-70 transition-opacity hover:bg-transparent hover:opacity-100"
-									onClick={() =>
-										speech.listening ? speech.stop() : speech.start()
-									}
-								>
-									{speech.listening ? (
-										<SquareIcon className="size-3.5 fill-destructive text-destructive" />
-									) : (
-										<MicIcon className="size-4" />
-									)}
-								</Button>
-							)}
-						</div>
-						{speech.listening && (
-							<output className="block space-y-1 border-b px-3 py-2 text-xs text-muted-foreground">
-								<span className="flex items-center gap-2">
-									<span className="size-2 shrink-0 animate-pulse rounded-full bg-destructive" />
-									<span className="truncate">
-										{speech.interim || "Listening… speak your command."}
-									</span>
-								</span>
-								<span className="block">
-									Most browsers send the audio to their own speech service.
-								</span>
-							</output>
-						)}
-						<CommandList className="max-h-[min(360px,60dvh)] p-2">
-							<CommandEmpty>
-								No matching commands. Try “short gold” or “deposit 1000”.
-							</CommandEmpty>
-							{candidates.map((candidate) => (
-								<CommandItem
-									key={candidate.id}
-									value={candidate.id}
-									disabled={interpreting}
-									onSelect={() => choose(candidate)}
-									className="min-h-11"
-								>
-									<div className="min-w-0">
-										<p>{candidate.title}</p>
-										{candidate.intent.type === "navigation" && (
-											<p className="text-xs text-muted-foreground">
-												Go to {candidate.intent.path}
-											</p>
-										)}
-										{(candidate.intent.type === "trade" ||
-											candidate.intent.type === "account-entry") && (
-											<p className="text-xs text-muted-foreground">
-												Review details before saving
-											</p>
-										)}
-									</div>
-								</CommandItem>
-							))}
-							{offerFallback && (
-								<CommandItem
-									value="interpret"
-									onSelect={() => {
-										if (!interpreting) void interpret();
-									}}
-									className="min-h-11"
-								>
-									<div className="min-w-0">
-										<p className="flex items-center gap-2">
-											{interpreting && <Spinner className="size-3.5" />}
-											{interpreting ? "Interpreting…" : "Interpret with Gemini"}
-										</p>
-										<p className="text-xs text-muted-foreground">
-											Sends this command text to Google. Nothing saves without
-											your confirmation.
-										</p>
-									</div>
-								</CommandItem>
-							)}
-						</CommandList>
-						{(interpretError ?? speech.error) && (
-							<p
-								role="alert"
-								className="border-t px-3 py-2 text-sm text-destructive"
-							>
-								{interpretError ?? speech.error}
-							</p>
-						)}
-						<div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t px-3 py-2 text-xs text-muted-foreground">
-							<span className="flex items-center gap-1.5">
-								<KbdGroup>
-									<Kbd>↑</Kbd>
-									<Kbd>↓</Kbd>
-								</KbdGroup>
-								to choose
-							</span>
-							<span className="flex items-center gap-1.5">
-								<Kbd>Enter</Kbd>
-								to continue
-							</span>
-							<span className="flex items-center gap-1.5">
-								<Kbd>Esc</Kbd>
-								to close
-							</span>
-						</div>
-					</Command>
+					<CommandSearch
+						query={query}
+						onQueryChange={typeQuery}
+						speech={speech}
+						candidates={candidates}
+						interpreting={interpreting}
+						offerFallback={offerFallback}
+						error={interpretError ?? speech.error}
+						onChoose={choose}
+						onInterpret={() => {
+							if (!interpreting) void interpret();
+						}}
+					/>
 				)}
 			</DialogContent>
 		</Dialog>
