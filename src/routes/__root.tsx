@@ -3,6 +3,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import {
 	createRootRouteWithContext,
 	HeadContent,
+	ScriptOnce,
 	Scripts,
 	useLocation,
 } from "@tanstack/react-router";
@@ -17,6 +18,20 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import appCss from "../styles.css?url";
+
+const THEME_STORAGE_KEY = "vite-ui-theme";
+const DEFAULT_THEME = "dark";
+
+// Runs before hydration so the first paint already has the stored theme.
+const themeScript = `(function () {
+	try {
+		var theme = localStorage.getItem("${THEME_STORAGE_KEY}") || "${DEFAULT_THEME}";
+		if (theme === "system") {
+			theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+		}
+		document.documentElement.classList.add(theme);
+	} catch (e) {}
+})()`;
 
 interface MyRouterContext {
 	queryClient: QueryClient;
@@ -48,34 +63,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 		<html lang="en" suppressHydrationWarning>
 			<head>
 				<HeadContent />
-				{/* This script:
-            Runs immediately when the page loads, before React hydrates.
-            Reads the user's theme preference from localStorage.
-            Applies the correct dark or light class to the document.documentElement (<html> tag) instantly.
-            This ensures that by the time the browser paints the page, the correct theme is already applied, preventing the white flash. */}
-				<script
-					dangerouslySetInnerHTML={{
-						__html: `
-              (function() {
-                var storageKey = "vite-ui-theme";
-                var defaultTheme = "dark";
-                try {
-                  var theme = localStorage.getItem(storageKey);
-                  var support = window.matchMedia("(prefers-color-scheme: dark)").matches === true;
-                  if (!theme && defaultTheme === "system") {
-                    document.documentElement.classList.add(support ? "dark" : "light");
-                  } else if (!theme) {
-                     document.documentElement.classList.add(defaultTheme);
-                  } else if (theme === "system") {
-                    document.documentElement.classList.add(support ? "dark" : "light");
-                  } else {
-                    document.documentElement.classList.add(theme);
-                  }
-                } catch (e) {}
-              })();
-            `,
-					}}
-				/>
+				<ScriptOnce>{themeScript}</ScriptOnce>
 			</head>
 			<body className="bg-background antialiased">
 				<SidebarProvider>
@@ -88,7 +76,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 							<BottomNav onOpenCommands={() => setCommandsOpen(true)} />
 						</>
 					)}
-					<ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+					<ThemeProvider
+						defaultTheme={DEFAULT_THEME}
+						storageKey={THEME_STORAGE_KEY}
+					>
 						{!shouldHideSidebar && (
 							<CommandPalette
 								open={commandsOpen}
