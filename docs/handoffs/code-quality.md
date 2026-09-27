@@ -6,25 +6,26 @@ PR [#27](https://github.com/pointmekin/jottrade/pull/27), branch `refactor/code-
 
 - `npm run quality` is the gate. Read "Quality gate" and "Code style" in `AGENTS.md` first.
 - The gate checks changed files only, because `main` still has the findings below. When you touch a file, make the whole file clean.
-- `tsc --noEmit` has 0 errors. Vitest: 31 files, 237 tests.
-- New worktrees have no `node_modules`. Copy them with `cp -Rc ~/Desktop/Projects/tradebase/jottrade/node_modules ./node_modules`.
+- `tsc --noEmit` has 0 errors. Vitest: 32 files, 244 tests.
+- New worktrees have no `node_modules`. Copy them with `cp -Rc ~/Desktop/Projects/tradebase/jottrade/node_modules ./node_modules`. The main checkout has no ESLint or React Doctor, so also run `bun install --frozen-lockfile`.
+
+## Done in the follow-up PR
+
+The follow-up branch is `refactor/code-quality-followups`. Its PR targets `refactor/code-quality`.
+
+1. **Command module.** `CommandSearch` (`command-search.tsx`) and `useCommandShortcut` now hold the search UI and the keyboard shortcut. `toCommandCandidate` has one function for each intent. The parsers use smaller regexes. The module uses `IntentType`, `CommandTheme`, `TradeSide` and `isWriteIntent`, not inline strings.
+2. **`use-speech-input.ts`.** An effect writes the transcript ref, not the render.
+3. **`__root.tsx`.** `ScriptOnce` renders the theme script. The script runs only on the server render and removes itself.
+4. **Hydration.** `_authenticated/route.tsx` and `bottom-nav.tsx` use `useHydrated`, so the first client render matches the server. Chrome showed no console errors on `/dashboard`, `/calendar`, `/journal` and `/settings`.
+7. **Calendar metric rule.** `groupTradesByDay` (`src/lib/calendar-days.ts`) uses the dashboard rule: a `CLOSED` trade adds P&L on its exit day, or on its entry day when it has no exit date. Other trades show on the entry day without P&L. `src/test/calendar-days.test.ts` covers the rule.
+8. **Other SonarJS findings.** `CalendarDayCell.tsx`, `command-palette-speech.test.tsx` and `instruments.test.ts` are clean.
 
 ## Remaining findings on `main`
 
-Fix them in small PRs, one area each. Run `npm run doctor`, `npx eslint .` and `npx biome lint` to see the full list.
-
-1. **Command module** (`src/lib/commands/*`, `src/components/command-palette/command-palette.tsx`).
-   - `CommandPalette` has cognitive complexity 25 and is 154 lines long. Split it.
-   - `intent-schema.ts`: cognitive complexity and a nested ternary. `registry.ts`: a nested ternary.
-   - `parsers/trade.ts` and `parsers/account-entry.ts`: regex complexity and an inverted boolean check.
-   - The command module still compares intent types with inline strings. Use `IntentType` from `src/lib/commands/types.ts`.
-2. **`src/hooks/use-speech-input.ts`**: React Doctor reports an error: a ref is mutated during render.
-3. **`src/routes/__root.tsx`**: `dangerouslySetInnerHtml` for the theme script. React warns about a script tag during render.
-4. **Hydration warnings**: `_authenticated/route.tsx` renders a spinner on the server and the page on the client. The bottom-nav initial differs between server and client. These existed before #23.
 5. **Template demo routes** (`src/routes/demo/*`, `src/data/demo*`): they are public and have lint errors. The owner decides whether to delete them.
 6. **`getAccounts`** (`src/server/portfolioActions.ts`) creates the default account inside a GET. It is suppressed with a reason. The real fix is to create it in a Better Auth sign-up hook.
-7. **Calendar metric rule**: `getCalendarData` sums trades by exit date. The dashboard uses `closedTradesInRange` (status `CLOSED`, exit time or entry time). A closed trade without an exit date is missing from the calendar. This is a behavior change; add a test first.
-8. **Other SonarJS findings**: a nested ternary in `CalendarDayCell.tsx`; `public-static-readonly` in `command-palette-speech.test.tsx`; a trivial assertion in `instruments.test.ts`.
+
+The auth guard in `_authenticated/route.tsx` is still client-side. The server renders a spinner, then the client checks the session. A `beforeLoad` guard with a server session check would render the page on the server. That is a larger change with a cost on each navigation, so it is not done.
 
 ## Owner decisions
 
