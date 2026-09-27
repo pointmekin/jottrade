@@ -4,10 +4,10 @@ Issue: [#8](https://github.com/pointmekin/jottrade/issues/8). Phase 1: PR [#23](
 
 ## Done in phase 2
 
-- `invalidateTradeQueries` (`src/lib/trade-queries.ts`) refreshes every query that reads trades, `["strategy-performance"]` included. Create, import, edit, delete, account delete and the command palette call it.
+- `invalidateTradeQueries` (`src/lib/query-keys.ts`) refreshes every query that reads trades, `["strategy-performance"]` included. Create, import, edit, delete, account delete and the command palette call it.
 - `computeSharpe(curve, endDay)` counts idle weekdays up to the end of the period, capped at today.
 - The journal "Price return" header has a definition popover. `MetricLabel` takes a `className`.
-- `computeAccountReturn` in `src/lib/analytics.ts`. `getTradeById` returns `accountReturn`. `TradeReturns` (`src/components/journal/trade-returns.tsx`) shows price return and account return on the trade page.
+- `computeAccountReturn` in `src/lib/risk-metrics.ts`. `getTradeById` returns `accountReturn`. `TradeReturns` (`src/components/journal/trade-returns.tsx`) shows price return and account return on the trade page.
 - `reconcileAccount` (`src/lib/reconciliation.ts`) and `scripts/reconcile-metrics.ts`: a read-only reconciliation for the success signal.
 - The R-multiple design is in the plan. No schema change was made.
 
@@ -45,3 +45,19 @@ Add a row each time the script runs.
    - Run the legacy `return_percent` SQL from PR #23. The script reports how many rows it changes.
 2. **Sharpe start.** The series starts at the first active day. A bounded period could start at the period start. See plan decision 3.
 3. **Cash flow changes and the trade page.** `AccountEntriesPanel` does not invalidate `["trade"]`, so the account return can be old for up to 60 s after a deposit edit.
+
+## Code quality pass (stacked PR)
+
+Branch `refactor/code-quality`, on top of `feat/metrics-phase-2`. No behavior change, except the fixes that the scanners found:
+
+- Create, import and edit did not refresh every trade query. Deposit edits did not refresh the trade page.
+- An upload and a GCP token request did not check the response status.
+- Two strategies with the same name shared a chart bar key.
+
+`npm run quality` is the gate (see AGENTS.md). It checks the changed files only. These older findings on `main` stay for a later pass:
+
+- SonarJS: cognitive complexity in `command-palette.tsx` and `commands/intent-schema.ts`; regex complexity in `commands/parsers/*`; nested ternaries in `registry.ts` and `CalendarDayCell.tsx`.
+- Biome: `dangerouslySetInnerHtml` in `__root.tsx`; the template demo routes (`src/routes/demo/*`).
+- React Doctor: a ref mutated during render in `use-speech-input.ts`; `getAccounts` creates the default account in a GET (suppressed with a reason; a sign-up hook is the real fix).
+- The calendar sums trades by exit date, not by the `closedTradesInRange` rule. A closed trade without an exit date is missing from the calendar.
+- The command module (`src/lib/commands/*`) still compares intent types with inline strings. `IntentType` exists for it.

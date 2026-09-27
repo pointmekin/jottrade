@@ -6,7 +6,7 @@ Issue: [#8](https://github.com/pointmekin/jottrade/issues/8). Phase 1: `docs/pla
 
 | # | Slice | Result |
 |---|---|---|
-| 1 | Query refresh | `invalidateTradeQueries` (`src/lib/trade-queries.ts`) lists every query that reads trades. Create, import, edit and delete call it. Before, create, import and edit did not refresh the dashboard or the strategy page for up to 60 s (`staleTime`). |
+| 1 | Query refresh | `invalidateTradeQueries` (`src/lib/query-keys.ts`) lists every query that reads trades. Create, import, edit and delete call it. Before, create, import and edit did not refresh the dashboard or the strategy page for up to 60 s (`staleTime`). |
 | 2 | Sharpe window end | `computeSharpe(curve, endDay)` counts idle weekdays after the last active day up to the end of the period. The server caps the end at today. |
 | 3 | Journal header | "Price return" opens a definition popover. |
 | 4 | Account return | `computeAccountReturn` and a "Trade returns" section on the trade page. |
@@ -33,7 +33,7 @@ The issue has two signals.
 
    Baseline on the synthetic database (`jottrade_issue8`, 187 closed trades): 0 discrepancies, 0 legacy return rows. The production baseline is not collected yet. The owner runs it, because the repository is public and the database is shared.
 
-   Collection: run it after each deploy that touches `src/lib/analytics.ts` or `src/server/`, and record the result in the table in the phase 2 handoff. The exit code is 1 on any discrepancy, so it can also run in CI against a seeded database.
+   Collection: run it after each deploy that touches `src/lib/analytics.ts`, `src/lib/risk-metrics.ts`, `src/lib/group-summary.ts` or `src/server/`, and record the result in the table in the phase 2 handoff. The exit code is 1 on any discrepancy, so it can also run in CI against a seeded database.
 
 2. **Fewer user questions about differing totals.** JotTrade is a personal tool, so a "question" is a report by the owner. Proposal: open a GitHub issue with the label `metrics-mismatch` for each report. The baseline is the count of such reports before #8. The label does not exist yet. The owner decides whether to create it.
 
