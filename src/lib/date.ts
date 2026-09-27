@@ -34,6 +34,17 @@ export function previousDayKey(day: string): string {
 	return date.toISOString().slice(0, 10);
 }
 
+export function nextDayKey(day: string): string {
+	const date = new Date(`${day}T00:00:00Z`);
+	date.setUTCDate(date.getUTCDate() + 1);
+	return date.toISOString().slice(0, 10);
+}
+
+export function isWeekdayKey(day: string): boolean {
+	const dayOfWeek = new Date(`${day}T00:00:00Z`).getUTCDay();
+	return dayOfWeek !== 0 && dayOfWeek !== 6;
+}
+
 export function zonedDayOfWeek(date: Date, timeZone: string): number {
 	return new Date(`${toDayKey(date, timeZone)}T00:00:00Z`).getUTCDay();
 }

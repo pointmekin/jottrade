@@ -1,4 +1,4 @@
-import { previousDayKey, toDayKey } from "./date";
+import { isWeekdayKey, nextDayKey, previousDayKey, toDayKey } from "./date";
 
 export type ClosedTrade = {
 	exitDate: Date;
@@ -34,7 +34,16 @@ export type TradeRecord = {
 	netPnl: number;
 };
 
-export type EquityPoint = { date: string; balance: number };
+/**
+ * One day of the account. `balance` is cash: it moves with trades, adjustments,
+ * deposits and withdrawals. `performance` is trading P&L accumulated since the
+ * window opened: it ignores deposits and withdrawals.
+ */
+export type EquityPoint = {
+	date: string;
+	balance: number;
+	performance: number;
+};
 
 export type TradeStats = {
 	/** Balance carried into the window: earlier deposits plus earlier realized P&L. */
@@ -44,7 +53,8 @@ export type TradeStats = {
 	totalBalance: number;
 	totalPnL: number;
 	activeTrades: number;
-	winRate: number;
+	/** null when no trade was a win or a loss. */
+	winRate: number | null;
 	/** null when there is no losing trade to divide by. */
 	profitFactor: number | null;
 	totalTrades: number;
@@ -67,9 +77,27 @@ function isAfter(date: Date, to: Date | null): boolean {
 	return to !== null && date.getTime() > to.getTime();
 }
 
+/** Wins over decided trades. Breakeven trades are neither, so they stay out. */
+function winRateOf(wins: number, losses: number): number | null {
+	const decided = wins + losses;
+	return decided > 0 ? (wins / decided) * 100 : null;
+}
+
 /** A closed trade is realized on its exit date; fall back to entry when exit is missing. */
 function realizedAt(trade: TradeRecord): Date {
 	return trade.exitDate ?? trade.entryDate;
+}
+
+/** The closed trades whose realization falls inside the window. */
+export function closedTradesInRange<T extends TradeRecord>(
+	records: T[],
+	range: DateRange = UNBOUNDED,
+): T[] {
+	return records.filter((trade) => {
+		if (trade.status !== TradeStatus.Closed) return false;
+		const at = realizedAt(trade);
+		return !isBefore(at, range.from) && !isAfter(at, range.to);
+	});
 }
 
 /**
@@ -169,23 +197,27 @@ export function summarizeTrades(
 
 	const equityCurve: EquityPoint[] = [];
 	let balance = openingBalance;
+	let performance = 0;
 
 	if (days.length > 0) {
 		equityCurve.push({
 			date: previousDayKey(days[0]),
 			balance: round2(openingBalance),
+			performance: 0,
 		});
 	}
 
 	for (const day of days) {
-		balance +=
-			(dailyPnl.get(day) ?? 0) +
-			(dailyFlow.get(day) ?? 0) +
-			(dailyAdjustment.get(day) ?? 0);
-		equityCurve.push({ date: day, balance: round2(balance) });
+		const tradingPnl =
+			(dailyPnl.get(day) ?? 0) + (dailyAdjustment.get(day) ?? 0);
+		performance += tradingPnl;
+		balance += tradingPnl + (dailyFlow.get(day) ?? 0);
+		equityCurve.push({
+			date: day,
+			balance: round2(balance),
+			performance: round2(performance),
+		});
 	}
-
-	const decidedTrades = winningTrades + losingTrades;
 
 	return {
 		stats: {
@@ -194,7 +226,7 @@ export function summarizeTrades(
 			totalBalance: round2(balance),
 			totalPnL: round2(totalPnL),
 			activeTrades,
-			winRate: decidedTrades > 0 ? (winningTrades / decidedTrades) * 100 : 0,
+			winRate: winRateOf(winningTrades, losingTrades),
 			profitFactor: grossLoss > 0 ? grossProfit / grossLoss : null,
 			totalTrades: closedInRange,
 			winningTrades,
@@ -205,87 +237,172 @@ export function summarizeTrades(
 	};
 }
 
-/**
- * Groups closed trades by local exit date. Returns date → sum of netPnl.
- */
-export function groupByDay(
-	trades: ClosedTrade[],
-	timeZone = "UTC",
-): Map<string, number> {
-	const map = new Map<string, number>();
-	for (const trade of trades) {
-		const key = toDayKey(trade.exitDate, timeZone);
-		map.set(key, (map.get(key) ?? 0) + trade.netPnl);
-	}
-	return map;
-}
+/** Below this many eligible days a Sharpe ratio is noise, so it is not shown. */
+export const MIN_SHARPE_DAYS = 20;
+
+export type SharpeResult = { value: number | null; days: number };
 
 /**
- * Annualized Sharpe ratio from a series of P&L values.
- * Risk-free rate = 0. Annualization = sqrt(252).
- * Uses sample stddev (n-1). Returns 0 if fewer than 2 values or stddev is 0.
- */
-export function computeSharpe(dailyPnl: Map<string, number>): number {
-	const values = Array.from(dailyPnl.values());
-	if (values.length < 2) return 0;
-	const mean = values.reduce((a, b) => a + b, 0) / values.length;
-	// Use sample stddev (n-1) — required for unbiased Sharpe ratio estimation
-	const variance =
-		values.reduce((acc, v) => acc + (v - mean) ** 2, 0) / (values.length - 1);
-	const stddev = Math.sqrt(variance);
-	if (stddev === 0) return 0;
-	return (mean / stddev) * Math.sqrt(252);
-}
-
-/**
- * Largest peak-to-trough drawdown of the account value.
+ * Annualized Sharpe ratio of daily account returns on realized P&L.
  *
- * It reads the equity curve rather than raw P&L, so deposits and withdrawals
- * move the peak the same way the real account does.
+ * A day's return is its trading P&L over the capital at the start of that day:
+ * the previous balance plus the same day's deposits and withdrawals. Idle
+ * weekdays between active days count as zero returns; a day without positive
+ * capital has no defined return and is skipped. Risk-free rate is 0, the
+ * standard deviation is the sample (n-1) one, and annualization is √252.
+ * IMPORTANT: points must be sorted by date ascending.
+ */
+export function computeSharpe(curve: EquityPoint[]): SharpeResult {
+	const returns: number[] = [];
+
+	for (let i = 1; i < curve.length; i++) {
+		const previous = curve[i - 1];
+		const point = curve[i];
+
+		if (previous.balance > 0) {
+			for (
+				let day = nextDayKey(previous.date);
+				day < point.date;
+				day = nextDayKey(day)
+			) {
+				if (isWeekdayKey(day)) returns.push(0);
+			}
+		}
+
+		const pnl = point.performance - previous.performance;
+		const capital = point.balance - pnl;
+		if (capital <= 0) continue;
+		if (pnl === 0 && !isWeekdayKey(point.date)) continue;
+		returns.push(pnl / capital);
+	}
+
+	const days = returns.length;
+	if (days < MIN_SHARPE_DAYS) return { value: null, days };
+
+	const mean = returns.reduce((a, b) => a + b, 0) / days;
+	const variance =
+		returns.reduce((acc, r) => acc + (r - mean) ** 2, 0) / (days - 1);
+	const stddev = Math.sqrt(variance);
+	if (stddev === 0) return { value: null, days };
+	return { value: (mean / stddev) * Math.sqrt(252), days };
+}
+
+/**
+ * Largest peak-to-trough fall caused by trading.
+ *
+ * A deposit or a withdrawal moves the peak by the same amount as the balance,
+ * so cash flows never create or hide a drawdown. The percent is relative to
+ * that flow-adjusted peak, and is null when the peak is not positive.
  * IMPORTANT: points must be sorted by date ascending.
  */
 export function computeMaxDrawdown(curve: EquityPoint[]): {
 	dollars: number;
-	percent: number;
+	percent: number | null;
 } {
 	if (!curve.length) return { dollars: 0, percent: 0 };
 
 	let peak = curve[0].balance;
 	let maxDd = 0;
-	let maxDdPct = 0;
+	let maxDdPct: number | null = 0;
 
-	for (const point of curve) {
-		if (point.balance > peak) peak = point.balance;
+	for (let i = 1; i < curve.length; i++) {
+		const previous = curve[i - 1];
+		const point = curve[i];
+		const cashFlow =
+			point.balance -
+			previous.balance -
+			(point.performance - previous.performance);
+		peak = Math.max(peak + cashFlow, point.balance);
+
 		const dd = peak - point.balance;
-		const ddPct = peak > 0 ? (dd / peak) * 100 : 0;
 		if (dd > maxDd) {
 			maxDd = dd;
-			maxDdPct = ddPct;
+			maxDdPct = peak > 0 ? round2((dd / peak) * 100) : null;
 		}
 	}
 
-	return { dollars: maxDd, percent: maxDdPct };
+	return { dollars: round2(maxDd), percent: maxDdPct };
 }
 
-/** Avg win / |avg loss| across closed trades. Returns 0 if no wins or no losses. */
-export function computeAvgRR(trades: ClosedTrade[]): number {
+export type PayoffRatio = {
+	/** null without at least one win and one loss. */
+	ratio: number | null;
+	avgWin: number | null;
+	avgLoss: number | null;
+	wins: number;
+	losses: number;
+};
+
+/** Average win over absolute average loss. Breakeven trades are ignored. */
+export function computePayoffRatio(trades: ClosedTrade[]): PayoffRatio {
 	const wins = trades.filter((t) => t.netPnl > 0);
 	const losses = trades.filter((t) => t.netPnl < 0);
-	if (!wins.length || !losses.length) return 0;
-	const avgWin = wins.reduce((a, t) => a + t.netPnl, 0) / wins.length;
-	const avgLoss = Math.abs(
-		losses.reduce((a, t) => a + t.netPnl, 0) / losses.length,
-	);
-	return avgLoss === 0 ? 0 : avgWin / avgLoss;
+	const avgWin = wins.length
+		? wins.reduce((a, t) => a + t.netPnl, 0) / wins.length
+		: null;
+	const avgLoss = losses.length
+		? Math.abs(losses.reduce((a, t) => a + t.netPnl, 0) / losses.length)
+		: null;
+	return {
+		ratio: avgWin !== null && avgLoss ? avgWin / avgLoss : null,
+		avgWin,
+		avgLoss,
+		wins: wins.length,
+		losses: losses.length,
+	};
 }
 
-/** Mean hold duration in hours across closed trades. */
-export function computeAvgHoldTime(trades: ClosedTrade[]): number {
-	if (!trades.length) return 0;
+/** Mean hold duration in hours across closed trades; null for no trades. */
+export function computeAvgHoldTime(trades: ClosedTrade[]): number | null {
+	if (!trades.length) return null;
 	const totalHours = trades.reduce(
 		(acc, t) =>
 			acc + (t.exitDate.getTime() - t.entryDate.getTime()) / 3_600_000,
 		0,
 	);
 	return totalHours / trades.length;
+}
+
+export type GroupSummary = {
+	count: number;
+	wins: number;
+	losses: number;
+	breakeven: number;
+	totalPnl: number;
+	avgPnl: number;
+	/** null when no trade in the group was a win or a loss. */
+	winRate: number | null;
+};
+
+/** Every per-group total on every screen comes from here, so they agree. */
+export function summarizeGroup(pnls: number[]): GroupSummary {
+	const wins = pnls.filter((pnl) => pnl > 0).length;
+	const losses = pnls.filter((pnl) => pnl < 0).length;
+	const totalPnl = round2(pnls.reduce((a, b) => a + b, 0));
+	return {
+		count: pnls.length,
+		wins,
+		losses,
+		breakeven: pnls.length - wins - losses,
+		totalPnl,
+		avgPnl: pnls.length ? round2(totalPnl / pnls.length) : 0,
+		winRate: winRateOf(wins, losses),
+	};
+}
+
+export function summarizeGroups<T, K>(
+	items: T[],
+	keyOf: (item: T) => K,
+	pnlOf: (item: T) => number,
+): Map<K, GroupSummary> {
+	const pnlsByKey = new Map<K, number[]>();
+	for (const item of items) {
+		const key = keyOf(item);
+		const pnls = pnlsByKey.get(key);
+		if (pnls) pnls.push(pnlOf(item));
+		else pnlsByKey.set(key, [pnlOf(item)]);
+	}
+	return new Map(
+		Array.from(pnlsByKey, ([key, pnls]) => [key, summarizeGroup(pnls)]),
+	);
 }
