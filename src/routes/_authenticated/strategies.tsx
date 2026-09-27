@@ -61,7 +61,6 @@ function StrategiesPage() {
 				/>
 
 				<div className="grid grid-cols-1 gap-4 md:grid-cols-[280px_1fr]">
-					{/* Left panel */}
 					<div className="surface p-4">
 						{isLoading ? (
 							<div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
@@ -77,7 +76,6 @@ function StrategiesPage() {
 						)}
 					</div>
 
-					{/* Right panel */}
 					<div className="surface min-h-72 p-4">
 						{showForm ? (
 							<>

@@ -60,7 +60,6 @@ function Profile() {
 				</div>
 
 				<div className="surface overflow-hidden">
-					{/* Header / Cover */}
 					<div className="relative h-28 border-b border-border bg-accent/40">
 						<div className="absolute -bottom-10 left-8">
 							<div>
@@ -83,7 +82,6 @@ function Profile() {
 
 					<div className="pt-14 px-8 pb-8">
 						<div className="grid gap-8">
-							{/* Personal Information */}
 							<section>
 								<SectionHeading
 									title="Personal information"
@@ -112,7 +110,6 @@ function Profile() {
 
 							<div className="border-t border-border" />
 
-							{/* Account Security */}
 							<section>
 								<SectionHeading title="Account security" detail="Credentials" />
 								<div className="space-y-3">
