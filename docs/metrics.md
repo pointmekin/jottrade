@@ -30,7 +30,7 @@ Broker adjustments (swaps, dividends) are trading results, so they are in Net P&
 - **Max drawdown** is the largest fall of trading P&L from an earlier high. A deposit or a withdrawal moves the high by the same amount as the balance. Thus a cash flow never creates or hides a drawdown. The percent divides the fall by the balance at the high. It is unavailable when that balance is not positive.
 - **Sharpe (realized)** is the annualized Sharpe ratio of daily account returns.
   - A day's return = trading P&L of the day ÷ (previous balance + same-day deposits and withdrawals).
-  - Eligible days are every weekday from the first to the last active day, plus active weekend days. An idle weekday is a zero return. A day without positive capital is not eligible.
+  - Eligible days are every weekday from the first active day to the end of the period, plus active weekend days. The period ends today at the latest. An idle weekday is a zero return. A day without positive capital is not eligible.
   - Risk-free rate is 0. The standard deviation is the sample one (n − 1). Annualization is √252.
   - It is unavailable below 20 eligible days, or when every return is equal. The app shows the day count.
   - Only realized P&L counts. Open positions are not marked to market, so the value can be higher than a mark-to-market Sharpe.

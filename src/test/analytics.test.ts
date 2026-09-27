@@ -105,6 +105,22 @@ describe("computeSharpe", () => {
 		expect(result.days).toBe(6);
 	});
 
+	it("counts idle weekdays after the last active day up to the window end", () => {
+		const curve = [
+			point("2025-01-05", 10000, 0),
+			point("2025-01-06", 10100, 100),
+		];
+		expect(computeSharpe(curve).days).toBe(1);
+		expect(computeSharpe(curve, "2025-01-12").days).toBe(5);
+		expect(computeSharpe(curve, "2025-01-06").days).toBe(1);
+		expect(computeSharpe(curve, "2025-01-01").days).toBe(1);
+	});
+
+	it("does not extend to the window end without positive capital", () => {
+		const curve = [point("2025-01-05", 100, 0), point("2025-01-06", 0, -100)];
+		expect(computeSharpe(curve, "2025-01-10").days).toBe(1);
+	});
+
 	it("excludes days without positive capital", () => {
 		const result = computeSharpe([
 			point("2024-12-31", 0, 0),

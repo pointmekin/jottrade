@@ -15,7 +15,7 @@ import {
 	summarizeTrades,
 } from "@/lib/analytics";
 import { auth } from "@/lib/auth";
-import { zonedDayOfWeek, zonedHour } from "@/lib/date";
+import { toDayKey, zonedDayOfWeek, zonedHour } from "@/lib/date";
 import { rangeSchema, toDateRange } from "./rangeInput";
 
 const DOW_NAMES = [
@@ -86,9 +86,12 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" }).handler(
 			input.timeZone,
 		);
 
+		const now = new Date();
+		const windowEnd = range.to && range.to < now ? range.to : now;
+
 		const riskMetrics = {
 			closedTrades: allTrades.length,
-			sharpe: computeSharpe(equityCurve),
+			sharpe: computeSharpe(equityCurve, toDayKey(windowEnd, input.timeZone)),
 			maxDrawdown: computeMaxDrawdown(equityCurve),
 			payoff: computePayoffRatio(analyticsInput),
 			avgHoldTimeHours: computeAvgHoldTime(analyticsInput),
