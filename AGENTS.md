@@ -51,6 +51,9 @@ Key server modules include:
 - `tradeActions.ts` for trade mutations.
 - `importActions.ts` for trade imports.
 - `strategyActions.ts` for strategy queries and mutations.
+- `portfolioActions.ts` for trading accounts, and `cashFlowActions.ts` for deposits, withdrawals and adjustments.
+
+Every handler calls `requireUserId()` from `src/lib/auth.ts` and validates its input with `.validator()`. Pure logic (metrics, CSV parsing, search params) lives in `src/lib/` with tests in `src/test/`.
 
 ### Database
 
