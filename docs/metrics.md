@@ -1,6 +1,6 @@
 # Metric definitions
 
-This file defines each performance metric in JotTrade. The code is in `src/lib/analytics.ts` (totals and curves), `src/lib/risk-metrics.ts`, `src/lib/group-summary.ts` and `src/lib/finance.ts`. The in-app definitions (the info buttons) use the same words.
+This file defines each performance metric in JotTrade. The code is in `src/lib/analytics.ts` (totals and curves), `src/lib/risk-metrics.ts`, `src/lib/group-summary.ts`, `src/lib/finance.ts` and `src/lib/trade-risk.ts`. The in-app definitions (the info buttons) use the same words.
 
 ## Scope
 
@@ -35,7 +35,12 @@ Broker adjustments (swaps, dividends) are trading results, so they are in Net P&
   - It is unavailable below 20 eligible days, or when every return is equal. The app shows the day count.
   - Only realized P&L counts. Open positions are not marked to market, so the value can be higher than a mark-to-market Sharpe.
 - **Payoff ratio** = average win ÷ absolute average loss. Breakeven trades are out. It is unavailable without at least one win and one loss. It is not a reward-to-risk ratio.
-- **R-multiple** is P&L ÷ initial risk to the stop. The journal does not record a stop at entry, so the app does not show R. The design for a stop column is in `docs/plans/performance-metrics-phase-2.md`.
+- **Initial risk** = absolute entry-to-initial-stop distance × original quantity × saved contract size × entry-time quote-to-account FX. It excludes fees, swaps and slippage. The saved plan keeps the original inputs, currencies, conversion source and reviewed balance. Missing stop, confirmed instrument specification or required FX makes monetary risk unavailable. Missing or zero balance makes only risk percent unavailable.
+- **Initial account risk percent** = initial risk ÷ user-reviewed balance at entry × 100. The calculator suggests recorded balance from all history; the user must review it, especially for a backdated entry.
+- **Planned RR** = favorable entry-to-original-target distance ÷ entry-to-initial-stop distance. It describes the original plan and ignores costs.
+- **Realized net R** = stored closed net P&L ÷ positive saved initial risk. Fees remain in the numerator. A closed trade with zero net P&L shows 0R. Open trades, missing risk or P&L, and a changed account currency show an unavailable reason. R appears on trade details; there is no dashboard R aggregation.
+- Current management stop, target and quantity do not resize initial risk. An explicit original-plan correction requires a reason, checks the trade revision and appends the complete previous and replacement plan to history. Legacy and imported trades have no inferred original plan; a user can attest one without changing broker P&L.
+- A manual close uses its actual exit-time conversion, separately from entry risk FX. For example, EURJPY at 169 with stop 168, 0.15 lots and entry JPY/USD rate 1/150 has 100 USD initial risk. Exit at 171 with exit rate 1/160 and 5 USD fees gives 182.50 USD net P&L and 1.825R. Imported trades retain broker-reported net P&L.
 - **Avg hold time** is the mean time from entry to exit of the closed trades in the period.
 
 ## Returns

@@ -50,7 +50,11 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	mocks.session.mockResolvedValue({ user: { id: "user1" } });
 	mocks.where.mockResolvedValue([{ currency: "USD" }]);
-	mocks.set.mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) });
+	mocks.set.mockReturnValue({
+		where: vi
+			.fn()
+			.mockReturnValue({ returning: vi.fn().mockResolvedValue([{ id: 2 }]) }),
+	});
 });
 describe("planned trade targets", () => {
 	it("saves the target without closing or calculating realized P&L", async () => {
@@ -88,6 +92,7 @@ describe("planned trade targets", () => {
 				userId: "user1",
 				status: TradeStatus.Open,
 				importHash: null,
+				editRevision: 0,
 			},
 		]);
 		await updateTrade({ data: { id: 2, targetPrice: "" } });

@@ -18,18 +18,18 @@ const INSTRUCTIONS = `You convert one trading-journal command into a JSON intent
 Rules:
 - Pick "trade" to open a position, "account-entry" for a deposit or withdrawal, "navigation" to open a page, "theme" to change appearance, "unknown" when nothing fits.
 - Copy numbers exactly as written. Use plain decimal strings with no currency symbol, sign or thousands separator.
-- Treat a quantity as a lot size. Never convert it to units.
+- Copy quantity exactly as written, whether lots or units. Never convert it.
 - Leave a field out when the command does not state it. Never guess a price, quantity or amount.
 - "sell" and "short" mean SHORT. "buy" and "long" mean LONG.
 - The command is typed fast and often holds typos, missing words and filler. Read the intended word: "entyr" is entry, "taget" is target, "shrot" is short, "lto" is lot.
 - A price near "entry", "at", "@" or "from" is the entry price. A price near "target", "tp" or "take profit" is the target price. A number near "lot", "lots", "size", "qty" or "volume" is the quantity.
 - When two prices carry no label, the first is the entry price and the second is the target price. Only do this when the second price sits on the profit side of the first: below it for SHORT, above it for LONG. Otherwise leave both prices out.
-- A stop loss is not supported. Ignore a stop-loss price. Never store it as the target price.
+- A price labeled "stop", "stop loss" or "sl" is initialStopPrice. Never store it as the target price. Never guess a stop from an unlabeled number.
 
 Examples:
 "short gold at 4500 entyr price, target 4400, 0.01 lto size" -> {"intent":"trade","symbol":"gold","side":"SHORT","entryPrice":"4500","targetPrice":"4400","quantity":"0.01"}
 "i want to shrot gold 4500 4400 0.01 lot" -> {"intent":"trade","symbol":"gold","side":"SHORT","entryPrice":"4500","targetPrice":"4400","quantity":"0.01"}
-"buy eurusd 1.1735 sl 1.17 0.1 lot" -> {"intent":"trade","symbol":"eurusd","side":"LONG","entryPrice":"1.1735","quantity":"0.1"}
+"buy eurusd 1.1735 sl 1.17 0.1 lot" -> {"intent":"trade","symbol":"eurusd","side":"LONG","entryPrice":"1.1735","initialStopPrice":"1.17","quantity":"0.1"}
 
 Command:`;
 

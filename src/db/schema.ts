@@ -11,11 +11,15 @@ import {
 	timestamp,
 	uniqueIndex,
 } from "drizzle-orm/pg-core";
-
 import { AccountKind } from "@/lib/account";
 import { AccountEntryKind } from "@/lib/account-entry";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
+import type { PnlCalculationSnapshot } from "@/lib/pnl-context";
 import { type TradeConfidence, type TradeSide, TradeStatus } from "@/lib/trade";
+import type {
+	InitialRiskSnapshot,
+	RiskCorrection,
+} from "@/lib/trade-risk-schema";
 
 // Better Auth owns user, session, account and verification.
 export const user = pgTable("user", {
@@ -163,6 +167,22 @@ export const trades = pgTable(
 		exitDate: timestamp("exit_date"),
 		entryPrice: numeric("entry_price"),
 		targetPrice: numeric("target_price"),
+		initialStopPrice: numeric("initial_stop_price"),
+		initialTargetPrice: numeric("initial_target_price"),
+		initialRiskAmount: numeric("initial_risk_amount"),
+		initialRiskPercent: numeric("initial_risk_percent"),
+		initialRiskSnapshot: jsonb(
+			"initial_risk_snapshot",
+		).$type<InitialRiskSnapshot>(),
+		managementStopPrice: numeric("management_stop_price"),
+		riskCorrectionHistory: jsonb("risk_correction_history").$type<
+			RiskCorrection[]
+		>(),
+		exitQuoteToAccountRate: numeric("exit_quote_to_account_rate"),
+		pnlCalculationSnapshot: jsonb(
+			"pnl_calculation_snapshot",
+		).$type<PnlCalculationSnapshot>(),
+		editRevision: integer("edit_revision").default(0).notNull(),
 		exitPrice: numeric("exit_price"),
 		quantity: numeric("quantity"),
 		fees: numeric("fees").default("0"),
