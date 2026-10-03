@@ -17,6 +17,7 @@ import {
 	reviewExecutionFacts,
 } from "@/lib/review-execution-fingerprint";
 import { reviewPeriod } from "@/lib/review-period";
+import { reviewImportHistory } from "./review-import-history";
 import {
 	cashFlows,
 	portfolios,
@@ -163,7 +164,24 @@ export async function readReview(
 		previousPromise,
 		linksPromise,
 	]);
+	const importChanges = await reviewImportHistory(
+		userId,
+		scope.portfolioId,
+		[
+			...new Set([
+				...sources.trades.map((t) => t.id),
+				...tradeLinks.map((t) => t.tradeId),
+			]),
+		],
+		[
+			...new Set([
+				...sources.flows.map((f) => f.id),
+				...flowLinks.map((f) => f.cashFlowId),
+			]),
+		],
+	);
 	return {
+		importChanges,
 		period: existing,
 		window,
 		fields: existing ?? EMPTY_REVIEW_FIELDS,
