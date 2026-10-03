@@ -37,6 +37,7 @@ export const extractedIntentSchema = z.object({
 	entryPrice: decimal.optional(),
 	quantity: decimal.optional(),
 	targetPrice: decimal.optional(),
+	initialStopPrice: decimal.optional(),
 	kind: z.enum(ENTRY_KINDS).optional(),
 	amount: decimal.optional(),
 	currency: z
@@ -61,6 +62,7 @@ export const intentJsonSchema = {
 		entryPrice: { type: "string" },
 		quantity: { type: "string" },
 		targetPrice: { type: "string" },
+		initialStopPrice: { type: "string" },
 		kind: { type: "string", enum: [...ENTRY_KINDS] },
 		amount: { type: "string" },
 		currency: { type: "string" },
@@ -138,6 +140,7 @@ function tradeCandidate(extracted: ExtractedIntent): CommandCandidate {
 				entryPrice: extracted.entryPrice,
 				quantity: extracted.quantity,
 				targetPrice: extracted.targetPrice,
+				initialStopPrice: extracted.initialStopPrice,
 			},
 		},
 		confidence: AI_CONFIDENCE,

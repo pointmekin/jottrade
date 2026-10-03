@@ -1,5 +1,5 @@
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Drawer,
@@ -9,19 +9,34 @@ import {
 	DrawerTitle,
 } from "@/components/ui/drawer";
 import { useIsMobile } from "@/hooks/use-mobile";
+import type { TradeCaptureDraft } from "@/lib/trade-capture";
 import { cn } from "@/lib/utils";
 import { TradeEntryForm } from "./TradeEntryForm";
 
-export function LogTradeDrawer({ defaultOpen }: { defaultOpen: boolean }) {
+export function LogTradeDrawer({
+	defaultOpen,
+	initialDraft,
+	trigger,
+	disabled,
+}: {
+	defaultOpen: boolean;
+	initialDraft?: TradeCaptureDraft;
+	trigger?: ReactNode;
+	disabled?: boolean;
+}) {
 	const [isOpen, setIsOpen] = useState(defaultOpen);
 	const isDesktop = !useIsMobile();
 	const close = () => setIsOpen(false);
 
 	return (
 		<>
-			<Button onClick={() => setIsOpen(true)}>
-				<Plus className="mr-2 h-4 w-4" />
-				Log Trade
+			<Button onClick={() => setIsOpen(true)} disabled={disabled}>
+				{trigger ?? (
+					<>
+						<Plus className="mr-2 h-4 w-4" />
+						Log Trade
+					</>
+				)}
 			</Button>
 			<Drawer
 				open={isOpen}
@@ -51,7 +66,12 @@ export function LogTradeDrawer({ defaultOpen }: { defaultOpen: boolean }) {
 						</DrawerDescription>
 					</DrawerHeader>
 					<div className="flex-1 overflow-y-auto px-5 py-5">
-						<TradeEntryForm onSuccess={close} onCancel={close} />
+						<TradeEntryForm
+							key={initialDraft?.portfolioId}
+							initialDraft={initialDraft}
+							onSuccess={close}
+							onCancel={close}
+						/>
 					</div>
 				</DrawerContent>
 			</Drawer>
