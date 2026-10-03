@@ -39,6 +39,11 @@ export type Trade = {
 	riskCorrectionHistory?: RiskCorrection[] | null;
 	exitQuoteToAccountRate?: string | null;
 	pnlCalculationSnapshot?: PnlCalculationSnapshot | null;
+	brokerSource?: string | null;
+	brokerTicket?: string | null;
+	brokerProfit?: string | null;
+	brokerCommission?: string | null;
+	brokerSwap?: string | null;
 	symbol: string;
 	side: TradeSide;
 	status: TradeStatus | null;

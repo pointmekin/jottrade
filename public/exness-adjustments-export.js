@@ -9,7 +9,8 @@
     "Adjustment day",
     "Adjustment date",
     "Dividend rate",
-    "Adjustment"
+    "Adjustment",
+    "Export warning"
   ];
 
   const clean = value => String(value ?? "").replace(/\s+/g, " ").trim();
@@ -148,7 +149,7 @@
 
   const rowSignature = row =>
     OUTPUT_HEADERS
-      .filter(header => header !== "Adjustment day")
+      .filter(header => header !== "Adjustment day" && header !== "Export warning")
       .map(header => row[header] ?? "")
       .join("\u001f");
 
@@ -166,9 +167,21 @@
 
   const collected = new Map();
 
+  const collectionWarnings = new Set();
   const remember = rows => {
+    const occurrences = new Map();
     for (const row of rows) {
-      collected.set(rowSignature(row), row);
+      const signature = rowSignature(row);
+      const group = occurrences.get(signature) || [];
+      group.push(row);
+      occurrences.set(signature, group);
+    }
+    for (const [signature, group] of occurrences) {
+      if (group.length > 1) {
+        collectionWarnings.add("Indistinguishable rows were preserved. Confirm whether they are distinct adjustments during import.");
+      }
+      const previous = collected.get(signature) || [];
+      if (group.length > previous.length) collected.set(signature, group);
     }
   };
 
@@ -211,7 +224,10 @@
 
     remember(after);
 
-    if (!changed) break;
+    if (!changed) {
+      collectionWarnings.add("Load more produced no identifiable change. Verify source completeness against the broker page.");
+      break;
+    }
   }
 
   const adjustmentDay = value =>
@@ -222,7 +238,9 @@
       )
       .trim();
 
-  const rows = [...collected.values()];
+  const rows = [...collected.values()].flat();
+  if (findLoadMore()) collectionWarnings.add("More history may remain, or the load limit was reached. Export a smaller range and reconcile it with the broker page.");
+  for (const warning of collectionWarnings) console.warn(warning);
 
   if (!rows.length) {
     throw new Error(
@@ -244,7 +262,8 @@
       adjustmentDay(row["Adjustment date"]),
       row["Adjustment date"],
       row["Dividend rate"],
-      row.Adjustment
+      row.Adjustment,
+      [...collectionWarnings].join(" ")
     ])
   ];
 

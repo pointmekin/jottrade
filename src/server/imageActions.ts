@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { trades } from "@/db/schema";
@@ -58,6 +58,13 @@ export const getSignedUploadUrl = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
 		requireRoomForImage(await requireOwnedScreenshots(userId, data.tradeId));
+		const reserved = await db
+			.update(trades)
+			.set({ editRevision: sql`${trades.editRevision}+1` })
+			.where(and(eq(trades.id, data.tradeId), eq(trades.userId, userId)))
+			.returning({ id: trades.id });
+		if (!reserved.length)
+			throw new Error("Trade was removed before the upload started.");
 		const objectName = `${objectPrefix(userId, data.tradeId)}${data.fileName}`;
 		return {
 			signedUrl: await createSignedUploadUrl(objectName, data.contentType),
@@ -72,10 +79,25 @@ export const saveTradeImage = createServerFn({ method: "POST" })
 		requireOwnObjectName(data.url, userId, data.tradeId);
 		const screenshots = await requireOwnedScreenshots(userId, data.tradeId);
 		requireRoomForImage(screenshots);
-		await db
+		const saved = await db
 			.update(trades)
-			.set({ screenshots: [...screenshots, data.url] })
-			.where(eq(trades.id, data.tradeId));
+			.set({
+				screenshots: sql`COALESCE(${trades.screenshots},'[]'::jsonb) || jsonb_build_array(${data.url}::text)`,
+				editRevision: sql`${trades.editRevision}+1`,
+			})
+			.where(
+				and(
+					eq(trades.id, data.tradeId),
+					eq(trades.userId, userId),
+					sql`jsonb_array_length(COALESCE(${trades.screenshots},'[]'::jsonb)) < ${MAX_IMAGES}`,
+					sql`NOT (COALESCE(${trades.screenshots},'[]'::jsonb) @> jsonb_build_array(${data.url}::text))`,
+				),
+			)
+			.returning({ id: trades.id });
+		if (!saved.length)
+			throw new Error(
+				"Trade was removed, image already attached, or image limit reached.",
+			);
 		return { success: true };
 	});
 
@@ -83,11 +105,24 @@ export const deleteTradeImage = createServerFn({ method: "POST" })
 	.validator(imageSchema)
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
-		const screenshots = await requireOwnedScreenshots(userId, data.tradeId);
-		await deleteGcpObject(requireOwnObjectName(data.url, userId, data.tradeId));
-		await db
+		await requireOwnedScreenshots(userId, data.tradeId);
+		const reserved = await db
 			.update(trades)
-			.set({ screenshots: screenshots.filter((url) => url !== data.url) })
-			.where(eq(trades.id, data.tradeId));
+			.set({ editRevision: sql`${trades.editRevision}+1` })
+			.where(and(eq(trades.id, data.tradeId), eq(trades.userId, userId)))
+			.returning({ id: trades.id });
+		if (!reserved.length)
+			throw new Error("Trade was removed before image deletion.");
+		await deleteGcpObject(requireOwnObjectName(data.url, userId, data.tradeId));
+		const removed = await db
+			.update(trades)
+			.set({
+				screenshots: sql`COALESCE((SELECT jsonb_agg(value) FROM jsonb_array_elements_text(COALESCE(${trades.screenshots},'[]'::jsonb)) value WHERE value <> ${data.url}), '[]'::jsonb)`,
+				editRevision: sql`${trades.editRevision}+1`,
+			})
+			.where(and(eq(trades.id, data.tradeId), eq(trades.userId, userId)))
+			.returning({ id: trades.id });
+		if (!removed.length)
+			throw new Error("Trade was removed during image deletion.");
 		return { success: true };
 	});

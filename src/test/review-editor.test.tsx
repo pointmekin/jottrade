@@ -24,6 +24,7 @@ vi.mock("@/server/reviewActions", () => ({
 	saveReviewPeriod: vi.fn(),
 	reopenReviewPeriod: vi.fn(),
 }));
+vi.mock("@/server/importActions", () => ({ getImportBatch: vi.fn() }));
 vi.mock("@/hooks/use-review-autosave", () => ({
 	useReviewAutosave: () => ({
 		fields: { ...EMPTY_REVIEW_FIELDS, notes: "Pending local draft" },
@@ -44,6 +45,7 @@ it("shows completed saved text while retaining a conflicting local draft for rec
 		revision: 2,
 		currency: "USD",
 		liveCurrency: "USD",
+		importChanges: [],
 		previousCommitment: null,
 		window: {
 			periodStart: "2026-10-02",
