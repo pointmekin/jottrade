@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { navItems } from "../lib/nav-items";
 
 describe("navItems", () => {
-	it("exports 5 items", () => {
-		expect(navItems).toHaveLength(5);
+	it("exports 6 items", () => {
+		expect(navItems).toHaveLength(6);
 	});
 
 	it("has the correct urls", () => {
@@ -13,6 +13,7 @@ describe("navItems", () => {
 			"/journal",
 			"/calendar",
 			"/strategies",
+			"/reviews",
 			"/settings",
 		]);
 	});

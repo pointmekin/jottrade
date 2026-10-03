@@ -4,7 +4,15 @@ import {
 	useLocation,
 	useRouter,
 } from "@tanstack/react-router";
-import { Check, Crosshair, LogOut, Plus, Search, Settings } from "lucide-react";
+import {
+	Check,
+	Crosshair,
+	LogOut,
+	NotebookPen,
+	Plus,
+	Search,
+	Settings,
+} from "lucide-react";
 import { useState } from "react";
 import { AccountFormDialog } from "@/components/account/account-form-dialog";
 import { AccountKindBadge } from "@/components/account/account-kind-badge";
@@ -160,6 +168,13 @@ export function BottomNav({ onOpenCommands }: { onOpenCommands?: () => void }) {
 							</div>
 						</div>
 						<div className="grid gap-1 py-3">
+							<Link
+								to="/reviews"
+								onClick={() => setSheetOpen(false)}
+								className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-sidebar-accent"
+							>
+								<NotebookPen className="size-4" /> Reviews
+							</Link>
 							<Link
 								to="/settings"
 								onClick={() => setSheetOpen(false)}
