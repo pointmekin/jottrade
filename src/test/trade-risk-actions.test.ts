@@ -361,7 +361,9 @@ describe("management and corrections", () => {
 	});
 	it("notes do not recalculate manual P&L and imported execution edits preserve reported P&L", async () => {
 		selectExisting();
-		await updateTrade({ data: { id: 2, notes: "review" } });
+		await updateTrade({
+			data: { id: 2, notes: "review", expectedRevision: 4 },
+		});
 		expect(mocks.set.mock.calls[0][0]).not.toHaveProperty("netPnl");
 		selectExisting({ ...stored(), importHash: "broker-hash" });
 		await updateTrade({ data: { id: 2, quantity: "0.1", fees: "9" } });

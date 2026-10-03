@@ -55,5 +55,8 @@ export type Trade = {
 	mistake?: string | null;
 	setupId?: number | null;
 	notes?: string | null;
+	annotationRevision?: number;
+	reviewedAt?: Date | null;
+	reviewedExecutionFingerprint?: string | null;
 	screenshots?: string[] | null;
 };

@@ -30,6 +30,7 @@ const updateTradeSchema = tradeSchema
 	.extend({
 		id: z.number().int().positive(),
 		expectedRevision: z.number().int().nonnegative().optional(),
+		expectedAnnotationRevision: z.number().int().nonnegative().optional(),
 		managementStopPrice: optionalPositiveDecimal.nullable(),
 		confidence: z.enum(TradeConfidence).optional(),
 		mistake: z.string().optional(),
@@ -77,68 +78,138 @@ export const createTrade = createServerFn({ method: "POST" })
 		return { success: true };
 	});
 
+type ExistingTrade = typeof trades.$inferSelect;
+type TradeChanges = Omit<
+	z.infer<typeof updateTradeSchema>,
+	"id" | "expectedRevision" | "expectedAnnotationRevision"
+>;
+
+function validateUpdateRevision(
+	existing: ExistingTrade,
+	changes: TradeChanges,
+	expectedRevision?: number,
+	expectedAnnotationRevision?: number,
+) {
+	if (
+		existing.importHash &&
+		changes.portfolioId !== undefined &&
+		changes.portfolioId !== existing.portfolioId
+	)
+		throw new Error(
+			"Imported trades cannot move accounts. Undo an eligible import and reimport into the intended account.",
+		);
+	if (
+		expectedRevision !== undefined &&
+		expectedRevision !== existing.editRevision
+	)
+		throw new Error("Trade changed. Reload before saving.");
+	if (
+		changes.notes !== undefined &&
+		expectedRevision === undefined &&
+		expectedAnnotationRevision === undefined
+	)
+		throw new Error(
+			"Notes require the client annotation baseline. Reload before saving.",
+		);
+	if (
+		changes.notes !== undefined &&
+		expectedAnnotationRevision !== undefined &&
+		expectedAnnotationRevision !== existing.annotationRevision
+	)
+		throw new Error("Notes changed. Reload before saving.");
+}
+
 export const updateTrade = createServerFn({ method: "POST" })
 	.validator(updateTradeSchema)
-	.handler(async ({ data: { id, expectedRevision, ...changes } }) => {
-		const userId = await requireUserId();
-		const [existing] = await db
-			.select()
-			.from(trades)
-			.where(and(eq(trades.id, id), eq(trades.userId, userId)));
-		if (!existing) throw new Error("Trade not found");
-		assertInitialPlanPreserved(existing, changes);
-		const portfolio = await requireOwnedPortfolio(
-			userId,
-			changes.portfolioId ?? existing.portfolioId,
-		);
-		const execution = { ...changes };
-		delete execution.confirmedUnitQuoteCurrency;
-		const { isRecalculated, ...pnl } = manualPnlForUpdate(
-			existing,
-			changes,
-			portfolio.currency ?? DEFAULT_CURRENCY,
-		);
-		const closesNow = isRecalculated && changes.exitPrice && !changes.status;
-		const status = closesNow
-			? TradeStatus.Closed
-			: (changes.status ?? existing.status);
-		const revision = expectedRevision ?? existing.editRevision;
-		const updated = await db
-			.update(trades)
-			.set({
-				...execution,
-				...pnl,
-				status,
-				entryDate: changes.entryDate ? new Date(changes.entryDate) : undefined,
-				exitDate: changes.exitDate ? new Date(changes.exitDate) : undefined,
-				targetPrice: changes.targetPrice === "" ? null : changes.targetPrice,
-				managementStopPrice:
-					changes.managementStopPrice === ""
-						? null
-						: changes.managementStopPrice,
-				editRevision: sql`${trades.editRevision} + 1`,
-			})
-			.where(
-				and(
-					eq(trades.id, id),
-					eq(trades.userId, userId),
-					eq(trades.editRevision, revision),
-				),
-			)
-			.returning({ id: trades.id });
-		if (!updated.length)
-			throw new Error(
-				"Trade changed. Reload and review your changes before retrying.",
+	.handler(
+		async ({
+			data: { id, expectedRevision, expectedAnnotationRevision, ...changes },
+		}) => {
+			const userId = await requireUserId();
+			const [existing] = await db
+				.select()
+				.from(trades)
+				.where(and(eq(trades.id, id), eq(trades.userId, userId)));
+			if (!existing) throw new Error("Trade not found");
+			validateUpdateRevision(
+				existing,
+				changes,
+				expectedRevision,
+				expectedAnnotationRevision,
 			);
-		return { success: true };
-	});
+			assertInitialPlanPreserved(existing, changes);
+			const portfolio = await requireOwnedPortfolio(
+				userId,
+				changes.portfolioId ?? existing.portfolioId,
+			);
+			const execution = { ...changes };
+			delete execution.confirmedUnitQuoteCurrency;
+			const { isRecalculated, ...pnl } = manualPnlForUpdate(
+				existing,
+				changes,
+				portfolio.currency ?? DEFAULT_CURRENCY,
+			);
+			const closesNow = isRecalculated && changes.exitPrice && !changes.status;
+			const status = closesNow
+				? TradeStatus.Closed
+				: (changes.status ?? existing.status);
+			const revision = expectedRevision ?? existing.editRevision;
+			const updated = await db
+				.update(trades)
+				.set({
+					...execution,
+					...pnl,
+					status,
+					entryDate: changes.entryDate
+						? new Date(changes.entryDate)
+						: undefined,
+					exitDate: changes.exitDate ? new Date(changes.exitDate) : undefined,
+					targetPrice: changes.targetPrice === "" ? null : changes.targetPrice,
+					managementStopPrice:
+						changes.managementStopPrice === ""
+							? null
+							: changes.managementStopPrice,
+					editRevision: sql`${trades.editRevision} + 1`,
+					annotationRevision:
+						changes.notes !== undefined
+							? sql`${trades.annotationRevision} + 1`
+							: undefined,
+				})
+				.where(
+					and(
+						eq(trades.id, id),
+						eq(trades.userId, userId),
+						eq(trades.editRevision, revision),
+						changes.notes !== undefined &&
+							expectedAnnotationRevision !== undefined
+							? eq(trades.annotationRevision, expectedAnnotationRevision)
+							: undefined,
+					),
+				)
+				.returning({ id: trades.id });
+			if (!updated.length)
+				throw new Error(
+					"Trade changed. Reload and review your changes before retrying.",
+				);
+			return { success: true };
+		},
+	);
 
 export const deleteTrade = createServerFn({ method: "POST" })
 	.validator(z.object({ id: z.number() }))
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
-		await db
+		const deleted = await db
 			.delete(trades)
-			.where(and(eq(trades.id, data.id), eq(trades.userId, userId)));
+			.where(
+				and(
+					eq(trades.id, data.id),
+					eq(trades.userId, userId),
+					sql`NOT EXISTS (SELECT 1 FROM review_source_trades WHERE trade_id=${trades.id})`,
+				),
+			)
+			.returning({ id: trades.id });
+		if (!deleted.length)
+			throw new Error("Trade was removed or belongs to a persisted review.");
 		return { success: true };
 	});

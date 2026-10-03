@@ -1,12 +1,11 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Textarea } from "@/components/ui/textarea";
+import { useQueryClient } from "@tanstack/react-query";
 import { QueryKey } from "@/lib/query-keys";
 import { type Trade, TradeSide } from "@/lib/trade";
 import { cn } from "@/lib/utils";
-import { updateTrade } from "@/server/tradeActions";
 import { DeleteTradeDialog } from "./DeleteTradeDialog";
 import { TradeImages } from "./trade-images";
 import { TradeOverviewForm } from "./trade-overview-form";
+import { TradeReviewAnnotation } from "./trade-review-annotation";
 import { TradeRiskDetails } from "./trade-risk-details";
 
 interface TradeDetailContentProps {
@@ -27,11 +26,6 @@ export function TradeDetailContent({
 		queryClient.invalidateQueries({ queryKey: [QueryKey.Trades] });
 		queryClient.invalidateQueries({ queryKey: [QueryKey.Trade] });
 	};
-	const saveNotes = useMutation({
-		mutationFn: (notes: string) =>
-			updateTrade({ data: { id: trade.id, notes } }),
-		onSuccess: refreshTrade,
-	});
 
 	return (
 		<div className="surface overflow-hidden bg-popover text-popover-foreground">
@@ -45,16 +39,7 @@ export function TradeDetailContent({
 				<TradeOverviewForm trade={trade} />
 				<TradeRiskDetails key={trade.id} trade={trade} />
 				<Divider />
-				<div className="space-y-2">
-					<p className="field-label">Notes</p>
-					<Textarea
-						defaultValue={trade.notes ?? ""}
-						className="min-h-32 resize-none border-input bg-background text-sm leading-relaxed placeholder:text-muted-foreground"
-						placeholder="Add your trade notes here…"
-						onBlur={(event) => saveNotes.mutate(event.target.value)}
-					/>
-					<p className="text-xs text-muted-foreground">Auto-saved on blur.</p>
-				</div>
+				<TradeReviewAnnotation tradeId={trade.id} />
 				<Divider />
 				<TradeImages trade={trade} onChange={refreshTrade} />
 				<Divider />

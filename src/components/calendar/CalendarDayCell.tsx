@@ -1,7 +1,9 @@
+import { Link } from "@tanstack/react-router";
 import { format, parseISO } from "date-fns";
 import { useCurrency } from "@/hooks/use-currency";
 import type { CalendarDay } from "@/lib/calendar-days";
 import { formatMoney } from "@/lib/currency";
+import { ReviewKind } from "@/lib/review";
 
 interface CalendarDayCellProps {
 	date: string; // YYYY-MM-DD
@@ -62,11 +64,16 @@ export function CalendarDayCell({
 
 	if (!hasTrades) {
 		return (
-			<div className={cellClassName}>
+			<Link
+				to="/reviews"
+				search={{ kind: ReviewKind.Daily, day: date }}
+				aria-label={`Review ${accessibleDate}`}
+				className={`block ${cellClassName}`}
+			>
 				<p className="font-data text-xs leading-tight text-muted-foreground">
 					{dayNum}
 				</p>
-			</div>
+			</Link>
 		);
 	}
 

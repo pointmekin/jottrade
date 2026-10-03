@@ -14,10 +14,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAccounts } from "@/hooks/use-accounts";
+import { authClient } from "@/lib/auth-client";
 import {
 	invalidateAccountEntryQueries,
 	invalidateTradeQueries,
 } from "@/lib/query-keys";
+import { clearAccountReviewDrafts } from "@/lib/review-draft";
 import { type AccountRecord, deleteAccount } from "@/server/portfolioActions";
 
 interface DeleteAccountDialogProps {
@@ -30,6 +32,7 @@ export function DeleteAccountDialog({
 	onOpenChange,
 }: DeleteAccountDialogProps) {
 	const queryClient = useQueryClient();
+	const { data: session } = authClient.useSession();
 	const { activeAccount, clearActiveAccount } = useAccounts();
 	const [confirmText, setConfirmText] = useState("");
 	const confirmId = useId();
@@ -47,6 +50,8 @@ export function DeleteAccountDialog({
 			});
 		},
 		onSuccess: () => {
+			if (account && session?.user.id)
+				clearAccountReviewDrafts(session.user.id, account.id);
 			if (account && activeAccount?.id === account.id) clearActiveAccount();
 			invalidateTradeQueries(queryClient);
 			invalidateAccountEntryQueries(queryClient);
@@ -80,8 +85,8 @@ export function DeleteAccountDialog({
 						{account?.tradeCount === 1
 							? "1 trade"
 							: `${account?.tradeCount ?? 0} trades`}
-						, and all of its deposits, withdrawals, and adjustments. This cannot
-						be undone.
+						, all of its reviews, deposits, withdrawals, and adjustments. This
+						cannot be undone.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 
