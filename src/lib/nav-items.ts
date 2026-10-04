@@ -1,6 +1,7 @@
 import {
 	BarChart2,
 	CalendarDays,
+	NotebookPen,
 	ScrollText,
 	Settings,
 	Target,
@@ -18,5 +19,6 @@ export const navItems: NavItem[] = [
 	{ title: "Journal", url: "/journal", icon: ScrollText },
 	{ title: "Calendar", url: "/calendar", icon: CalendarDays },
 	{ title: "Strategies", url: "/strategies", icon: Target },
+	{ title: "Reviews", url: "/reviews", icon: NotebookPen },
 	{ title: "Settings", url: "/settings", icon: Settings },
 ];

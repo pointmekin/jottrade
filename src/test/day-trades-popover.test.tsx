@@ -10,7 +10,7 @@ const { viewport } = vi.hoisted(() => ({ viewport: { isMobile: false } }));
 
 type MockLinkProps = ComponentProps<"a"> & {
 	to: string;
-	params: { tradeId: string };
+	params?: { tradeId: string };
 };
 
 vi.mock("@/hooks/use-mobile", () => ({
@@ -24,7 +24,7 @@ vi.mock("@/hooks/use-currency", () => ({
 vi.mock("@tanstack/react-router", () => ({
 	Link: ({ children, onClick, params, to }: MockLinkProps) => (
 		<a
-			href={to.replace("$tradeId", params.tradeId)}
+			href={to.replace("$tradeId", params?.tradeId ?? "")}
 			onClick={(event) => {
 				event.preventDefault();
 				onClick?.(event);

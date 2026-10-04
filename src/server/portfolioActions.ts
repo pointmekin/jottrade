@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, asc, count, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { portfolios, trades } from "@/db/schema";
@@ -197,13 +197,34 @@ export const deleteAccount = createServerFn({ method: "POST" })
 			throw new Error("Account name does not match.");
 		}
 
-		await db
-			.delete(portfolios)
-			.where(and(eq(portfolios.id, data.id), eq(portfolios.userId, userId)));
+		const results = await db.batch([
+			db.execute(
+				sql`select id from portfolios where id=${data.id} and user_id=${userId} order by id for update`,
+			),
+			db.execute(
+				sql`select id from trades where portfolio_id=${data.id} and user_id=${userId} order by id for update`,
+			),
+			db.execute(
+				sql`select id from cash_flows where portfolio_id=${data.id} and user_id=${userId} order by id for update`,
+			),
+			db.execute(
+				sql`delete from review_periods where portfolio_id=${data.id} and user_id=${userId} and exists(select 1 from portfolios where id=${data.id} and user_id=${userId} and name=${data.confirmName})`,
+			),
+			db
+				.delete(portfolios)
+				.where(
+					and(
+						eq(portfolios.id, data.id),
+						eq(portfolios.userId, userId),
+						eq(portfolios.name, data.confirmName),
+					),
+				)
+				.returning({ id: portfolios.id }),
+		]);
+		if (!results[4].length)
+			throw new Error("The account changed. Reload before deleting it.");
 
-		// Keep exactly one default whenever one still exists. neon-http has no
-		// transaction support, so promote after the delete; a failure here leaves
-		// no default, which the getAccounts read path self-heals.
+		// A failed promotion after deletion leaves no default; getAccounts self-heals it.
 		if (account.isDefault) {
 			const [next] = await db
 				.select({ id: portfolios.id })
