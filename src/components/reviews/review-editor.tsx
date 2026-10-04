@@ -18,6 +18,7 @@ import {
 	reopenReviewPeriod,
 	saveReviewPeriod,
 } from "@/server/reviewActions";
+import { ReviewImportChanges } from "./review-import-changes";
 import { ReviewResults } from "./review-results";
 import { ReviewSaveStatus } from "./review-save-status";
 
@@ -245,6 +246,7 @@ function ReviewSummary({
 						{tradeChanges.removed + flowChanges.removed} moved outside the
 						period. The completed snapshot is retained.
 					</p>
+					<ReviewImportChanges changes={review.importChanges} />
 					<ReviewResults
 						results={review.sources.results}
 						currency={review.liveCurrency}

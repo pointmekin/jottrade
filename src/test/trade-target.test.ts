@@ -93,11 +93,83 @@ describe("planned trade targets", () => {
 				status: TradeStatus.Open,
 				importHash: null,
 				editRevision: 0,
+				annotationRevision: 0,
 			},
 		]);
 		await updateTrade({ data: { id: 2, targetPrice: "" } });
 		expect(mocks.set).toHaveBeenCalledWith(
 			expect.objectContaining({ targetPrice: null }),
 		);
+	});
+	it("rejects stale client notes and notes without a baseline before writing", async () => {
+		const existing = {
+			...data,
+			id: 2,
+			userId: "user1",
+			status: TradeStatus.Open,
+			importHash: "fixed-broker-hash",
+			editRevision: 3,
+			annotationRevision: 2,
+			netPnl: "51.3",
+		};
+		mocks.where.mockResolvedValueOnce([existing]);
+		await expect(
+			updateTrade({
+				data: { id: 2, notes: "stale", expectedAnnotationRevision: 1 },
+			}),
+		).rejects.toThrow("Notes changed");
+		mocks.where.mockResolvedValueOnce([existing]);
+		await expect(
+			updateTrade({ data: { id: 2, notes: "no baseline" } }),
+		).rejects.toThrow("client annotation baseline");
+		expect(mocks.set).not.toHaveBeenCalled();
+	});
+	it("saves current-baseline notes with broker net preserved and both revisions incremented", async () => {
+		mocks.where.mockResolvedValueOnce([
+			{
+				...data,
+				id: 2,
+				userId: "user1",
+				status: TradeStatus.Closed,
+				importHash: "fixed-broker-hash",
+				editRevision: 3,
+				annotationRevision: 2,
+				netPnl: "51.3",
+				returnPercent: "0.45",
+			},
+		]);
+		await updateTrade({
+			data: { id: 2, notes: "current", expectedAnnotationRevision: 2 },
+		});
+		expect(mocks.set).toHaveBeenCalledWith(
+			expect.objectContaining({
+				notes: "current",
+				editRevision: expect.any(Object),
+				annotationRevision: expect.any(Object),
+			}),
+		);
+	});
+	it("reports a zero-row CAS rather than claiming a save", async () => {
+		mocks.where.mockResolvedValueOnce([
+			{
+				...data,
+				id: 2,
+				userId: "user1",
+				status: TradeStatus.Open,
+				importHash: null,
+				editRevision: 1,
+				annotationRevision: 0,
+			},
+		]);
+		mocks.set.mockReturnValueOnce({
+			where: vi
+				.fn()
+				.mockReturnValue({ returning: vi.fn().mockResolvedValue([]) }),
+		});
+		await expect(
+			updateTrade({
+				data: { id: 2, targetPrice: "4500", expectedRevision: 1 },
+			}),
+		).rejects.toThrow(/Trade changed/);
 	});
 });
