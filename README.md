@@ -8,8 +8,8 @@ JotTrade is a private trading journal. You record or import trades, track fundin
 
 ## Requirements
 
-- [Bun](https://bun.sh). The lockfile is `bun.lock`, and CI installs with Bun.
-- Node.js 22 to run the `npm run` scripts. `bun run <script>` also works.
+- [Bun](https://bun.sh), at the version in `.bun-version`. The lockfile is `bun.lock`, and CI installs with Bun.
+- Node.js, at the major version in `.nvmrc`. Vite and the build run on Node.
 
 ## Install
 
@@ -19,15 +19,13 @@ bun install --frozen-lockfile
 
 ## Database
 
-The app needs `DATABASE_URL` in `.env`. The isolated database workflow is described in [docs/development-database.md](docs/development-database.md).
+Run `npm run db:setup` first:
 
-Do not point `DATABASE_URL` at production. If `DATABASE_URL` is empty, `npm run dev` lets the Neon Vite plugin (`neon-vite-plugin.ts`) create a temporary claimable Neon database.
+```bash
+npm run db:setup   # local PostgreSQL, this worktree's database, migrations, seed data, .env values
+```
 
-Other server variables are optional for local work:
-
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` for Google sign-in.
-- `GCP_BUCKET_NAME`, `GCP_SERVICE_ACCOUNT_KEY` for trade screenshots.
-- `GEMINI_API_KEY` for the command palette fallback.
+The isolated database workflow, the seeded users and the other `db:*` commands are described in [docs/development-database.md](docs/development-database.md). Do not point `DATABASE_URL` at production. "Environment variables" in [AGENTS.md](AGENTS.md) lists every server variable.
 
 ## Run
 
@@ -40,10 +38,10 @@ npm run dev      # Vite dev server on http://localhost:3000
 ```bash
 npm run test       # Vitest. Database tests skip unless their variables are set.
 npm run typecheck  # tsc --noEmit
-npm run quality    # The required gate: tsc, Vitest, then Biome, SonarJS and React Doctor on changed files
+npm run quality    # The required gate
 ```
 
-Run `npm run quality` before every commit. See "Quality gate" in [AGENTS.md](AGENTS.md).
+Run `npm run quality` before every commit. [docs/quality-gate.md](docs/quality-gate.md) describes what it checks.
 
 ## Build
 

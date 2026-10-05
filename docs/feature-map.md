@@ -11,7 +11,7 @@ Update this file in the same pull request when you add, remove or change a route
   - `INTEGRATION_TEST_DATABASE_URL` → `src/test/feature-integration.test.ts` (cross-feature: risk, imports, reviews, account isolation).
   - `IMPORT_TEST_DATABASE_URL` → `src/test/import-sql.integration.test.ts`.
   - `REVIEW_TEST_DATABASE_URL` → `src/test/review-database.test.ts`.
-  - The fixtures refuse any host other than `127.0.0.1` and fixed database names. See [development-database.md](development-database.md) for the isolated database workflow.
+  - Gap: the fixtures accept only `127.0.0.1` with fixed ports, users and database names (for example port `49485`, database `integration_behavior`). They do not accept the `jottrade_test_*` databases that `npm run db:reset` creates ([development-database.md](development-database.md)). Issue #31 tracks repeatable verification.
 - **Gap**: no automated check exists. Issue #31 tracks repeatable critical-flow (browser) verification.
 
 To run one file: `npx vitest run src/test/<file>`.

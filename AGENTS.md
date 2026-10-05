@@ -4,7 +4,7 @@ This file provides guidance to coding agents working in this repository.
 
 ## Commands
 
-Install with `bun install --frozen-lockfile` (the lockfile is `bun.lock`; CI uses Bun).
+Install with `bun install --frozen-lockfile` (the lockfile is `bun.lock`; CI uses Bun). `.bun-version` and `.nvmrc` pin the Bun and Node versions. Run `npm run db:setup` before `npm run dev`.
 
 - `npm run dev` starts Vite on port 3000.
 - `npm run build` creates a production build.
@@ -15,7 +15,8 @@ Install with `bun install --frozen-lockfile` (the lockfile is `bun.lock`; CI use
 - `npm run lint:sonar` runs the SonarJS rules (the SonarLint analyzer) through ESLint.
 - `npm run doctor` runs React Doctor on the whole project.
 - `npm run quality` runs the quality gate. See "Quality gate".
-- `npm run db:generate`, `npm run db:migrate`, `npm run db:push`, `npm run db:pull`, and `npm run db:studio` manage Drizzle. Use them only against an isolated database ([docs/development-database.md](docs/development-database.md)).
+- `npm run db:setup`, `db:server`, `db:dev:migrate`, `db:seed`, `db:reset`, `db:drop`, `db:check`, and `db:list` manage the isolated local database. They refuse unsafe targets. See [docs/development-database.md](docs/development-database.md).
+- `npm run db:generate`, `npm run db:migrate`, `npm run db:push`, `npm run db:pull`, and `npm run db:studio` call `drizzle-kit` directly, with no safety guard. Use them only against an isolated database.
 - `npm run deploy` runs `wrangler deploy`. It is left from the Cloudflare starter and is not the current deployment path. See "Deployment".
 
 ## Architecture
@@ -49,7 +50,7 @@ The guard runs on the client: unauthenticated visitors to protected routes are r
 
 ### Server functions
 
-Backend operations live in `src/server/` as TanStack Start `createServerFn` functions. Client components call them through TanStack Query. Keep database schema and relations in `src/db/` (`schema.ts` re-exports `trading-schema.ts` and `review-schema.ts`). Import the client as `@/db`, which resolves to `src/db.ts` (Neon HTTP driver). The app does not import `src/db/index.ts` (a `pg` pool).
+Backend operations live in `src/server/` as TanStack Start `createServerFn` functions. Client components call them through TanStack Query. Keep database schema and relations in `src/db/` (`schema.ts` re-exports `trading-schema.ts` and `review-schema.ts`). Import the client as `@/db` (`src/db/index.ts`). `DATABASE_DRIVER` selects the transport: empty or `neon` uses Neon HTTP (production); `pg` uses node-postgres through `src/db/pg-transport.ts` for local PostgreSQL.
 
 Key server modules include:
 
@@ -113,7 +114,7 @@ Use the `@/*` alias for imports from `src/`.
 
 ## Quality gate
 
-Run `npm run quality` before every commit and before you report a task as done. The task is not done until it passes.
+Run `npm run quality` before every commit and before you report a task as done. The task is not done until it passes. [docs/quality-gate.md](docs/quality-gate.md) describes what it checks.
 
 - `tsc --noEmit` and Vitest check the whole project.
 - Biome, SonarJS and React Doctor check the files changed since `BASE` (default `origin/main`). `main` still has older findings, so a file you touch must be clean when you finish.
@@ -132,11 +133,14 @@ Fix the cause of a finding. Do not suppress a rule or change a threshold to pass
 
 ## Environment variables
 
-The server reads these variables. Set up the database as [docs/development-database.md](docs/development-database.md) describes; never point a local checkout at production.
+`.env.example` lists the variables. `npm run db:setup` fills the database and auth values for local work ([docs/development-database.md](docs/development-database.md)); never point a local checkout at production.
 
-- `DATABASE_URL`: required. The app, Drizzle Kit and the Neon dev plugin read it.
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: Google sign-in.
+- `DATABASE_URL`: required. Server-only; never use a `VITE_` prefix.
+- `DATABASE_DRIVER`: optional. `neon` (default) or `pg`.
+- `BETTER_AUTH_SECRET`: required in production. `BETTER_AUTH_URL`: optional.
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: optional, Google sign-in.
 - `GCP_BUCKET_NAME`, `GCP_SERVICE_ACCOUNT_KEY`: trade screenshots.
 - `GEMINI_API_KEY`: optional command palette fallback.
+- `DATABASE_URL_POOLER`: not read today.
 
 In a deployment, set them in the host environment, not in source control.
