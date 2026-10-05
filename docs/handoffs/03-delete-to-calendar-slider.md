@@ -1,5 +1,7 @@
 # Handoff: show the calendar journal-entry slider on desktop
 
+> **Historical.** This document records past work. Its instructions are not active, and its file paths and status may be out of date. For the current state, read [README.md](../../README.md), [AGENTS.md](../../AGENTS.md) and [docs/feature-map.md](../feature-map.md).
+
 ## Task
 
 Fix the calendar day journal-entry slider so it appears at desktop sizes as well as mobile. A user who selects a calendar day with trades should get the intended slide-over trade list on both viewport classes and should still be able to open a specific journal entry from it.

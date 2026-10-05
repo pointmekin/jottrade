@@ -1,3 +1,5 @@
+> **Historical.** This document records past work. Its instructions are not active, and its file paths and status may be out of date. For the current state, read [README.md](../../README.md), [AGENTS.md](../../AGENTS.md) and [docs/feature-map.md](../feature-map.md).
+
 The repository is a good fit for this without adding a heavy “AI agent” architecture. You already have TanStack Start/Router, React Query, Zod, shadcn/ui, server functions, a centralized `navItems` list, trade mutations, cash-flow mutations, and a theme context.
 
 I would build this as a hybrid command system: deterministic/rule-based first, Gemini only as a fallback.

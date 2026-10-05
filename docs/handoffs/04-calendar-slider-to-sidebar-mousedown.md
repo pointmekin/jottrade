@@ -1,5 +1,7 @@
 # Handoff: use mouse-down for sidebar navigation
 
+> **Historical.** This document records past work. Its instructions are not active, and its file paths and status may be out of date. For the current state, read [README.md](../../README.md), [AGENTS.md](../../AGENTS.md) and [docs/feature-map.md](../feature-map.md).
+
 ## Task
 
 Change the primary navigation links in `src/components/app-sidebar.tsx` to navigate on mouse-down instead of waiting for click, making desktop sidebar navigation feel more responsive.

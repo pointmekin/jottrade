@@ -4,6 +4,8 @@ This file provides guidance to coding agents working in this repository.
 
 ## Commands
 
+Install with `bun install --frozen-lockfile` (the lockfile is `bun.lock`; CI uses Bun).
+
 - `npm run dev` starts Vite on port 3000.
 - `npm run build` creates a production build.
 - `npm run serve` previews the production build.
@@ -13,8 +15,8 @@ This file provides guidance to coding agents working in this repository.
 - `npm run lint:sonar` runs the SonarJS rules (the SonarLint analyzer) through ESLint.
 - `npm run doctor` runs React Doctor on the whole project.
 - `npm run quality` runs the quality gate. See "Quality gate".
-- `npm run db:generate`, `npm run db:migrate`, `npm run db:push`, and `npm run db:studio` manage Drizzle.
-- `npm run deploy` deploys to Cloudflare Workers with Wrangler.
+- `npm run db:generate`, `npm run db:migrate`, `npm run db:push`, `npm run db:pull`, and `npm run db:studio` manage Drizzle. Use them only against an isolated database ([docs/development-database.md](docs/development-database.md)).
+- `npm run deploy` runs `wrangler deploy`. It is left from the Cloudflare starter and is not the current deployment path. See "Deployment".
 
 ## Architecture
 
@@ -27,29 +29,37 @@ This is a TanStack Start full-stack application built on Vite 7. It uses:
 - React 19, Tailwind CSS v4, shadcn/ui in the new-york style, and Recharts.
 - Zod and React Hook Form for validation and forms.
 - Biome for linting and formatting.
-- Cloudflare Workers for deployment.
+- Nitro for the server build, deployed on Vercel.
+
+### Deployment
+
+`vite.config.ts` builds the server with Nitro into `.output/`, and `vercel.json` configures Vercel. Pull requests get a Vercel preview deployment. `wrangler.jsonc` and the `deploy` script remain from the Cloudflare starter, but the Vite config has no Cloudflare plugin.
 
 ### Routing
 
 Routes live in `src/routes/`. Underscore-prefixed directories are route groups; `_authenticated/route.tsx` applies the authentication guard. `src/routeTree.gen.ts` is generated and must not be edited manually.
 
 - `__root.tsx` defines the root layout, sidebar, theme provider, and development tools.
-- `_authenticated/` contains protected dashboard, journal, calendar, strategies, and settings routes.
+- `_authenticated/` contains protected dashboard, journal, trade detail (`journal_.$tradeId.tsx`), calendar, strategies, reviews, and settings routes.
 - `_unauthenticated/` contains sign-in and sign-up routes.
 - `api/` contains API route handlers, including Better Auth endpoints.
+- `index.tsx` is the public landing page. `profile.tsx` checks the session in the page. `demo/` holds starter template demos.
 
-Unauthenticated visitors to protected routes are redirected to `/sign-in`.
+The guard runs on the client: unauthenticated visitors to protected routes are redirected to `/sign-in`.
 
 ### Server functions
 
-Backend operations live in `src/server/` as TanStack Start `createServerFn` functions. Client components call them through TanStack Query. Keep database schema and relations in `src/db/schema.ts`; use the client from `src/db/index.ts`.
+Backend operations live in `src/server/` as TanStack Start `createServerFn` functions. Client components call them through TanStack Query. Keep database schema and relations in `src/db/` (`schema.ts` re-exports `trading-schema.ts` and `review-schema.ts`). Import the client as `@/db`, which resolves to `src/db.ts` (Neon HTTP driver). The app does not import `src/db/index.ts` (a `pg` pool).
 
 Key server modules include:
 
 - `getTrades.ts` for trade queries.
 - `getAnalytics.ts` and `getAdvancedAnalytics.ts` for trading analytics.
 - `tradeActions.ts` for trade mutations.
-- `importActions.ts` for trade imports.
+- `importActions.ts` for trade and adjustment imports, import history, and batch undo.
+- `tradeRiskActions.ts` for original-risk corrections.
+- `reviewActions.ts`, `reviewPreferenceActions.ts`, `reviewQueueActions.ts`, and `tradeReviewActions.ts` for daily and weekly reviews.
+- `calendarActions.ts`, `imageActions.ts`, and `commandIntentActions.ts` for the calendar, trade screenshots, and the command palette fallback.
 - `strategyActions.ts` for strategy queries and mutations.
 - `portfolioActions.ts` for trading accounts, and `cashFlowActions.ts` for deposits, withdrawals and adjustments.
 
@@ -57,12 +67,21 @@ Every handler calls `requireUserId()` from `src/lib/auth.ts` and validates its i
 
 ### Database
 
-The core tables in `src/db/schema.ts` are:
+The core tables are:
 
 - `user`, `session`, `account`, and `verification`, managed by Better Auth.
 - `portfolios`, which represent multiple trading accounts per user.
-- `trades`, which store entries, exits, P&L, notes, psychology fields, screenshots, and import hashes.
+- `trades`, which store entries, exits, P&L, original risk, notes, psychology fields, screenshots, and import identity.
+- `cash_flows`, which store deposits, withdrawals, and adjustments.
 - `strategies`, which represent trading setups and patterns.
+- `import_batches` and `import_identities`, which record reconciled import batches.
+- `review_periods`, `review_source_trades`, and `review_source_cash_flows`, which store reviews and their frozen sources.
+
+Migrations live in `drizzle/`.
+
+### Feature map
+
+[docs/feature-map.md](docs/feature-map.md) lists routes, entry points, user flows, data ownership, and how each feature is verified. A feature change must update `docs/feature-map.md` in the same pull request.
 
 ### Authentication
 
@@ -76,6 +95,9 @@ Shared shadcn/ui primitives live in `src/components/ui/`. Product components are
 - `src/components/journal/` contains the trade table, filters, import flow, detail sheet, and entry form.
 - `src/components/calendar/` contains the trading calendar.
 - `src/components/strategies/` contains strategy management.
+- `src/components/reviews/` contains daily and weekly reviews.
+- `src/components/account/` contains the account switcher and account dialogs.
+- `src/components/command-palette/` contains the `Cmd/Ctrl+K` command palette.
 - `src/components/tools/` contains trading calculators and tools.
 - `src/components/app-sidebar.tsx` and `src/components/bottom-nav.tsx` provide primary navigation.
 
@@ -106,15 +128,15 @@ Fix the cause of a finding. Do not suppress a rule or change a threshold to pass
 - Default to no comment. Write one only for a reason the code cannot show: a business rule, an external constraint, or a workaround.
 - Keep a component to one job. Biome fails a function above 120 lines, and SonarJS fails a file above 400 lines (500 for tests).
 - A component reads shared state (account, currency) from its hook, not from props passed down.
-- `src/server/` files export only `createServerFn` results. Put a helper they share in a server-only module: `src/lib/auth.ts` for the session, `src/db/` for queries.
+- `src/server/` files export only `createServerFn` results. Put a helper they share in a server-only module: `src/lib/auth.ts` for the session, `src/db/` for queries. `src/server/rangeInput.ts` (a shared Zod schema) is an existing exception.
 
 ## Environment variables
 
-Local database access requires these variables in `.env`:
+The server reads these variables. Set up the database as [docs/development-database.md](docs/development-database.md) describes; never point a local checkout at production.
 
-```dotenv
-DATABASE_URL=
-DATABASE_URL_POOLER=
-```
+- `DATABASE_URL`: required. The app, Drizzle Kit and the Neon dev plugin read it.
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: Google sign-in.
+- `GCP_BUCKET_NAME`, `GCP_SERVICE_ACCOUNT_KEY`: trade screenshots.
+- `GEMINI_API_KEY`: optional command palette fallback.
 
-Google OAuth also requires `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in the Cloudflare Workers environment.
+In a deployment, set them in the host environment, not in source control.

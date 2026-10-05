@@ -1,5 +1,7 @@
 # Handoff: redesign the journal FilterBar
 
+> **Historical.** This document records past work. Its instructions are not active, and its file paths and status may be out of date. For the current state, read [README.md](../../README.md), [AGENTS.md](../../AGENTS.md) and [docs/feature-map.md](../feature-map.md).
+
 ## Task
 
 Redesign `src/components/journal/FilterBar.tsx` so the journal filters read as a purpose-built toolbar rather than generic journal-entry cards.
