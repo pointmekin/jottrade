@@ -19,7 +19,15 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:pull": "drizzle-kit pull",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:setup": "tsx scripts/db/cli.ts setup",
+    "db:server": "tsx scripts/db/cli.ts server",
+    "db:dev:migrate": "tsx scripts/db/cli.ts migrate",
+    "db:seed": "tsx scripts/db/cli.ts seed",
+    "db:reset": "tsx scripts/db/cli.ts reset",
+    "db:drop": "tsx scripts/db/cli.ts drop",
+    "db:check": "tsx scripts/db/cli.ts check",
+    "db:list": "tsx scripts/db/cli.ts list"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.54.8",
