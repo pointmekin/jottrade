@@ -65,12 +65,13 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 - **Flows**:
   - Filter by symbol, side, status, strategy, confidence, mistake and period; page through results. Tabs: All entries, Trades, Adjustments, Funding.
   - Log a trade (`TradeEntryForm.tsx`), edit it and delete it from the detail page (`TradeDetailSheet.tsx`, `DeleteTradeDialog.tsx`).
+  - Edit rules: a blank optional price, rate or fee is stored as "no value" (blank fees as 0), so an open trade stays open with no P&L. A closed trade cannot clear its exit price; enter the corrected exit price instead (`src/lib/trade-update.ts`).
   - Add, edit and delete deposits, withdrawals and adjustments (`AccountEntriesPanel.tsx`, `account-entry-form.tsx`).
   - Upload and delete trade screenshots (`trade-images.tsx`). This needs the `GCP_*` variables (`src/lib/gcp.ts`).
   - The detail page shows price return and account return (`trade-returns.tsx`).
 - **Server**: `getTrades.ts` (`getTrades`, `getTradeById`), `tradeActions.ts` (`createTrade`, `updateTrade`, `deleteTrade`), `cashFlowActions.ts`, `imageActions.ts`.
 - **Data**: `trades`, `cash_flows` (`cashFlows`).
-- **Verification**: Unit `journal-table.test.tsx`, `journal-entries.test.ts`, `filter-bar.test.tsx`, `delete-trade-dialog.test.tsx`, `trade-returns.test.tsx`, `finance.test.ts`, `instruments.test.ts`, `date.test.ts`, `period.test.ts`, `trade-target.test.ts`. Gap: screenshot upload; end-to-end log/edit/delete against a database.
+- **Verification**: Unit `journal-table.test.tsx`, `journal-entries.test.ts`, `filter-bar.test.tsx`, `delete-trade-dialog.test.tsx`, `trade-returns.test.tsx`, `finance.test.ts`, `instruments.test.ts`, `date.test.ts`, `period.test.ts`, `trade-target.test.ts`, `trade-blank-decimals.test.ts` (blank fields and the closed-trade exit rule, through `createTrade` and `updateTrade` with a mocked database). Gap: screenshot upload; end-to-end log/edit/delete against a database.
 
 ### Trade risk and R-multiples (PR #35)
 
