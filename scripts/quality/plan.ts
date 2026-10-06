@@ -124,10 +124,19 @@ export function planChecks(changes: Change[]): QualityPlan {
 	};
 }
 
+// `xargs` appends paths after the tool's options, so a file named `-x.sh` or
+// `--write` would be read as an option. `./` keeps it a path.
+export function asArgument(path: string): string {
+	return path.startsWith("-") ? `./${path}` : path;
+}
+
 // NUL-separated lists keep paths with spaces or newlines intact for `xargs -0`.
 export function writePlan(dir: string, plan: QualityPlan): void {
 	for (const [list, paths] of Object.entries(plan.files)) {
-		writeFileSync(join(dir, list), paths.map((path) => `${path}\0`).join(""));
+		writeFileSync(
+			join(dir, list),
+			paths.map((path) => `${asArgument(path)}\0`).join(""),
+		);
 	}
 	writeFileSync(
 		join(dir, "checks"),

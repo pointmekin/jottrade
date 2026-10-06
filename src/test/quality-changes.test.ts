@@ -218,4 +218,14 @@ describe("plan output", () => {
 			[Check.Build, Check.EslintProject, Check.Lockfile].sort(),
 		);
 	});
+
+	it("keeps a path that starts with a dash from being read as an option", () => {
+		write("-x.sh", "echo ok\n");
+		write("--write.ts", "export const a = 1;\n");
+		writePlan(repo, plan());
+
+		const read = (list: string) => readFileSync(join(repo, list), "utf8");
+		expect(read("shell")).toBe("./-x.sh\0");
+		expect(read("biome")).toContain("./--write.ts\0");
+	});
 });
