@@ -12,7 +12,9 @@ import { tradeCaptureSchema } from "@/lib/trade-capture";
 import { calculateInitialRisk } from "@/lib/trade-risk";
 import { optionalPositiveDecimal } from "@/lib/trade-risk-schema";
 import {
+	assertExitKept,
 	assertInitialPlanPreserved,
+	blankDecimalsToNull,
 	manualPnlForUpdate,
 } from "@/lib/trade-update";
 
@@ -44,7 +46,7 @@ export const createTrade = createServerFn({ method: "POST" })
 		const userId = await requireUserId();
 		const portfolio = await requireOwnedPortfolio(userId, data.portfolioId);
 		const accountCurrency = portfolio.currency ?? DEFAULT_CURRENCY;
-		const execution = { ...data };
+		const execution = blankDecimalsToNull({ ...data });
 		delete execution.entryQuoteToAccountRate;
 		delete execution.balanceAccount;
 		delete execution.confirmedUnitQuoteCurrency;
@@ -65,8 +67,6 @@ export const createTrade = createServerFn({ method: "POST" })
 			managementStopPrice: data.initialStopPrice || null,
 			entryDate: new Date(data.entryDate),
 			exitDate: data.exitDate ? new Date(data.exitDate) : null,
-			targetPrice: data.targetPrice || null,
-			exitPrice: data.exitPrice || null,
 			fees: data.fees || "0",
 			netPnl: pnl?.netPnl,
 			returnPercent: pnl?.returnPercent,
@@ -138,11 +138,12 @@ export const updateTrade = createServerFn({ method: "POST" })
 				expectedAnnotationRevision,
 			);
 			assertInitialPlanPreserved(existing, changes);
+			assertExitKept(existing, changes);
 			const portfolio = await requireOwnedPortfolio(
 				userId,
 				changes.portfolioId ?? existing.portfolioId,
 			);
-			const execution = { ...changes };
+			const execution = blankDecimalsToNull({ ...changes });
 			delete execution.confirmedUnitQuoteCurrency;
 			const { isRecalculated, ...pnl } = manualPnlForUpdate(
 				existing,
@@ -164,11 +165,6 @@ export const updateTrade = createServerFn({ method: "POST" })
 						? new Date(changes.entryDate)
 						: undefined,
 					exitDate: changes.exitDate ? new Date(changes.exitDate) : undefined,
-					targetPrice: changes.targetPrice === "" ? null : changes.targetPrice,
-					managementStopPrice:
-						changes.managementStopPrice === ""
-							? null
-							: changes.managementStopPrice,
 					editRevision: sql`${trades.editRevision} + 1`,
 					annotationRevision:
 						changes.notes !== undefined
