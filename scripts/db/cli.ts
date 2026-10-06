@@ -3,6 +3,7 @@ import {
 	clearDatabase,
 	createDatabase,
 	dropDatabase,
+	isEmptyDatabase,
 	listDatabases,
 	maintenanceUrl,
 	migrateDatabase,
@@ -51,13 +52,18 @@ function describe(target: Target) {
 
 /** The local URL to write, or an error when `.env` already names another target. */
 function setupTarget(): Target {
-	if (process.env.DATABASE_URL) return requireTarget();
-	const name = process.env.JOTTRADE_DB_NAME ?? worktreeDatabaseName();
-	const url = localUrl(name);
-	const filled = fillEnvFile(localEnvValues(url));
-	if (filled.length) console.log(`Wrote ${filled.join(", ")} to ${ENV_FILE}.`);
+	const url =
+		process.env.DATABASE_URL ||
+		localUrl(process.env.JOTTRADE_DB_NAME ?? worktreeDatabaseName());
 	process.env.DATABASE_URL = url;
-	return requireTarget();
+	const target = requireTarget();
+	const values = localEnvValues(url);
+	// Only the local server is plain PostgreSQL; an allowed remote host keeps
+	// the Neon driver.
+	if (!isLocalServer(target)) delete values.DATABASE_DRIVER;
+	const filled = fillEnvFile(values);
+	if (filled.length) console.log(`Wrote ${filled.join(", ")} to ${ENV_FILE}.`);
+	return target;
 }
 
 async function setup() {
@@ -74,7 +80,11 @@ async function setup() {
 	const created = await createDatabase(target);
 	console.log(`${created ? "Created" : "Using"} ${describe(target)}.`);
 	await migrateDatabase(target);
-	await seed(target);
+	if (created || (await isEmptyDatabase(target))) await seed(target);
+	else
+		console.log(
+			`Kept the existing data in ${target.database}. Run \`npm run db:reset\` to restore the seed data.`,
+		);
 	console.log("Ready. Start the app with `npm run dev`.");
 }
 

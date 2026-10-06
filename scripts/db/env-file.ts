@@ -31,7 +31,7 @@ export function fillEnvFile(values: Record<string, string>, path = ENV_FILE) {
 	return filled;
 }
 
-export function localEnvValues(databaseUrl: string) {
+export function localEnvValues(databaseUrl: string): Record<string, string> {
 	return {
 		DATABASE_URL: databaseUrl,
 		DATABASE_DRIVER: "pg",

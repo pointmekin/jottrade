@@ -37,6 +37,16 @@ export async function databaseExists(target: Target) {
 	});
 }
 
+/** True when the database has no users, so seeding cannot remove someone's work. */
+export async function isEmptyDatabase(target: Target) {
+	return withClient(target.url.toString(), async (client) => {
+		const { rows } = await client.query<{ empty: boolean }>(
+			`select not exists (select 1 from "user") as empty`,
+		);
+		return rows[0].empty;
+	});
+}
+
 export async function createDatabase(target: Target) {
 	if (await databaseExists(target)) return false;
 	await withClient(maintenanceUrl(target), (client) =>

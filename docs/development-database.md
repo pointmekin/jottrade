@@ -30,9 +30,11 @@ Sign in with any seeded user. All of them use the password
 3. It creates the database for this worktree, for example
    `jottrade_dev_jottrade_7b7fa58d`.
 4. It fills the empty `.env` keys `DATABASE_URL`, `DATABASE_DRIVER=pg`,
-   `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL`. It creates `.env` from
+   `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL`, also when `DATABASE_URL` is
+   already set. `DATABASE_DRIVER=pg` is written only for the local server. It creates `.env` from
    `.env.example` if necessary. It never replaces a value that is set.
-5. It applies the migrations in `drizzle/` and seeds the data.
+5. It applies the migrations in `drizzle/`. It seeds the data only when the
+   database is new or has no users.
 
 You can run setup again at any time. It does not delete data. To go back to
 the seed data, use `npm run db:reset`.
