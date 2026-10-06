@@ -69,8 +69,6 @@ const RULES: Rule[] = [
 		matches: isOneOf(
 			"vite.config.ts",
 			"tsconfig.json",
-			"neon-vite-plugin.ts",
-			"wrangler.jsonc",
 			"vercel.json",
 			"src/styles.css",
 			...GENERATED_FILES,

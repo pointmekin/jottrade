@@ -34,7 +34,7 @@ This is a TanStack Start full-stack application built on Vite 7. It uses:
 
 ### Deployment
 
-Vercel is the only deploy target. `.github/workflows/deploy.yml` runs on each push to `main`: `vercel build`, then `drizzle-kit migrate` on the production database, then `vercel deploy --prebuilt --prod`. A failed build does not migrate, and a failed migration does not deploy. `vercel.json` turns off Vercel's Git auto-deploy for `main`; pull requests still get preview deployments. Migrations have no down step, so a new migration must work with the code that is live before it. Owner setup: [docs/owner-todo.md](docs/owner-todo.md).
+Vercel is the only deploy target. `vite.config.ts` builds the server with Nitro. `.github/workflows/deploy.yml` runs on each push to `main`: `vercel build`, then `drizzle-kit migrate` on the production database, then `vercel deploy --prebuilt --prod`. A failed build does not migrate, and a failed migration does not deploy. `vercel.json` turns off Vercel's Git auto-deploy for `main`; pull requests still get preview deployments. Migrations have no down step, so a new migration must work with the code that is live before it. Owner setup: [docs/owner-todo.md](docs/owner-todo.md).
 
 ### Routing
 
@@ -44,7 +44,7 @@ Routes live in `src/routes/`. Underscore-prefixed directories are route groups; 
 - `_authenticated/` contains protected dashboard, journal, trade detail (`journal_.$tradeId.tsx`), calendar, strategies, reviews, and settings routes.
 - `_unauthenticated/` contains sign-in and sign-up routes.
 - `api/` contains API route handlers, including Better Auth endpoints.
-- `index.tsx` is the public landing page. `profile.tsx` checks the session in the page. `demo/` holds starter template demos.
+- `index.tsx` is the public landing page. `profile.tsx` checks the session in the page.
 
 The guard runs on the client: unauthenticated visitors to protected routes are redirected to `/sign-in`.
 
@@ -143,4 +143,4 @@ Fix the cause of a finding. Do not suppress a rule or change a threshold to pass
 - `GEMINI_API_KEY`: optional command palette fallback.
 - `DATABASE_URL_POOLER`: not read today.
 
-In a deployment, set them in the host environment, not in source control.
+In a deployment, set them in the Vercel project environment, not in source control.

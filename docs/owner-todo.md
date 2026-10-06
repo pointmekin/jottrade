@@ -95,3 +95,15 @@ To go back to a previous build:
 After an Instant Rollback, Vercel does not move the production domain to new deployments automatically. When the fix is on `main` and deployed, promote that deployment (or undo the rollback) in Vercel.
 
 Migrations have no down step. Roll back the code only. Keep the database schema as it is. Thus, each migration must work with the code that was live before it. If a migration is wrong, write a new migration that corrects it, and deploy it.
+
+## 9. Other open items
+
+These items are not about deploys. They come from the audit of the merged work for #9, #10 and #11.
+
+- [ ] Close issues #9, #10 and #11. Their pull requests (#35, #37, #36) are merged, and the audit found that they meet their acceptance criteria. #10 meets its undo criterion only partly (see the next item).
+- [ ] Create follow-up issues for the bugs that the audit found, or ask Claude to fix them:
+  - Import undo marks the restored version's identity as superseded, so the corrected file cannot be imported again (`src/db/import-undo-sql.ts`).
+  - A cancelled screenshot upload increases `editRevision`, so undo protects a trade that did not change (`src/server/imageActions.ts`).
+  - When a review protects a cash flow, a delete shows "Cash flow not found" instead of a review message (`src/server/cashFlowActions.ts`).
+- [ ] Resolve or answer the open Codex review threads on #35, #36 and #37.
+- [ ] Optional: collect real, sanitised Exness exports with partial closes to verify imports (#10 release evidence).
