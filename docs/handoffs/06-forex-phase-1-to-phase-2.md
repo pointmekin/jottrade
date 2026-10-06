@@ -1,5 +1,7 @@
 # Handoff: forex P&L phase 2
 
+> **Historical.** This document records past work. Its instructions are not active, and its file paths and status may be out of date. For the current state, read [README.md](../../README.md), [AGENTS.md](../../AGENTS.md) and [docs/feature-map.md](../feature-map.md).
+
 ## Task
 
 Implement Phase 2 of the Jottrade Forex P&L plan: FX providers, persistent rate caching, trade calculation snapshots, and server-side trade integration.

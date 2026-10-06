@@ -1,5 +1,7 @@
 # Plan: accurate, consistently scoped, explainable performance metrics
 
+> **Historical.** This document records past work. Its instructions are not active, and its file paths and status may be out of date. For the current state, read [README.md](../../README.md), [AGENTS.md](../../AGENTS.md) and [docs/feature-map.md](../feature-map.md).
+
 Issue: [#8](https://github.com/pointmekin/jottrade/issues/8). Baseline commit: `65383aa`.
 
 ## Reproduced gaps

@@ -1,5 +1,7 @@
 # Command system: phase 3 handoff
 
+> **Historical.** This document records past work. Its instructions are not active, and its file paths and status may be out of date. For the current state, read [README.md](../../README.md), [AGENTS.md](../../AGENTS.md) and [docs/feature-map.md](../feature-map.md).
+
 Phase 3 is implemented. All three phases of `docs/plans/command-system.md` are now complete. Earlier handoffs are in `docs/handoffs/command-phase-1.md` and `docs/handoffs/command-phase-2.md`.
 
 Commit: `f9c71c4` — `feat: add speech input to the command palette`
