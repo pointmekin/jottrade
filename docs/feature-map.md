@@ -31,7 +31,6 @@ To run one file: `npx vitest run src/test/<file>`.
 | `/settings` | `src/routes/_authenticated/settings.tsx` | Signed in | `ssr: false`. |
 | `/profile` | `src/routes/profile.tsx` | Checks the session in the page | Outside `_authenticated`; shows "Access Denied" without a session. |
 | `/api/auth/*` | `src/routes/api/auth/$.ts` | Public | Better Auth handler (GET, POST). |
-| `/demo/*` | `src/routes/demo/` | Public | Starter template demos. Not a product feature. The owner decides to keep or delete them. |
 
 The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the client. The server renders a spinner, then the client redirects to `/sign-in` when there is no session.
 

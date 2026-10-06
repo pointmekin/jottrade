@@ -218,12 +218,3 @@ differs from production. To check something that depends on Neon HTTP
 itself, use a Neon branch whose database name is `jottrade_dev_*`, set
 `DATABASE_DRIVER=neon`, and set `JOTTRADE_DB_ALLOW_REMOTE_HOST` to the branch
 host.
-
-## Known issues
-
-- `vite.config.ts` loads `@neondatabase/vite-plugin-postgres`. In development,
-  if `.env` has no `DATABASE_URL`, `npm run dev` asks Neon to create a new
-  database over the network and writes its URL to `.env`. Run
-  `npm run db:setup` before `npm run dev` to prevent this.
-- The `/demo/neon` route reads a `todos` table that migration `0001` removes.
-  It fails on every migrated database.

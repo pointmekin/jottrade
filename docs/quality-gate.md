@@ -61,7 +61,7 @@ Some changes can break the build or the tooling without a change to application 
 | `.bun-version`, `.nvmrc` | build, lockfile |
 | `biome.json` | Biome config validation |
 | `eslint.config.js` | SonarJS on the whole project |
-| `vite.config.ts`, `tsconfig.json`, `neon-vite-plugin.ts`, `wrangler.jsonc`, `vercel.json`, `src/styles.css` | build |
+| `vite.config.ts`, `tsconfig.json`, `vercel.json`, `src/styles.css` | build |
 | `src/components/ui/**` | build |
 | `src/routes/**` added, deleted or renamed; `src/routeTree.gen.ts` | build |
 | `.github/workflows/**` | workflow validation |
