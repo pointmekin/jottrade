@@ -14,7 +14,6 @@
     "lint:sonar": "eslint",
     "doctor": "react-doctor --no-telemetry --no-supply-chain --verbose -y",
     "quality": "bash scripts/quality.sh",
-    "deploy": "wrangler deploy",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -30,10 +29,8 @@
     "db:list": "tsx scripts/db/cli.ts list"
   },
   "dependencies": {
-    "@cloudflare/vite-plugin": "^1.54.8",
     "@hookform/resolvers": "^5.9.1",
     "@neondatabase/serverless": "^1.1.0",
-    "@neondatabase/vite-plugin-postgres": "^0.2.3",
     "@radix-ui/react-dialog": "^1.1.23",
     "@radix-ui/react-dropdown-menu": "^2.1.24",
     "@radix-ui/react-label": "^2.1.15",
@@ -103,7 +100,6 @@
     "typescript-eslint": "^8.70.1",
     "vite": "^7.3.6",
     "vitest": "^3.2.7",
-    "web-vitals": "^5.3.0",
-    "wrangler": "^4.131.1"
+    "web-vitals": "^5.3.0"
   }
 }
