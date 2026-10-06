@@ -52,4 +52,4 @@ npm run serve    # Preview the production build
 
 ## Deployment
 
-The build uses Nitro, and `vercel.json` sets up Vercel (framework `tanstack-start`). Pull requests get a Vercel preview deployment. `npm run deploy` (Wrangler) and `wrangler.jsonc` remain from the Cloudflare starter, but the Vite config has no Cloudflare plugin, so do not use them without a check.
+Vercel is the only deploy target. Production deploys run in GitHub Actions (`.github/workflows/deploy.yml`) on each push to `main`: build, then run the Drizzle migrations on the production database, then deploy the prebuilt output. Vercel does not auto-deploy `main`. Pull requests still get Vercel preview deployments. Setup and rollback steps: [docs/owner-todo.md](docs/owner-todo.md).

@@ -17,7 +17,7 @@ Install with `bun install --frozen-lockfile` (the lockfile is `bun.lock`; CI use
 - `npm run quality` runs the quality gate. See "Quality gate".
 - `npm run db:setup`, `db:server`, `db:dev:migrate`, `db:seed`, `db:reset`, `db:drop`, `db:check`, and `db:list` manage the isolated local database. They refuse unsafe targets. See [docs/development-database.md](docs/development-database.md).
 - `npm run db:generate`, `npm run db:migrate`, `npm run db:push`, `npm run db:pull`, and `npm run db:studio` call `drizzle-kit` directly, with no safety guard. Use them only against an isolated database.
-- `npm run deploy` runs `wrangler deploy`. It is left from the Cloudflare starter and is not the current deployment path. See "Deployment".
+- Production deploys run in GitHub Actions, not from a local command. See "Deployment".
 
 ## Architecture
 
@@ -34,7 +34,7 @@ This is a TanStack Start full-stack application built on Vite 7. It uses:
 
 ### Deployment
 
-`vite.config.ts` builds the server with Nitro into `.output/`, and `vercel.json` configures Vercel. Pull requests get a Vercel preview deployment. `wrangler.jsonc` and the `deploy` script remain from the Cloudflare starter, but the Vite config has no Cloudflare plugin.
+Vercel is the only deploy target. `.github/workflows/deploy.yml` runs on each push to `main`: `vercel build`, then `drizzle-kit migrate` on the production database, then `vercel deploy --prebuilt --prod`. A failed build does not migrate, and a failed migration does not deploy. `vercel.json` turns off Vercel's Git auto-deploy for `main`; pull requests still get preview deployments. Migrations have no down step, so a new migration must work with the code that is live before it. Owner setup: [docs/owner-todo.md](docs/owner-todo.md).
 
 ### Routing
 
