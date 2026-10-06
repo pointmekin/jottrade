@@ -79,6 +79,44 @@ export function manualPnlForUpdate(
 	return { ...pnl, isRecalculated: true as const };
 }
 
+const NULLABLE_DECIMAL_FIELDS = [
+	"targetPrice",
+	"exitPrice",
+	"exitQuoteToAccountRate",
+	"managementStopPrice",
+	"initialStopPrice",
+	"entryQuoteToAccountRate",
+] as const;
+type NullableDecimalField = (typeof NULLABLE_DECIMAL_FIELDS)[number];
+type DecimalInputs = Partial<
+	Record<NullableDecimalField | "fees", string | null | undefined>
+>;
+export type DecimalWrite<T extends DecimalInputs> = {
+	[K in keyof T]: K extends NullableDecimalField ? T[K] | null : T[K];
+};
+
+// PostgreSQL numeric columns refuse "", so a blank form field is stored as
+// "no value"; blank fees are zero fees, as on create.
+export function blankDecimalsToNull<T extends DecimalInputs>(
+	values: T,
+): DecimalWrite<T> {
+	const write: DecimalInputs = { ...values };
+	for (const key of NULLABLE_DECIMAL_FIELDS)
+		if (write[key] === "") write[key] = null;
+	if (write.fees === "") write.fees = "0";
+	return write as DecimalWrite<T>;
+}
+
+export function assertExitKept(
+	existing: StoredTrade,
+	changes: TradeUpdateFields,
+) {
+	if (existing.exitPrice && changes.exitPrice === "")
+		throw new Error(
+			"A closed trade keeps its exit price. Enter the corrected exit price instead.",
+		);
+}
+
 export function assertInitialPlanPreserved(
 	existing: StoredTrade,
 	changes: TradeUpdateFields,
