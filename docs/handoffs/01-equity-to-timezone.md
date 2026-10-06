@@ -1,5 +1,7 @@
 # Handoff: make trade dates timezone-aware
 
+> **Historical.** This document records past work. Its instructions are not active, and its file paths and status may be out of date. For the current state, read [README.md](../../README.md), [AGENTS.md](../../AGENTS.md) and [docs/feature-map.md](../feature-map.md).
+
 ## Task
 
 Fix the P0 date and time bug so calendar dates and date-based analytics use the user's local timezone. The reported user is in Thailand, UTC+7. A trade closed late Friday local time must appear on Friday, not Saturday.

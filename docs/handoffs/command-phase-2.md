@@ -1,5 +1,7 @@
 # Command system: phase 2 handoff
 
+> **Historical.** This document records past work. Its instructions are not active, and its file paths and status may be out of date. For the current state, read [README.md](../../README.md), [AGENTS.md](../../AGENTS.md) and [docs/feature-map.md](../feature-map.md).
+
 Phase 2 is implemented. Begin phase 3 from the committed phase 2 code. The original feature plan is in `docs/plans/command-system.md`. The phase 1 handoff is in `docs/handoffs/command-phase-1.md`.
 
 Commit: `da2c9ee` — `feat: add gemini fallback for ambiguous commands`

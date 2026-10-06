@@ -1,0 +1,157 @@
+# Quality gate
+
+`npm run quality` (`scripts/quality.sh`) is the gate that every change must pass before it goes into `main`. CI runs the same script on every pull request as the **Quality** check (`.github/workflows/quality.yml`).
+
+## Runtime and install
+
+CI and local setup use the same runtime and the same frozen install:
+
+| Item | Pinned by | CI step |
+| --- | --- | --- |
+| Bun | `.bun-version` (exact) | `oven-sh/setup-bun` with `bun-version-file: .bun-version` |
+| Node (Vite and the build run on Node) | `.nvmrc` (major version) | `actions/setup-node` with `node-version-file: .nvmrc` |
+| Dependencies | `bun.lock` | `bun install --frozen-lockfile` |
+
+For a fresh checkout:
+
+```sh
+# Install the Bun version in .bun-version and the Node version in .nvmrc first.
+bun install --frozen-lockfile
+npm run quality
+```
+
+The gate prints a warning when the local Bun or Node version is not the pinned version.
+
+## What the gate checks
+
+### Always, on the whole project
+
+- `tsc --noEmit`: types across `src/`, `scripts/` and the config files.
+- `vitest run`: all tests. The database integration tests skip unless their `*_TEST_DATABASE_URL` variables are set. The gate does not connect to a database.
+
+### On the files changed since `BASE`
+
+`main` still has older Biome and React Doctor findings, so these tools check only the files that a change touches. A file that you touch must be clean.
+
+- Biome (`biome check`) on every changed file. `biome.json` decides which files Biome checks.
+- SonarJS (ESLint) on changed JS and TS files. `eslint.config.js` decides scope.
+- React Doctor on changed JS and TS files. `doctor.config.json` decides scope.
+- `bash -n` on changed shell scripts.
+
+`BASE` is `origin/main` locally. In CI it is the base commit of the pull request (or of the merge group).
+
+The changed files are all of these, compared with the merge base of `BASE` and `HEAD`:
+
+- committed, staged and unstaged changes (`git diff --name-status -z --no-renames <merge-base>`);
+- untracked files that `.gitignore` does not exclude (`git ls-files --others --exclude-standard -z`).
+
+The file lists go to the tools NUL-separated (`xargs -0`), so paths with spaces, quotes or non-ASCII characters stay intact. A rename counts as a deletion of the old path and an addition of the new path: the new path is linted, and the old path can still start a focused check. Deleted files are not linted; `tsc` and Vitest find code that used them.
+
+`src/routeTree.gen.ts` is excluded from the file-scoped linters. TanStack Router generates it from `src/routes/` on every dev start and build, so a finding in it cannot be fixed by hand. `tsc` still checks it, and the build check below fails if the committed copy is out of date.
+
+Shared UI primitives (`src/components/ui/`) are linted by Biome. The ESLint and React Doctor configs ignore that directory, so those tools skip the files.
+
+### Focused checks for tooling, config, shared UI and route changes
+
+Some changes can break the build or the tooling without a change to application source. `scripts/quality/plan.ts` maps these paths to focused checks. The gate prints each check that it selects, with the paths that caused it.
+
+| Changed path | Focused checks |
+| --- | --- |
+| `package.json`, `bun.lock` | build, lockfile, SonarJS on the whole project |
+| `.bun-version`, `.nvmrc` | build, lockfile |
+| `biome.json` | Biome config validation |
+| `eslint.config.js` | SonarJS on the whole project |
+| `vite.config.ts`, `tsconfig.json`, `neon-vite-plugin.ts`, `wrangler.jsonc`, `vercel.json`, `src/styles.css` | build |
+| `src/components/ui/**` | build |
+| `src/routes/**` added, deleted or renamed; `src/routeTree.gen.ts` | build |
+| `.github/workflows/**` | workflow validation |
+| `scripts/quality.sh`, `scripts/quality/**` | all focused checks |
+
+The checks are:
+
+- **build**: `bun run build` (the production build). After the build, the gate fails if the build changed `src/routeTree.gen.ts`. The Neon Vite plugin does nothing in production mode, so the build does not create or connect to a database.
+- **lockfile**: `bun install --frozen-lockfile --dry-run` fails if `bun.lock` does not match `package.json`.
+- **SonarJS on the whole project**: `main` has no SonarJS findings, so a new rule or a plugin upgrade is checked on every file.
+- **Biome config validation**: Biome loads `biome.json` and fails on an invalid config. Biome does not run on the whole project, because `main` still has older Biome findings.
+- **workflow validation**: `scripts/quality/check-workflows.ts` parses every workflow and checks that `quality.yml` keeps the merge contract: the job is named `Quality`, it runs on `pull_request` with no `paths` or `paths-ignore` filter, it has no `if` condition, and it installs with `bun install --frozen-lockfile` and runs `bun run quality`.
+
+A change to `doctor.config.json` gets no extra check: React Doctor still has older findings on `main`, so it cannot run on the whole project yet.
+
+The tests for the selection are in `src/test/quality-changes.test.ts` (temporary git repositories) and `src/test/quality-workflow.test.ts`.
+
+### Policy
+
+Fix the cause of a finding. Do not suppress a rule or change a threshold to pass the gate. If a finding is a false positive, suppress it on that line with a reason, and say so in the pull request.
+
+## Owner action: protect `main`
+
+A coding agent cannot change repository rules. The repository owner must create this ruleset. Apply it after this change merges, because the check name changes from `quality` (the old job id) to `Quality`. Open pull requests must merge `main` to report the new name.
+
+### Ruleset settings
+
+In **Settings → Rules → Rulesets → New ruleset → New branch ruleset**:
+
+1. **Ruleset name**: `main`.
+2. **Enforcement status**: Active.
+3. **Bypass list**: empty. See "Bypass policy".
+4. **Target branches**: Add target → Include default branch.
+5. **Rules**:
+   - **Restrict deletions**: on.
+   - **Block force pushes**: on.
+   - **Require a pull request before merging**: on.
+     - Required approvals: `0`. The owner is the only maintainer and GitHub does not let an author approve their own pull request. Increase it when a second maintainer joins.
+     - Leave the other pull request options off.
+   - **Require status checks to pass**: on.
+     - **Require branches to be up to date before merging**: on. The gate checks the changes relative to the base, so the check must run on the latest `main`.
+     - Add check: `Quality`, source **GitHub Actions**. GitHub lists a check only after it ran in the last 7 days. The pull request for this change runs it.
+6. Select **Create**.
+
+The same ruleset with the GitHub CLI (`15368` is the GitHub Actions app id):
+
+```sh
+gh api -X POST repos/pointmekin/jottrade/rulesets --input - <<'JSON'
+{
+  "name": "main",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [],
+  "conditions": { "ref_name": { "include": ["~DEFAULT_BRANCH"], "exclude": [] } },
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 0,
+        "dismiss_stale_reviews_on_push": false,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": false
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "do_not_enforce_on_create": false,
+        "required_status_checks": [{ "context": "Quality", "integration_id": 15368 }]
+      }
+    }
+  ]
+}
+JSON
+```
+
+### Bypass policy
+
+Keep the bypass list empty. Agents open most changes, and an empty list means that no account, app or token can push to `main` or merge a failing pull request. If an emergency fix is necessary, the owner can switch the ruleset to **Disabled**, merge, and switch it back to **Active**. The ruleset history records that change.
+
+If the owner wants a standing bypass, add only the **Repository admin** role with bypass mode **For pull requests only**. Do not add GitHub Apps or bots to the bypass list.
+
+### Verify the effective rules
+
+```sh
+gh api repos/pointmekin/jottrade/rules/branches/main
+```
+
+The output must contain `pull_request`, `required_status_checks` with the context `Quality`, `non_fast_forward` and `deletion`. On a pull request, the merge box must show **Quality** as a required check. Do not merge a deliberately failing pull request to test the rule. A pull request with a pending or failing **Quality** check must show "Merging is blocked".

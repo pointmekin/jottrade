@@ -1,5 +1,7 @@
 # Handoff: add delete trade entry functionality
 
+> **Historical.** This document records past work. Its instructions are not active, and its file paths and status may be out of date. For the current state, read [README.md](../../README.md), [AGENTS.md](../../AGENTS.md) and [docs/feature-map.md](../feature-map.md).
+
 ## Task
 
 Add complete delete functionality for a journal trade entry. A user must be able to start deletion from the trade UI, understand which trade will be removed, confirm or cancel, and see the journal and dependent analytics refresh after a successful delete.

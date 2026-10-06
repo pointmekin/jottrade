@@ -1,5 +1,7 @@
 # Performance metrics: phase 2 handoff
 
+> **Historical.** This document records past work. Its instructions are not active, and its file paths and status may be out of date. For the current state, read [README.md](../../README.md), [AGENTS.md](../../AGENTS.md) and [docs/feature-map.md](../feature-map.md).
+
 Issue: [#8](https://github.com/pointmekin/jottrade/issues/8). Phase 1: PR [#23](https://github.com/pointmekin/jottrade/pull/23). Phase 2 branch: `feat/metrics-phase-2`. Plan: `docs/plans/performance-metrics-phase-2.md`. Definitions: `docs/metrics.md`.
 
 ## Done in phase 2
