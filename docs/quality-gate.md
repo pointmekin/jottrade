@@ -107,7 +107,7 @@ Each merge to `main` deploys production (`.github/workflows/deploy.yml`). The ru
 
 ### Add a required check
 
-`quality.yml` is the only required check. Issue #31 adds more checks. Use a stable job name for each one. Then add the name to `required_status_checks` in the ruleset. Do not use a `paths` filter or an `if` condition on a required job: the check would stay pending and block the merge. `scripts/quality/check-workflows.ts` enforces this for `quality.yml`.
+The `Quality` check (job in `quality.yml`) is the only required check. Issue #31 adds more checks. Use a stable job name for each one. Then add the name to `required_status_checks` in the ruleset. Do not use a `paths` filter on a required workflow: the workflow does not run, and the check stays pending and blocks the merge. Do not use an `if` condition on a required job: GitHub counts a skipped job as a pass, so the merge goes through without the gate. `scripts/quality/check-workflows.ts` enforces this for `quality.yml`.
 
 ### Recreate the ruleset
 
