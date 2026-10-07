@@ -83,30 +83,35 @@ The tests for the selection are in `src/test/quality-changes.test.ts` (temporary
 
 Fix the cause of a finding. Do not suppress a rule or change a threshold to pass the gate. If a finding is a false positive, suppress it on that line with a reason, and say so in the pull request.
 
-## Owner action: protect `main`
+## Branch protection
 
-A coding agent cannot change repository rules. The repository owner must create this ruleset. Apply it after this change merges, because the check name changes from `quality` (the old job id) to `Quality`. Open pull requests must merge `main` to report the new name.
+The repository ruleset `main` protects the default branch. It is active. A failing or pending **Quality** check blocks the merge.
 
-### Ruleset settings
+### Rules
 
-In **Settings → Rules → Rulesets → New ruleset → New branch ruleset**:
+| Rule | Setting | Reason |
+| --- | --- | --- |
+| Pull request required | 0 approvals | One owner and the agents work alone. GitHub does not let an author approve their own pull request. Raise the number when a second maintainer joins. |
+| Status check | `Quality` from GitHub Actions (app id `15368`), branch up to date | The gate checks the change relative to the base, so it must run on the latest `main`. |
+| Linear history | on | Squash merge stays allowed. Merge commits are blocked. |
+| Block force pushes (`non_fast_forward`) | on | Protects the history that Vercel deploys. |
+| Restrict deletions (`deletion`) | on | Protects `main`. |
 
-1. **Ruleset name**: `main`.
-2. **Enforcement status**: Active.
-3. **Bypass list**: empty. See "Bypass policy".
-4. **Target branches**: Add target → Include default branch.
-5. **Rules**:
-   - **Restrict deletions**: on.
-   - **Block force pushes**: on.
-   - **Require a pull request before merging**: on.
-     - Required approvals: `0`. The owner is the only maintainer and GitHub does not let an author approve their own pull request. Increase it when a second maintainer joins.
-     - Leave the other pull request options off.
-   - **Require status checks to pass**: on.
-     - **Require branches to be up to date before merging**: on. The gate checks the changes relative to the base, so the check must run on the latest `main`.
-     - Add check: `Quality`, source **GitHub Actions**. GitHub lists a check only after it ran in the last 7 days. The pull request for this change runs it.
-6. Select **Create**.
+Each merge to `main` deploys production (`.github/workflows/deploy.yml`). The ruleset keeps unchecked code out of that path.
 
-The same ruleset with the GitHub CLI (`15368` is the GitHub Actions app id):
+### Bypass policy
+
+- Only the **Repository admin** role can bypass, and only **For pull requests**. An emergency fix still needs a pull request. A direct push to `main` stays blocked.
+- Do not add GitHub Apps, bots or other roles to the bypass list.
+- Do not use the bypass to merge a pull request with a failing **Quality** check, unless the owner accepts the risk for that pull request.
+
+### Add a required check
+
+`quality.yml` is the only required check. Issue #31 adds more checks. Use a stable job name for each one. Then add the name to `required_status_checks` in the ruleset. Do not use a `paths` filter or an `if` condition on a required job: the check would stay pending and block the merge. `scripts/quality/check-workflows.ts` enforces this for `quality.yml`.
+
+### Recreate the ruleset
+
+Run this command with an admin token. Use `PUT repos/pointmekin/jottrade/rulesets/<id>` to change an existing ruleset. The role id `5` is the repository admin role.
 
 ```sh
 gh api -X POST repos/pointmekin/jottrade/rulesets --input - <<'JSON'
@@ -114,11 +119,14 @@ gh api -X POST repos/pointmekin/jottrade/rulesets --input - <<'JSON'
   "name": "main",
   "target": "branch",
   "enforcement": "active",
-  "bypass_actors": [],
+  "bypass_actors": [
+    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request" }
+  ],
   "conditions": { "ref_name": { "include": ["~DEFAULT_BRANCH"], "exclude": [] } },
   "rules": [
     { "type": "deletion" },
     { "type": "non_fast_forward" },
+    { "type": "required_linear_history" },
     {
       "type": "pull_request",
       "parameters": {
@@ -142,16 +150,10 @@ gh api -X POST repos/pointmekin/jottrade/rulesets --input - <<'JSON'
 JSON
 ```
 
-### Bypass policy
-
-Keep the bypass list empty. Agents open most changes, and an empty list means that no account, app or token can push to `main` or merge a failing pull request. If an emergency fix is necessary, the owner can switch the ruleset to **Disabled**, merge, and switch it back to **Active**. The ruleset history records that change.
-
-If the owner wants a standing bypass, add only the **Repository admin** role with bypass mode **For pull requests only**. Do not add GitHub Apps or bots to the bypass list.
-
 ### Verify the effective rules
 
 ```sh
 gh api repos/pointmekin/jottrade/rules/branches/main
 ```
 
-The output must contain `pull_request`, `required_status_checks` with the context `Quality`, `non_fast_forward` and `deletion`. On a pull request, the merge box must show **Quality** as a required check. Do not merge a deliberately failing pull request to test the rule. A pull request with a pending or failing **Quality** check must show "Merging is blocked".
+The output must contain `pull_request`, `required_status_checks` with the context `Quality`, `required_linear_history`, `non_fast_forward` and `deletion`. On a pull request, the merge box must show **Quality** as a required check. Do not merge a deliberately failing pull request to test the rule.

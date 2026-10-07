@@ -72,10 +72,9 @@ The workflow deploys only from `main`. A manual run on a different branch does n
 - [ ] Push a commit to `main` (or merge a pull request). Make sure that Vercel does not start its own production deployment. Only the GitHub Actions workflow must deploy. `vercel.json` sets `git.deploymentEnabled.main` to `false`.
 - [ ] Open a pull request. Make sure that Vercel still adds a preview deployment to it.
 
-## 6. GitHub: require the Quality check on `main`
+## 6. GitHub: check the `main` ruleset
 
-- [ ] Create the `main` branch ruleset that requires the `Quality` check. Follow [docs/quality-gate.md](quality-gate.md), section "Owner action: protect `main`".
-- [ ] After you do this, a pull request cannot merge until the `Quality` check passes.
+- [ ] Run `gh api repos/pointmekin/jottrade/rules/branches/main`. Make sure that the output lists the `Quality` check. See [docs/quality-gate.md](quality-gate.md), section "Branch protection".
 
 ## 7. App: set the review timezone for each account
 
