@@ -39,13 +39,18 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 	});
 }
 
-function portIsFree(port: number): Promise<boolean> {
+function canListen(port: number, host?: string): Promise<boolean> {
 	return new Promise((resolve) => {
 		const server = createServer()
 			.once("error", () => resolve(false))
 			.once("listening", () => server.close(() => resolve(true)))
-			.listen(port);
+			.listen(port, host);
 	});
+}
+
+// The app listens on all interfaces, and the suite calls 127.0.0.1.
+async function portIsFree(port: number) {
+	return (await canListen(port)) && (await canListen(port, "127.0.0.1"));
 }
 
 function anyFreePort(): Promise<number> {
@@ -152,8 +157,12 @@ async function main(argv: string[]) {
 	} finally {
 		console.log(`\n▶ Cleanup: drop ${database}`);
 		const [command, args] = tsx("scripts/db/cli.ts", "drop");
-		const drop = await exec(command, args, env);
+		const drop = await exec(command, args, env).catch((error: unknown) => {
+			console.error(error);
+			return { code: 1 };
+		});
 		if (drop.code !== 0) {
+			process.exitCode = 1;
 			console.error(
 				`Cleanup failed. Drop ${database} by hand (npm run db:list).`,
 			);

@@ -26,7 +26,7 @@ export const auth = betterAuth({
 						await ensureDefaultPortfolio(user.id);
 					} catch (error) {
 						console.error(
-							`Default account provisioning failed for user ${user.id}; the client will retry through ensureDefaultAccount.`,
+							`Default account provisioning failed for user ${user.id}: ${error instanceof Error ? error.message : String(error)}. The client retries through ensureDefaultAccount.`,
 							error,
 						);
 					}

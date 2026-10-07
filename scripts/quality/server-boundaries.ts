@@ -99,28 +99,41 @@ function usesAuthMiddleware(args: readonly ts.Expression[]) {
 	);
 }
 
+/** The whole `createServerFn(...)....handler(...)` call that starts at `root`. */
+function chainTop(root: ts.CallExpression) {
+	let top: ts.CallExpression = root;
+	while (
+		ts.isPropertyAccessExpression(top.parent) &&
+		ts.isCallExpression(top.parent.parent) &&
+		top.parent.parent.expression === top.parent
+	) {
+		top = top.parent.parent;
+	}
+	return top;
+}
+
+function declarationName(node: ts.Node) {
+	for (let current = node.parent; current; current = current.parent) {
+		if (ts.isVariableDeclaration(current)) return current.name.getText();
+	}
+	return "(unnamed)";
+}
+
 function serverFunctionProblems(
 	file: ts.SourceFile,
-	name: string,
-	initializer: ts.Expression,
+	root: ts.CallExpression,
+	hasRealAuthMiddleware: boolean,
 ): string[] {
-	const where = `${file.fileName}:${line(file, initializer)} ${name}`;
-	const calls = callChain(initializer);
-	const root = calls[0]?.name;
-	if (root === "createMiddleware") return [];
-	if (root !== "createServerFn") {
-		return [
-			`${where}: a server module may export only createServerFn or createMiddleware results. Move this helper to a server-only module (src/db/ for queries, src/lib/auth.ts for the session). A helper export here keeps its imports in the client bundle.`,
-		];
-	}
+	const name = declarationName(root);
+	const where = `${file.fileName}:${line(file, root)} ${name}`;
+	const calls = callChain(chainTop(root));
 	const problems: string[] = [];
 	const middleware = calls.find((call) => call.name === "middleware");
-	if (
-		!(middleware && usesAuthMiddleware(middleware.args)) &&
-		!(name in PUBLIC_SERVER_FUNCTIONS)
-	) {
+	const isAuthenticated =
+		hasRealAuthMiddleware && middleware && usesAuthMiddleware(middleware.args);
+	if (!isAuthenticated && !(name in PUBLIC_SERVER_FUNCTIONS)) {
 		problems.push(
-			`${where}: add .middleware([authMiddleware]) after createServerFn(), and read the user from context.userId. For a public function, add it to PUBLIC_SERVER_FUNCTIONS with a reason.`,
+			`${where}: add .middleware([authMiddleware]) after createServerFn(), with authMiddleware imported from src/server/auth-middleware.ts, and read the user from context.userId. For a public function, add it to PUBLIC_SERVER_FUNCTIONS with a reason.`,
 		);
 	}
 	if (
@@ -135,6 +148,56 @@ function serverFunctionProblems(
 	return problems;
 }
 
+function serverFunctionRoots(file: ts.SourceFile) {
+	const roots: ts.CallExpression[] = [];
+	const visit = (node: ts.Node) => {
+		if (
+			ts.isCallExpression(node) &&
+			ts.isIdentifier(node.expression) &&
+			node.expression.text === "createServerFn"
+		) {
+			roots.push(node);
+		}
+		ts.forEachChild(node, visit);
+	};
+	visit(file);
+	return roots;
+}
+
+function declaresAuthMiddleware(file: ts.SourceFile) {
+	let found = false;
+	const visit = (node: ts.Node) => {
+		if (
+			(ts.isVariableDeclaration(node) || ts.isFunctionDeclaration(node)) &&
+			node.name?.getText(file) === "authMiddleware"
+		) {
+			found = true;
+		}
+		ts.forEachChild(node, visit);
+	};
+	visit(file);
+	return found;
+}
+
+function importsAuthMiddleware(path: string, file: ts.SourceFile) {
+	return runtimeImports(file).some(
+		({ specifier, names }) =>
+			resolveSource(path, specifier) === AUTH_MIDDLEWARE.replace(/\.ts$/, "") &&
+			names.includes("authMiddleware"),
+	);
+}
+
+/** Every createServerFn, in any file: authenticated, and validated if POST. */
+function checkServerFunctions(input: SourceFile, file: ts.SourceFile) {
+	const roots = serverFunctionRoots(file);
+	if (roots.length === 0) return [];
+	const hasRealAuthMiddleware =
+		importsAuthMiddleware(input.path, file) && !declaresAuthMiddleware(file);
+	return roots.flatMap((root) =>
+		serverFunctionProblems(file, root, hasRealAuthMiddleware),
+	);
+}
+
 function isExported(node: ts.Node) {
 	return (
 		ts.canHaveModifiers(node) &&
@@ -144,44 +207,53 @@ function isExported(node: ts.Node) {
 	);
 }
 
-function exportProblems(
-	file: ts.SourceFile,
-	statement: ts.Statement,
-): string[] {
-	if (ts.isVariableStatement(statement) && isExported(statement)) {
-		return statement.declarationList.declarations.flatMap((declaration) =>
-			declaration.initializer
-				? serverFunctionProblems(
-						file,
-						declaration.name.getText(file),
-						declaration.initializer,
-					)
-				: [],
-		);
+function isAllowedExport(statement: ts.Statement) {
+	if (
+		ts.isTypeAliasDeclaration(statement) ||
+		ts.isInterfaceDeclaration(statement)
+	) {
+		return true;
 	}
-	const isRuntimeExport =
-		((ts.isFunctionDeclaration(statement) ||
-			ts.isClassDeclaration(statement)) &&
-			isExported(statement)) ||
-		(ts.isExportDeclaration(statement) && !statement.isTypeOnly) ||
-		ts.isExportAssignment(statement);
-	return isRuntimeExport
-		? [
-				`${file.fileName}:${line(file, statement)}: a server module may export only createServerFn or createMiddleware results and types.`,
-			]
-		: [];
+	if (ts.isExportDeclaration(statement)) return statement.isTypeOnly;
+	if (!ts.isVariableStatement(statement)) return false;
+	return statement.declarationList.declarations.every((declaration) => {
+		const root = declaration.initializer
+			? callChain(declaration.initializer)[0]?.name
+			: undefined;
+		return root === "createServerFn" || root === "createMiddleware";
+	});
+}
+
+/** src/server/ files export only server functions, middleware and types. */
+function exportShapeProblems(input: SourceFile, file: ts.SourceFile) {
+	if (input.path in SERVER_MODULE_EXPORTS) return [];
+	return file.statements
+		.filter(
+			(statement) =>
+				isExported(statement) ||
+				ts.isExportDeclaration(statement) ||
+				ts.isExportAssignment(statement),
+		)
+		.filter((statement) => !isAllowedExport(statement))
+		.map(
+			(statement) =>
+				`${input.path}:${line(file, statement)}: a server module may export only createServerFn or createMiddleware results and types. Move this helper to a server-only module (src/db/ for queries, src/lib/auth.ts for the session). A helper export here keeps its imports in the client bundle.`,
+		);
 }
 
 /** Rules for files in src/server/. */
 export function checkServerModule(input: SourceFile): string[] {
-	if (input.path in SERVER_MODULE_EXPORTS) return [];
 	const file = parse(input);
-	const problems = file.statements.flatMap((statement) =>
-		exportProblems(file, statement),
-	);
+	const problems = [
+		...exportShapeProblems(input, file),
+		...checkServerFunctions(input, file),
+	];
 	if (input.path !== AUTH_MIDDLEWARE) {
 		for (const { specifier, names, node } of runtimeImports(file)) {
-			if (specifier === "@/lib/auth" && names.includes("requireUserId")) {
+			if (
+				resolveSource(input.path, specifier) === "src/lib/auth" &&
+				names.includes("requireUserId")
+			) {
 				problems.push(
 					`${input.path}:${line(file, node)}: do not call requireUserId in a server function. Use .middleware([authMiddleware]) and context.userId.`,
 				);
@@ -212,7 +284,9 @@ function importDeclaration(node: ts.ImportDeclaration): RuntimeImport[] {
 	return [
 		{
 			specifier: node.moduleSpecifier.text,
-			names: named.map((element) => element.name.text),
+			names: named.map(
+				(element) => (element.propertyName ?? element.name).text,
+			),
 			node,
 		},
 	];
@@ -267,11 +341,20 @@ function isServerOnlyTarget(target: string) {
 /** Rule for client-reachable files: no direct import of a server-only module. */
 export function checkClientModule(input: SourceFile): string[] {
 	const file = parse(input);
+	return [
+		...checkServerFunctions(input, file),
+		...clientImportProblems(input, file),
+	];
+}
+
+function clientImportProblems(input: SourceFile, file: ts.SourceFile) {
 	return runtimeImports(file).flatMap(({ specifier, node }) => {
 		const target = resolveSource(input.path, specifier);
 		const denied = target
 			? isServerOnlyTarget(target)
-			: SERVER_ONLY_PACKAGES.includes(specifier);
+			: SERVER_ONLY_PACKAGES.some(
+					(name) => specifier === name || specifier.startsWith(`${name}/`),
+				);
 		return denied
 			? [
 					`${input.path}:${line(file, node)}: client code imports the server-only module "${specifier}". Call a server function from src/server/ instead. A type-only import (import type) is allowed.`,
@@ -284,6 +367,7 @@ export function checkBoundaries(files: SourceFile[]): string[] {
 	return files.flatMap((file) => {
 		if (file.path.startsWith(SERVER_DIR)) return checkServerModule(file);
 		if (isClientModule(file.path)) return checkClientModule(file);
-		return [];
+		if (file.path.startsWith("src/test/")) return [];
+		return checkServerFunctions(file, parse(file));
 	});
 }

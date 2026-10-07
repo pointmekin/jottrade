@@ -37,9 +37,13 @@ test("server functions reject a missing session and another user's session", asy
 }, testInfo) => {
 	const baseURL = testInfo.project.use.baseURL;
 	await signIn(page, SeedUser.Alice);
-	const tradesRequest = page.waitForRequest(
-		(request) => isServerFn(request) && request.url().includes("portfolioId"),
-	);
+	// getTrades: its payload names the journal filters and the page.
+	const tradesRequest = page.waitForRequest((request) => {
+		const url = decodeURIComponent(request.url());
+		return (
+			isServerFn(request) && url.includes('"symbol"') && url.includes('"page"')
+		);
+	});
 	await open(page, "/journal");
 	const read = await tradesRequest;
 	await page.getByRole("link", { name: /AAPL/ }).first().click();
@@ -55,6 +59,7 @@ test("server functions reject a missing session and another user's session", asy
 	await signIn(bob, SeedUser.Bob);
 
 	const results = {
+		aliceRead: await replay(page.request, read),
 		anonymousRead: await replay(anonymous, read),
 		anonymousWrite: await replay(anonymous, write),
 		bobRead: await replay(bob.request, read),
@@ -65,13 +70,17 @@ test("server functions reject a missing session and another user's session", asy
 		contentType: "application/json",
 	});
 
+	// Server-function errors also return HTTP 200, so the body tells the
+	// outcome. The CSRF check would answer "Forbidden", not "Unauthorized".
+	// The replay itself works: Alice gets her own trades back.
+	expect(results.aliceRead.status).toBe(200);
+	expect(results.aliceRead.body).toContain("AAPL");
 	expect(results.anonymousRead.body).toContain("Unauthorized");
 	expect(results.anonymousWrite.body).toContain("Unauthorized");
-	expect(results.bobRead.body).not.toContain("AAPL");
+	// Bob passes the auth check; the ownership filter returns an empty page.
+	expect(results.bobRead.body).toContain("total");
+	expect(results.bobRead.body).not.toMatch(/AAPL|Unauthorized|Forbidden/);
 	expect(results.bobWrite.body).toContain("Trade not found");
-	for (const result of Object.values(results)) {
-		expect(result.body).not.toContain("AAPL");
-	}
 	await anonymous.dispose();
 	await bobContext.close();
 });

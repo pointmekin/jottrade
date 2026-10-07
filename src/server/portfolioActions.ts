@@ -66,7 +66,12 @@ export const ensureDefaultAccount = createServerFn({ method: "POST" })
 	.middleware([authMiddleware])
 	.handler(async ({ context }): Promise<AccountRecord[]> => {
 		await ensureDefaultPortfolio(context.userId);
-		return readAccounts(context.userId);
+		const accounts = await readAccounts(context.userId);
+		// A concurrent delete can remove the account that the repair chose.
+		if (!accounts.some((account) => account.isDefault)) {
+			throw new Error("Could not set a default account. Reload the page.");
+		}
+		return accounts;
 	});
 
 const accountDetailsSchema = z.object({
@@ -173,7 +178,7 @@ export const deleteAccount = createServerFn({ method: "POST" })
 		if (!results[4].length)
 			throw new Error("The account changed. Reload before deleting it.");
 
-		// A failed promotion after deletion leaves no default; getAccounts self-heals it.
+		// A failed promotion after deletion leaves no default; useAccounts then calls ensureDefaultAccount.
 		if (account.isDefault) {
 			const [next] = await db
 				.select({ id: portfolios.id })

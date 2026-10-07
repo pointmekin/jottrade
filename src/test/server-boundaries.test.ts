@@ -26,6 +26,9 @@ describe("server boundaries in this repository", () => {
 			.map((entry) => join(entry.parentPath, entry.name))
 			.map((path) => ({ path, source: readFileSync(path, "utf8") }));
 
+		expect(files.map((file) => file.path)).toContain(
+			"src/server/portfolioActions.ts",
+		);
 		expect(checkBoundaries(files)).toEqual([]);
 	});
 });
@@ -74,13 +77,9 @@ export async function loadRows() { return db; }
 export const rowCount = 3;
 export { db };`);
 
-		expect(checkServerModule(file)).toEqual([
-			expect.stringContaining(":6: a server module may export only"),
-			expect.stringContaining(
-				"rowCount: a server module may export only createServerFn or createMiddleware results. Move this helper",
-			),
-			expect.stringContaining(":8: a server module may export only"),
-		]);
+		expect(
+			checkServerModule(file).map((problem) => problem.split(":")[1]),
+		).toEqual(["6", "7", "8"]);
 	});
 
 	it("rejects a direct requireUserId call", () => {
@@ -92,6 +91,66 @@ export const getRows = createServerFn({ method: "GET" })
 
 		expect(checkServerModule(file)).toEqual([
 			expect.stringContaining(":5: do not call requireUserId"),
+		]);
+	});
+	it("checks a server function that is not exported", () => {
+		const file = serverFn(`
+const hidden = createServerFn({ method: "GET" }).handler(async () => 1);`);
+
+		expect(checkServerModule(file)).toEqual([
+			expect.stringContaining("hidden: add .middleware([authMiddleware])"),
+		]);
+	});
+
+	it("rejects a local stand-in named authMiddleware", () => {
+		const file = {
+			path: "src/server/fixtureActions.ts",
+			source: `import { createMiddleware, createServerFn } from "@tanstack/react-start";
+const authMiddleware = createMiddleware({ type: "function" }).server(({ next }) => next());
+export const getRows = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
+	.handler(async () => 1);`,
+		};
+
+		expect(checkServerModule(file)).toEqual([
+			expect.stringContaining("getRows: add .middleware([authMiddleware])"),
+		]);
+	});
+
+	it("rejects an aliased requireUserId import and an exported enum", () => {
+		const file = serverFn(`
+import { requireUserId as currentUser } from "../lib/auth";
+export enum Mode { A }`);
+
+		expect(checkServerModule(file)).toEqual([
+			expect.stringContaining(":6: a server module may export only"),
+			expect.stringContaining(":5: do not call requireUserId"),
+		]);
+	});
+
+	it("still checks server functions in an export exception file", () => {
+		const file = {
+			path: "src/server/rangeInput.ts",
+			source: `import { createServerFn } from "@tanstack/react-start";
+export const sneaky = createServerFn().handler(async () => 1);`,
+		};
+
+		expect(checkServerModule(file)).toEqual([
+			expect.stringContaining("sneaky: add .middleware([authMiddleware])"),
+		]);
+	});
+});
+
+describe("server functions outside src/server", () => {
+	it("checks a server function in a route file", () => {
+		const route = {
+			path: "src/routes/_authenticated/fixture.tsx",
+			source: `import { createServerFn } from "@tanstack/react-start";
+const load = createServerFn().handler(async () => 1);`,
+		};
+
+		expect(checkBoundaries([route])).toEqual([
+			expect.stringContaining("load: add .middleware([authMiddleware])"),
 		]);
 	});
 });
@@ -112,7 +171,7 @@ import { getAccounts } from "@/server/portfolioActions";`);
 import { db } from "@/db";
 import { trades } from "../db/schema";
 import { auth } from "@/lib/auth";
-import { Pool } from "pg";
+import { Pool } from "pg/lib/index.js";
 export { neon } from "@neondatabase/serverless";
 const later = () => import("@/lib/gcp");`);
 
