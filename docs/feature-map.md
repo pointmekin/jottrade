@@ -1,6 +1,6 @@
 # Feature map
 
-This map lists the supported product features, where each one starts, which code owns its data, and how each one is verified today. It describes `main` after PR #37.
+This map lists the supported product features, where each one starts, which code owns its data, and how each one is verified today. It describes `main` after PR #37, with the verification added for issue #31.
 
 Update this file in the same pull request when you add, remove or change a route, an entry point, a user flow, a server module or the verification of a feature.
 
@@ -11,8 +11,10 @@ Update this file in the same pull request when you add, remove or change a route
   - `INTEGRATION_TEST_DATABASE_URL` → `src/test/feature-integration.test.ts` (cross-feature: risk, imports, reviews, account isolation).
   - `IMPORT_TEST_DATABASE_URL` → `src/test/import-sql.integration.test.ts`.
   - `REVIEW_TEST_DATABASE_URL` → `src/test/review-database.test.ts`.
-  - Gap: the fixtures accept only `127.0.0.1` with fixed ports, users and database names (for example port `49485`, database `integration_behavior`). They do not accept the `jottrade_test_*` databases that `npm run db:reset` creates ([development-database.md](development-database.md)). Issue #31 tracks repeatable verification.
-- **Gap**: no automated check exists. Issue #31 tracks repeatable critical-flow (browser) verification.
+  - Gap: the fixtures accept only `127.0.0.1` with fixed ports, users and database names (for example port `49485`, database `integration_behavior`). They do not accept the `jottrade_test_*` databases that `npm run db:reset` creates ([development-database.md](development-database.md)), so `npm run verify` does not run them.
+- **DB (verify)**: `src/test/user-isolation.integration.test.ts`. `npm run verify` runs it on a fresh, seeded `jottrade_test_*` database through the real `@/db` client. CI runs it in the **E2E** check. Without `VERIFY_DATABASE_URL`, Vitest skips it.
+- **E2E**: a Playwright spec in `e2e/`. `npm run verify` runs the suite against the production build and the seeded database. CI runs it in the **E2E** check. See [quality-gate.md](quality-gate.md), section "Critical-flow verification".
+- **Gap**: no automated check exists.
 
 To run one file: `npx vitest run src/test/<file>`.
 
@@ -48,7 +50,7 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 - **Flows**: email/password sign-up and sign-in; Google sign-in (`authClient.signIn.social`).
 - **Code**: `src/lib/auth.ts` (server, Drizzle adapter), `src/lib/auth-client.ts`, `src/routes/api/auth/$.ts`. Server functions call `requireUserId()` from `src/lib/auth.ts`.
 - **Data**: `user`, `session`, `account` (OAuth link, not a trading account), `verification` in `src/db/trading-schema.ts`. Better Auth owns them.
-- **Verification**: Gap for sign-up, sign-in and the redirect. DB (optional) `feature-integration.test.ts` and `review-database.test.ts` reject foreign users and unauthenticated calls.
+- **Verification**: E2E `auth.spec.ts` (redirect of a signed-out visitor, sign-in that survives a reload, wrong password, another user's trade URL shows "Journal entry not found"). DB (verify) `user-isolation.integration.test.ts`. Gap: sign-up and Google sign-in. DB (optional) `feature-integration.test.ts` and `review-database.test.ts` reject foreign users and unauthenticated calls.
 
 ### Trading accounts
 
@@ -56,7 +58,7 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 - **Flows**: create and edit an account (real/demo kind, description, reporting currency); delete with a typed-name confirmation; switch the active account. Every journal, dashboard, calendar, strategy and review query reads the active account.
 - **Server**: `src/server/portfolioActions.ts` (`getAccounts`, `createAccount`, `updateAccount`, `deleteAccount`). `getAccounts` creates a default account on first read (a write inside a GET; issue #33).
 - **Data**: `portfolios`; queries in `src/db/portfolios.ts`.
-- **Verification**: Unit `delete-account-dialog.test.tsx`, `app-sidebar.test.tsx`. DB (optional) `review-database.test.ts` (account deletion cascades review links), `feature-integration.test.ts` (account isolation). Gap: create and edit.
+- **Verification**: Unit `delete-account-dialog.test.tsx`, `app-sidebar.test.tsx`. DB (optional) `review-database.test.ts` (account deletion cascades review links), `feature-integration.test.ts` (account isolation). DB (verify) `user-isolation.integration.test.ts` (another user cannot read, edit or delete an account). E2E `accounts.spec.ts` (switch the account; the journal follows and the choice survives a reload). Gap: create and edit.
 
 ### Journal (manual trades, funding and adjustments)
 
@@ -70,7 +72,7 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
   - The detail page shows price return and account return (`trade-returns.tsx`).
 - **Server**: `getTrades.ts` (`getTrades`, `getTradeById`), `tradeActions.ts` (`createTrade`, `updateTrade`, `deleteTrade`), `cashFlowActions.ts`, `imageActions.ts`.
 - **Data**: `trades`, `cash_flows` (`cashFlows`).
-- **Verification**: Unit `journal-table.test.tsx`, `journal-entries.test.ts`, `filter-bar.test.tsx`, `delete-trade-dialog.test.tsx`, `trade-returns.test.tsx`, `finance.test.ts`, `instruments.test.ts`, `date.test.ts`, `period.test.ts`, `trade-target.test.ts`, `trade-blank-decimals.test.ts` (blank fields and the closed-trade exit rule, through `createTrade` and `updateTrade` with a mocked database). Gap: screenshot upload; end-to-end log/edit/delete against a database.
+- **Verification**: Unit `journal-table.test.tsx`, `journal-entries.test.ts`, `filter-bar.test.tsx`, `delete-trade-dialog.test.tsx`, `trade-returns.test.tsx`, `finance.test.ts`, `instruments.test.ts`, `date.test.ts`, `period.test.ts`, `trade-target.test.ts`, `trade-blank-decimals.test.ts` (blank fields and the closed-trade exit rule, through `createTrade` and `updateTrade` with a mocked database). E2E `trades.spec.ts` (log, edit and delete a trade; each change survives a reload). DB (verify) `user-isolation.integration.test.ts` (another user cannot read, create, edit, move or delete trades and cash flows). Gap: screenshot upload; funding and adjustment entries in the browser.
 
 ### Trade risk and R-multiples (PR #35)
 
@@ -89,7 +91,7 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
   - Import history → batch detail → undo preview → undo (`import-history.tsx`, `import-batch-detail.tsx`). Undo skips records with later notes, risk, screenshots or review references, and says why.
 - **Server**: `importActions.ts` (`stageImport`, `repairImportRow`, `commitImport`, `getImportHistory`, `getImportBatch`, `getImportUndoPreview`, `undoImportBatch`). SQL in `src/db/import-*.ts`. Logic in `src/lib/import-*.ts`, `trade-import.ts`, `adjustment-import.ts`, `reconciliation.ts`.
 - **Data**: `import_batches`, `import_identities`; import fields on `trades` and `cash_flows`. Migration `drizzle/0007_absent_killraven.sql`.
-- **Verification**: Unit `trade-import.test.ts`, `adjustment-import.test.ts`, `adjustment-export.test.ts`, `import-date.test.ts`, `import-domain.test.ts`, `import-preview.test.tsx`, `reconciliation.test.ts`. DB (optional) `import-sql.integration.test.ts`, `feature-integration.test.ts`. Gap: native sanitized Exness samples and the hosted Neon transport (release checks listed in PR #37).
+- **Verification**: Unit `trade-import.test.ts`, `adjustment-import.test.ts`, `adjustment-export.test.ts`, `import-date.test.ts`, `import-domain.test.ts`, `import-preview.test.tsx`, `reconciliation.test.ts`. DB (optional) `import-sql.integration.test.ts`, `feature-integration.test.ts`. E2E `import.spec.ts` (import a synthetic Exness trade CSV, then import it again: the preview shows duplicates and no trade is added). Gap: native sanitized Exness samples, adjustment CSV, undo in the browser, and the hosted Neon transport (release checks listed in PR #37). Issue #10 tracks known import gaps; the suite does not treat them as correct.
 
 ### Daily and weekly reviews (PR #36)
 
@@ -105,7 +107,7 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 - **Flows**: account summary and funding notice; balance and trading P&L curves; risk metrics (Sharpe, drawdown, payoff ratio); performance and strategy charts; setup calculator (`src/components/tools/SetupCalculator.tsx`). Metric definitions: [metrics.md](metrics.md).
 - **Server**: `getAnalytics.ts`, `getAdvancedAnalytics.ts`. Logic in `src/lib/analytics.ts`, `risk-metrics.ts`, `group-summary.ts`, `equity-series.ts`.
 - **Data**: reads `trades`, `cash_flows`, `strategies`; writes nothing.
-- **Verification**: Unit `analytics.test.ts`, `risk-metrics.test.ts`, `risk-metrics.test.tsx`, `group-summary.test.ts`. Gap: the rendered dashboard.
+- **Verification**: Unit `analytics.test.ts`, `risk-metrics.test.ts`, `risk-metrics.test.tsx`, `group-summary.test.ts`. E2E `totals.spec.ts` (net P&L and trade count for one seeded account agree with the calendar and the strategy page). Gap: charts and risk metrics in the browser.
 
 ### Calendar
 
@@ -113,7 +115,7 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 - **Flows**: daily P&L per month; select a day → trade list (`DayTradesPopover.tsx`) → open a trade. A closed trade counts on its exit day, or its entry day when it has no exit.
 - **Server**: `calendarActions.ts` (`getCalendarData`). Logic in `src/lib/calendar-days.ts`.
 - **Data**: reads `trades`.
-- **Verification**: Unit `calendar-days.test.ts`, `day-trades-popover.test.tsx`.
+- **Verification**: Unit `calendar-days.test.ts`, `day-trades-popover.test.tsx`. E2E `totals.spec.ts` (day cells for February 2026 add up to the dashboard total, within the whole-unit rounding of the cells).
 
 ### Strategies
 
@@ -121,7 +123,7 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 - **Flows**: create, edit and delete a strategy; view its all-time performance in the account currency (`StrategyPerformance.tsx`).
 - **Server**: `strategyActions.ts` (`getStrategies`, `getStrategyPerformance`, `createStrategy`, `updateStrategy`, `deleteStrategy`).
 - **Data**: `strategies` (owned by the user, not by an account); `trades.setup_id` links a trade.
-- **Verification**: Unit `strategy-form.test.tsx`, `strategy-performance.test.tsx`, `group-summary.test.ts`.
+- **Verification**: Unit `strategy-form.test.tsx`, `strategy-performance.test.tsx`, `group-summary.test.ts`. E2E `totals.spec.ts` (strategy total). DB (verify) `user-isolation.integration.test.ts` (another user cannot edit or delete a strategy). Gap: create, edit and delete in the browser.
 
 ### Settings and profile
 

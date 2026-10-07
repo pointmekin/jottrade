@@ -128,7 +128,8 @@ Each worktree gets its own database, because the name contains a hash of the
 worktree path. All worktrees share one local server. A reset in one worktree
 does not change the data of another worktree.
 
-For a disposable run (for example a browser test), set `DATABASE_URL` to a
+`npm run verify` creates and drops its own `jottrade_test_verify_*` database
+(see [quality-gate.md](quality-gate.md)). For another disposable run, set `DATABASE_URL` to a
 `jottrade_test_*` database. The commands create it if it does not exist:
 
 ```sh

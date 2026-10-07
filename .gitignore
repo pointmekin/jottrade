@@ -13,3 +13,8 @@ todos.json
 backups/
 .vercel
 .env*
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/

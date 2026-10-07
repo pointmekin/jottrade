@@ -1,7 +1,13 @@
 export const QUALITY_WORKFLOW = ".github/workflows/quality.yml";
-export const QUALITY_JOB = "quality";
-// Rulesets require this check by name; see docs/quality-gate.md.
-export const QUALITY_CHECK_NAME = "Quality";
+
+// The main ruleset requires these checks by job name; see docs/quality-gate.md.
+export const REQUIRED_JOBS = [
+	{ id: "quality", name: "Quality", command: "bun run quality" },
+	{ id: "build", name: "Build", command: "bun run build" },
+	{ id: "e2e", name: "E2E", command: "bun run verify" },
+] as const;
+
+type RequiredJob = (typeof REQUIRED_JOBS)[number];
 
 type Mapping = Record<string, unknown>;
 
@@ -25,18 +31,38 @@ function triggerProblems(on: unknown): string[] {
 		);
 }
 
-function stepProblems(steps: unknown): string[] {
+function stepProblems(required: RequiredJob, steps: unknown): string[] {
 	const commands = (Array.isArray(steps) ? steps : [])
 		.filter(isMapping)
 		.map((step) => String(step.run ?? ""));
 	const problems: string[] = [];
 	if (!commands.some((run) => run.includes("bun install --frozen-lockfile"))) {
-		problems.push("The job must install with bun install --frozen-lockfile.");
+		problems.push(
+			`The ${required.id} job must install with bun install --frozen-lockfile.`,
+		);
 	}
-	if (!commands.some((run) => run.includes("bun run quality"))) {
-		problems.push("The job must run bun run quality.");
+	if (!commands.some((run) => run.includes(required.command))) {
+		problems.push(`The ${required.id} job must run ${required.command}.`);
 	}
 	return problems;
+}
+
+function jobProblems(required: RequiredJob, job: unknown): string[] {
+	if (!isMapping(job)) {
+		return [`The workflow must define the ${required.id} job.`];
+	}
+	const problems: string[] = [];
+	if (job.name !== required.name) {
+		problems.push(
+			`The ${required.id} job must be named "${required.name}", the required check name.`,
+		);
+	}
+	if ("if" in job) {
+		problems.push(
+			`The ${required.id} job must not have an if condition: a skipped job does not block merging.`,
+		);
+	}
+	return [...problems, ...stepProblems(required, job.steps)];
 }
 
 // Returns the ways the parsed quality workflow breaks the merge contract.
@@ -45,20 +71,10 @@ export function checkQualityWorkflow(workflow: unknown): string[] {
 		return ["The workflow is not a YAML mapping."];
 	}
 	const jobs = isMapping(workflow.jobs) ? workflow.jobs : {};
-	const job = jobs[QUALITY_JOB];
-	if (!isMapping(job)) {
-		return [`The workflow must define the ${QUALITY_JOB} job.`];
-	}
-	const problems = triggerProblems(workflow.on);
-	if (job.name !== QUALITY_CHECK_NAME) {
-		problems.push(
-			`The ${QUALITY_JOB} job must be named "${QUALITY_CHECK_NAME}", the required check name.`,
-		);
-	}
-	if ("if" in job) {
-		problems.push(
-			`The ${QUALITY_JOB} job must not have an if condition: a skipped job does not block merging.`,
-		);
-	}
-	return [...problems, ...stepProblems(job.steps)];
+	return [
+		...triggerProblems(workflow.on),
+		...REQUIRED_JOBS.flatMap((required) =>
+			jobProblems(required, jobs[required.id]),
+		),
+	];
 }

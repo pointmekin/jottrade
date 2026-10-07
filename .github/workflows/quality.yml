@@ -1,7 +1,8 @@
 name: Quality
 
-# No paths filter: the main ruleset requires the "Quality" check, and a
-# workflow that does not run leaves that check pending. See docs/quality-gate.md.
+# No paths filter and no job-level `if`: the main ruleset requires these checks
+# by job name, and a check that does not run blocks or skips the gate.
+# scripts/quality/check-workflows.ts enforces this. See docs/quality-gate.md.
 on:
   pull_request:
   merge_group:
@@ -32,3 +33,67 @@ jobs:
       - run: bun run quality
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Deploy builds with the Vercel preset (deploy.yml); build the same output.
+      NITRO_PRESET: vercel
+      # Fake values. The bundle check fails if one of them reaches client files.
+      DATABASE_URL: postgresql://sentinel:verify-sentinel-db-password@db.invalid:5432/jottrade_test_sentinel
+      BETTER_AUTH_SECRET: verify-sentinel-auth-secret
+      GOOGLE_CLIENT_SECRET: verify-sentinel-google-secret
+      GCP_SERVICE_ACCOUNT_KEY: verify-sentinel-gcp-key
+      GEMINI_API_KEY: verify-sentinel-gemini-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - name: Check client assets for server-only code and secrets
+        run: bun scripts/verify/check-client-bundle.ts .vercel/output/static .vercel/output/functions
+
+  e2e:
+    name: E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: jottrade
+          POSTGRES_PASSWORD: jottrade
+        # scripts/db expects the local server on 127.0.0.1:54329.
+        ports: ["54329:5432"]
+        options: >-
+          --health-cmd "pg_isready -U jottrade"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run verify
+      - name: Upload Playwright evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-evidence
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
