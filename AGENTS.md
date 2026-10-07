@@ -119,6 +119,7 @@ Run `npm run quality` before every commit and before you report a task as done. 
 - `tsc --noEmit` and Vitest check the whole project.
 - Biome, SonarJS and React Doctor check the files changed since `BASE` (default `origin/main`). `main` still has older findings, so a file you touch must be clean when you finish.
 - CI runs the same gate on every pull request (`.github/workflows/quality.yml`), with `BASE` set to the pull request base.
+- The `main` ruleset requires a pull request and the `Quality` check. See "Branch protection" in [docs/quality-gate.md](docs/quality-gate.md).
 
 Fix the cause of a finding. Do not suppress a rule or change a threshold to pass the gate. If a finding is a false positive, suppress it on that line with a reason, and say so in the pull request.
 
