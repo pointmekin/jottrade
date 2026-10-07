@@ -13,7 +13,7 @@ export default tseslint.config(
 		],
 	},
 	{
-		files: ["src/**/*.{ts,tsx}", "scripts/**/*.ts"],
+		files: ["src/**/*.{ts,tsx}", "scripts/**/*.ts", "e2e/**/*.ts"],
 		languageOptions: { parser: tseslint.parser },
 		...sonarjs.configs.recommended,
 		rules: {

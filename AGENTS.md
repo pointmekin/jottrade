@@ -15,6 +15,7 @@ Install with `bun install --frozen-lockfile` (the lockfile is `bun.lock`; CI use
 - `npm run lint:sonar` runs the SonarJS rules (the SonarLint analyzer) through ESLint.
 - `npm run doctor` runs React Doctor on the whole project.
 - `npm run quality` runs the quality gate. See "Quality gate".
+- `npm run verify` runs the critical-flow checks: a disposable seeded database, the production build, a client bundle check, database isolation tests and the Playwright suite in `e2e/`. Run `npx playwright install chromium` once first.
 - `npm run db:setup`, `db:server`, `db:dev:migrate`, `db:seed`, `db:reset`, `db:drop`, `db:check`, and `db:list` manage the isolated local database. They refuse unsafe targets. See [docs/development-database.md](docs/development-database.md).
 - `npm run db:generate`, `npm run db:migrate`, `npm run db:push`, `npm run db:pull`, and `npm run db:studio` call `drizzle-kit` directly, with no safety guard. Use them only against an isolated database.
 - Production deploys run in GitHub Actions, not from a local command. See "Deployment".
@@ -119,6 +120,7 @@ Run `npm run quality` before every commit and before you report a task as done. 
 - `tsc --noEmit` and Vitest check the whole project.
 - Biome, SonarJS and React Doctor check the files changed since `BASE` (default `origin/main`). `main` still has older findings, so a file you touch must be clean when you finish.
 - CI runs the same gate on every pull request (`.github/workflows/quality.yml`), with `BASE` set to the pull request base.
+- CI also runs the **Build** check (Vercel-preset build and client bundle check) and the **E2E** check (`npm run verify`). Run `npm run verify` before you report a change to a critical flow as done: sign-in, account switching, trade create/edit/delete, import, or dashboard, calendar and strategy totals. See "Critical-flow verification" in [docs/quality-gate.md](docs/quality-gate.md).
 - The `main` ruleset requires a pull request and the `Quality` check. See "Branch protection" in [docs/quality-gate.md](docs/quality-gate.md).
 
 Fix the cause of a finding. Do not suppress a rule or change a threshold to pass the gate. If a finding is a false positive, suppress it on that line with a reason, and say so in the pull request.

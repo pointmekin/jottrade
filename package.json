@@ -14,6 +14,7 @@
     "lint:sonar": "eslint",
     "doctor": "react-doctor --no-telemetry --no-supply-chain --verbose -y",
     "quality": "bash scripts/quality.sh",
+    "verify": "tsx scripts/verify/run.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -81,6 +82,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.4",
+    "@playwright/test": "^1.63.0",
     "@tanstack/devtools-vite": "^0.3.12",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.3",

@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -53,11 +53,14 @@ function FieldGroup({
 	label: string;
 	children: ReactNode;
 }) {
+	const labelId = useId();
 	return (
-		<div className="space-y-1.5">
-			<Label className="field-label">{label}</Label>
+		<fieldset aria-labelledby={labelId} className="min-w-0 space-y-1.5">
+			<Label id={labelId} className="field-label">
+				{label}
+			</Label>
 			{children}
-		</div>
+		</fieldset>
 	);
 }
 

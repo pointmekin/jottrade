@@ -73,7 +73,7 @@ The checks are:
 - **lockfile**: `bun install --frozen-lockfile --dry-run` fails if `bun.lock` does not match `package.json`.
 - **SonarJS on the whole project**: `main` has no SonarJS findings, so a new rule or a plugin upgrade is checked on every file.
 - **Biome config validation**: Biome loads `biome.json` and fails on an invalid config. Biome does not run on the whole project, because `main` still has older Biome findings.
-- **workflow validation**: `scripts/quality/check-workflows.ts` parses every workflow and checks that `quality.yml` keeps the merge contract: the job is named `Quality`, it runs on `pull_request` with no `paths` or `paths-ignore` filter, it has no `if` condition, and it installs with `bun install --frozen-lockfile` and runs `bun run quality`.
+- **workflow validation**: `scripts/quality/check-workflows.ts` parses every workflow and checks that `quality.yml` keeps the merge contract: it runs on `pull_request` with no `paths` or `paths-ignore` filter, and each job in `REQUIRED_JOBS` (`Quality`, `Build`, `E2E`) has its name, has no `if` condition, installs with `bun install --frozen-lockfile` and runs its command.
 
 A change to `doctor.config.json` gets no extra check: React Doctor still has older findings on `main`, so it cannot run on the whole project yet.
 
@@ -82,6 +82,92 @@ The tests for the selection are in `src/test/quality-changes.test.ts` (temporary
 ### Policy
 
 Fix the cause of a finding. Do not suppress a rule or change a threshold to pass the gate. If a finding is a false positive, suppress it on that line with a reason, and say so in the pull request.
+
+## Critical-flow verification
+
+`npm run quality` stays fast and does not start the app. `npm run verify` (`scripts/verify/run.ts`) checks the critical flows against a production build and a real database. CI runs the same command as the **E2E** check.
+
+### Run it
+
+```sh
+bun install --frozen-lockfile
+npx playwright install chromium   # once per machine
+npm run verify
+```
+
+The command needs PostgreSQL on `127.0.0.1:54329`. `scripts/db` starts the local server if it is not running ([development-database.md](development-database.md)). The command does not need `npm run db:setup`, a `.env` file or a running dev server.
+
+- `npm run verify -- --no-build` reuses the existing `.output/` build.
+- Other arguments go to `playwright test`. Example: `npm run verify -- --no-build e2e/trades.spec.ts`.
+
+### What it does
+
+1. It creates a new database `jottrade_test_verify_<random>`, then migrates and seeds it (`scripts/db/cli.ts reset`). The seed data is synthetic.
+2. It builds the app (`vite build`, Nitro `node-server` output).
+3. It checks the client bundle (see "Client bundle check").
+4. It runs `src/test/user-isolation.integration.test.ts`: as Bob, the real server handlers cannot read, create, edit, move or delete Alice's trades, accounts, cash flows or strategies, and Alice's rows stay the same.
+5. It starts the production server on port 3101, or on a free port if 3101 is in use, and runs the Playwright suite in `e2e/`.
+6. It always drops the database at the end, also after a failure or `Ctrl+C`.
+
+The run uses a new random `BETTER_AUTH_SECRET` and blank Google, GCP and Gemini variables. It never reads production credentials.
+
+### The browser suite
+
+| Spec | Flow | Seed user |
+| --- | --- | --- |
+| `auth.spec.ts` | Redirect to sign-in; sign in and reload; wrong password; another user's trade URL | Alice, Bob |
+| `accounts.spec.ts` | Switch the account; the journal follows; the choice survives a reload | Alice |
+| `trades.spec.ts` | Log, edit and delete a trade; each change survives a reload | Erin |
+| `import.spec.ts` | Import a synthetic Exness CSV, then import it again: no duplicates | Erin |
+| `totals.spec.ts` | Dashboard, calendar and strategy totals agree for Bob Main | Bob |
+| `baseline.spec.ts` | Startup and navigation timings (a record, not a test) | Alice |
+
+Rules for the suite:
+
+- A spec reads only seed data that no spec writes, or rows that it writes itself. Two specs write to Erin with different symbols. The specs run in parallel and in any order. Each run starts from a new database, so no data stays from an earlier run.
+- Use role and label selectors. Use a CSS selector only when no role exists (the hidden file input of the import dialog).
+- The context uses the `UTC` time zone and the `en-US` locale, so dates and money text are stable.
+- Each test sends its own `x-forwarded-for` address. Better Auth limits sign-in per client address in production, and parallel tests must not share one limit.
+- Keep the suite small. Add a spec for a critical flow, not for each component.
+
+### Evidence on failure
+
+- `playwright-report/`: the HTML report. Open it with `npx playwright show-report`.
+- `test-results/`: a trace, a screenshot and the page structure (`error-context.md`) for each failed test. Open a trace with `npx playwright show-trace <file>`.
+- The console output contains the server log lines (`[WebServer]`).
+
+In CI the **E2E** job uploads both folders as the `playwright-evidence` artifact when it fails. The data in them is synthetic, and the auth secret is random for each run.
+
+### Client bundle check
+
+`scripts/verify/check-client-bundle.ts <client dir> <server dir>` fails when a client file:
+
+- names a server-only variable (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_SECRET`, `GCP_SERVICE_ACCOUNT_KEY`, `GEMINI_API_KEY`);
+- contains the value of one of these variables, as set in the environment of the check;
+- contains a marker string from a server-only module (`pg`, `@neondatabase/serverless`, the Better Auth server adapter, the Google Cloud Storage client);
+- contains a PostgreSQL connection string with credentials.
+
+The check also fails when the server output does not contain a marker, so each marker proves something. The **Build** check builds with the Vercel preset and fake secret values, then runs the check on `.vercel/output/static`. `npm run verify` runs it on `.output/public` with the run's own database URL and secret.
+
+### Performance baseline
+
+`e2e/baseline.spec.ts` records these timings. It runs after the other specs finish, and prints a `Baseline:` line.
+
+| Measure | Meaning |
+| --- | --- |
+| `signInTtfbMs`, `signInDomContentLoadedMs` | Navigation timing of the first `/sign-in` load (first request to a new server) |
+| `signInReadyMs` | From `goto` until the sign-in heading shows |
+| `dashboardReadyMs` | From `goto("/dashboard")` until "Across N trades" shows (Alice, Main USD) |
+| `journalReadyMs` | From `goto("/journal")` until the first AAPL row shows |
+
+Conditions: production build, Nitro `node-server`, local PostgreSQL, seeded data, Chromium, one page with no other test running.
+
+| Date | Machine | sign-in TTFB | sign-in ready | dashboard ready | journal ready |
+| --- | --- | --- | --- | --- | --- |
+| 2026-10-08 | Local, macOS, Apple Silicon (3 runs) | 3–5 ms | 199–276 ms | 158–165 ms | 161–168 ms |
+| 2026-10-07 | GitHub Actions `ubuntu-latest`, E2E job (1 run) | 7 ms | 309 ms | 289 ms | 349 ms |
+
+These numbers are a record. They are not budgets. Set a budget only after several CI runs show the normal spread.
 
 ## Branch protection
 
@@ -107,7 +193,7 @@ Each merge to `main` deploys production (`.github/workflows/deploy.yml`). The ru
 
 ### Add a required check
 
-The `Quality` check (job in `quality.yml`) is the only required check. Issue #31 adds more checks. Use a stable job name for each one. Then add the name to `required_status_checks` in the ruleset. Do not use a `paths` filter on a required workflow: the workflow does not run, and the check stays pending and blocks the merge. Do not use an `if` condition on a required job: GitHub counts a skipped job as a pass, so the merge goes through without the gate. `scripts/quality/check-workflows.ts` enforces this for `quality.yml`.
+`quality.yml` defines the checks **Quality**, **Build** and **E2E**. `REQUIRED_JOBS` in `scripts/quality/workflow.ts` lists them. For a new check, use a stable job name, add it to `REQUIRED_JOBS`, and add the name to `required_status_checks` in the ruleset after the check passes on a pull request. Do not use a `paths` filter on a required workflow: the workflow does not run, and the check stays pending and blocks the merge. Do not use an `if` condition on a required job: GitHub counts a skipped job as a pass, so the merge goes through without the gate. `scripts/quality/check-workflows.ts` enforces this for each job in `REQUIRED_JOBS`.
 
 ### Recreate the ruleset
 
