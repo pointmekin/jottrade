@@ -4,6 +4,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { ReviewPreferences } from "@/components/reviews/review-preferences";
 import { DataExport } from "@/components/settings/data-export";
 import { TradingAccounts } from "@/components/settings/TradingAccounts";
+import { TagSettings } from "@/components/settings/tag-settings";
 
 export const Route = createFileRoute("/_authenticated/settings")({
 	component: RouteComponent,
@@ -23,6 +24,8 @@ function RouteComponent() {
 				<div className="mt-6">
 					<ReviewPreferences />
 				</div>
+
+				<TagSettings />
 
 				<DataExport />
 

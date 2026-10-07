@@ -5,7 +5,13 @@ import { truncateTables, withClient } from "./database";
 import { buildSeedData } from "./seed-data";
 import type { Target } from "./target";
 
-const SERIAL_TABLES = ["portfolios", "strategies", "trades", "cash_flows"];
+const SERIAL_TABLES = [
+	"portfolios",
+	"strategies",
+	"trades",
+	"cash_flows",
+	"tags",
+];
 
 /** Replaces every row with the synthetic data set, in one transaction. */
 export async function seedDatabase(target: Target) {
@@ -21,6 +27,8 @@ export async function seedDatabase(target: Target) {
 			await db.insert(schema.strategies).values(data.strategies);
 			await db.insert(schema.trades).values(data.trades);
 			await db.insert(schema.cashFlows).values(data.cashFlows);
+			await db.insert(schema.tags).values(data.tags);
+			await db.insert(schema.tradeTags).values(data.tradeTags);
 			// Explicit ids leave the sequences behind; the app's inserts follow them.
 			for (const table of SERIAL_TABLES)
 				await db.execute(

@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
+import { ChevronDown } from "lucide-react";
 import { useId } from "react";
+import { TagPicker } from "@/components/tags/tag-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,6 +14,7 @@ import {
 import { NO_STRATEGY } from "@/lib/journal-search";
 import { QueryKey } from "@/lib/query-keys";
 import { TradeConfidence, TradeSide, TradeStatus } from "@/lib/trade";
+import { parseTagIds, TagMatch, type TradeTag } from "@/lib/trade-tag";
 import { cn } from "@/lib/utils";
 import { getStrategies } from "@/server/strategyActions";
 import type { JournalFilters } from "./FilterBar";
@@ -95,6 +98,61 @@ function LabeledSelect({
 				</SelectContent>
 			</Select>
 		</div>
+	);
+}
+
+function TagFilter({
+	filters,
+	update,
+}: Pick<FilterFieldsProps, "filters" | "update">) {
+	const tagIds = parseTagIds(filters.tags) ?? [];
+	const match = filters.tagMatch ?? TagMatch.Any;
+	const toggleTag = (tag: TradeTag) => {
+		const next = tagIds.includes(tag.id)
+			? tagIds.filter((id) => id !== tag.id)
+			: [...tagIds, tag.id];
+		update({ tags: next.join(",") || undefined });
+	};
+	return (
+		<fieldset className="col-span-2 min-w-0">
+			<legend className="field-label mb-1">Tags</legend>
+			<div className="flex gap-1">
+				<TagPicker
+					canCreate={false}
+					placeholder="Find a tag"
+					selectedIds={tagIds}
+					onSelect={toggleTag}
+					trigger={
+						<Button
+							variant="outline"
+							size="sm"
+							className="h-9 flex-1 justify-between bg-background text-sm font-normal"
+						>
+							{tagIds.length ? `${tagIds.length} selected` : "Any tag"}
+							<ChevronDown className="size-3.5 text-muted-foreground" />
+						</Button>
+					}
+				/>
+				{Object.values(TagMatch).map((value) => (
+					<ToggleButton
+						key={value}
+						isPressed={match === value}
+						label={
+							value === TagMatch.Any
+								? "Match any selected tag"
+								: "Match every selected tag"
+						}
+						onClick={() =>
+							update({
+								tagMatch: value === TagMatch.Any ? undefined : value,
+							})
+						}
+					>
+						{value === TagMatch.Any ? "Any" : "All"}
+					</ToggleButton>
+				))}
+			</div>
+		</fieldset>
 	);
 }
 
@@ -195,6 +253,7 @@ export function FilterFields({
 					))}
 				</div>
 			</fieldset>
+			<TagFilter filters={filters} update={update} />
 		</div>
 	);
 }

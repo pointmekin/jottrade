@@ -3,8 +3,10 @@ import { type ReactNode, useCallback, useEffect, useId, useState } from "react";
 import { PeriodPicker } from "@/components/period-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useTags } from "@/hooks/use-tags";
 import { describePeriod, PeriodPreset } from "@/lib/period";
 import type { TradeSide, TradeStatus } from "@/lib/trade";
+import { parseTagIds, TagMatch } from "@/lib/trade-tag";
 import { FilterFields } from "./filter-fields";
 
 const SYMBOL_DEBOUNCE_MS = 300;
@@ -19,6 +21,9 @@ export type JournalFilters = {
 	/** Comma-separated confidence levels. */
 	confidence?: string;
 	mistake?: string;
+	/** Comma-separated tag ids. */
+	tags?: string;
+	tagMatch?: TagMatch;
 	period?: PeriodPreset;
 	dateFrom?: string;
 	dateTo?: string;
@@ -71,6 +76,24 @@ function useDebouncedSymbol(
 	return [symbolInput, setSymbolInput] as const;
 }
 
+function TagFilterChip({
+	filters,
+	onClear,
+}: {
+	filters: JournalFilters;
+	onClear: () => void;
+}) {
+	const { data: tags = [] } = useTags();
+	const ids = new Set(parseTagIds(filters.tags));
+	const names = tags.filter((tag) => ids.has(tag.id)).map((tag) => tag.name);
+	const match = filters.tagMatch === TagMatch.All ? "all of" : "any of";
+	return (
+		<FilterChip clearLabel="Clear tag filter" onClear={onClear}>
+			Tags, {match}: {names.join(", ") || `${ids.size} tags`}
+		</FilterChip>
+	);
+}
+
 export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 	const [isExpanded, setIsExpanded] = useState(false);
 	const fieldsId = useId();
@@ -96,6 +119,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 		filters.setupId,
 		filters.confidence,
 		filters.mistake,
+		filters.tags,
 	].filter(Boolean).length;
 	const clearAll = () => {
 		setSymbolInput("");
@@ -194,6 +218,12 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 						>
 							{filters.status}
 						</FilterChip>
+					)}
+					{filters.tags && (
+						<TagFilterChip
+							filters={filters}
+							onClear={() => update({ tags: undefined, tagMatch: undefined })}
+						/>
 					)}
 				</div>
 			)}

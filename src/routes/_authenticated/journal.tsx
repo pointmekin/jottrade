@@ -5,6 +5,7 @@ import {
 } from "@tanstack/react-router";
 import { AppPageHeader } from "@/components/app-page-header";
 import { AccountEntriesPanel } from "@/components/journal/AccountEntriesPanel";
+import { BulkEditBar } from "@/components/journal/bulk-edit-bar";
 import { ExportDialog } from "@/components/journal/export-dialog";
 import { FilterBar, type JournalFilters } from "@/components/journal/FilterBar";
 import { ImportDialog } from "@/components/journal/import-dialog";
@@ -16,6 +17,7 @@ import { JournalPagination } from "@/components/journal/journal-pagination";
 import { LogTradeDrawer } from "@/components/journal/log-trade-drawer";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useJournalEntries } from "@/hooks/use-journal-entries";
+import { useTradeSelection } from "@/hooks/use-trade-selection";
 import {
 	JournalIntent,
 	JournalView,
@@ -39,6 +41,8 @@ function JournalPage() {
 	const navigate = useNavigate({ from: "/journal" });
 	const search = useSearch({ from: "/_authenticated/journal" });
 	const journal = useJournalEntries(search);
+	const selection = useTradeSelection(journal.filter);
+	const selectedIds = [...selection.selectedIds];
 	const isJournalView =
 		search.view === JournalView.All || search.view === JournalView.Trades;
 	const periodLabel = describePeriod({
@@ -101,6 +105,7 @@ function JournalPage() {
 					<>
 						<JournalTable
 							entries={journal.entries}
+							selection={selection}
 							onTradeClick={(trade) =>
 								navigate({
 									to: "/journal/$tradeId",
@@ -119,6 +124,15 @@ function JournalPage() {
 							total={journal.total}
 							onPageChange={(page) => navigate({ search: { ...search, page } })}
 						/>
+						{selectedIds.length > 0 && (
+							<BulkEditBar
+								selectedIds={selectedIds}
+								matchingTotal={journal.total}
+								isSelectingAll={selection.isSelectingAll}
+								onSelectAllMatching={selection.selectAllMatching}
+								onClear={selection.clear}
+							/>
+						)}
 					</>
 				)}
 			</main>
