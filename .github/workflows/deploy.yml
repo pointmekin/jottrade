@@ -69,6 +69,9 @@ jobs:
       - name: Build
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          # Outside Vercel, `vercel build` does not set the variable Nitro uses to pick
+          # its Vercel preset. Without this, Nitro writes .output/ and not .vercel/output.
+          NITRO_PRESET: vercel
         run: vercel build --prod --token="$VERCEL_TOKEN"
 
       - name: Migrate production database
