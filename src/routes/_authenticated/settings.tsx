@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppPageHeader, SectionHeading } from "@/components/app-page-header";
 import { ModeToggle } from "@/components/mode-toggle";
 import { ReviewPreferences } from "@/components/reviews/review-preferences";
+import { DataExport } from "@/components/settings/data-export";
 import { TradingAccounts } from "@/components/settings/TradingAccounts";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -22,6 +23,8 @@ function RouteComponent() {
 				<div className="mt-6">
 					<ReviewPreferences />
 				</div>
+
+				<DataExport />
 
 				<div className="surface mt-6 space-y-4 p-5">
 					<SectionHeading title="Appearance" detail="Local preference" />
