@@ -124,7 +124,7 @@ The run uses a new random `BETTER_AUTH_SECRET` and blank Google, GCP and Gemini 
 
 Rules for the suite:
 
-- Each spec reads only data that no other spec writes. The specs run in parallel and in any order. Each run starts from a new database, so no data stays from an earlier run.
+- A spec reads only seed data that no spec writes, or rows that it writes itself. Two specs write to Erin with different symbols. The specs run in parallel and in any order. Each run starts from a new database, so no data stays from an earlier run.
 - Use role and label selectors. Use a CSS selector only when no role exists (the hidden file input of the import dialog).
 - The context uses the `UTC` time zone and the `en-US` locale, so dates and money text are stable.
 - Each test sends its own `x-forwarded-for` address. Better Auth limits sign-in per client address in production, and parallel tests must not share one limit.
@@ -165,7 +165,7 @@ Conditions: production build, Nitro `node-server`, local PostgreSQL, seeded data
 | Date | Machine | sign-in TTFB | sign-in ready | dashboard ready | journal ready |
 | --- | --- | --- | --- | --- | --- |
 | 2026-10-08 | Local, macOS, Apple Silicon (3 runs) | 3–5 ms | 199–276 ms | 158–165 ms | 161–168 ms |
-CI_BASELINE_ROW
+| 2026-10-07 | GitHub Actions `ubuntu-latest`, E2E job (1 run) | 7 ms | 309 ms | 289 ms | 349 ms |
 
 These numbers are a record. They are not budgets. Set a budget only after several CI runs show the normal spread.
 

@@ -14,8 +14,10 @@ export const test = base.extend({
 
 export { expect };
 
-// Seed users from scripts/db/seed-accounts.ts. Each spec reads only data that
-// no other spec writes, so specs can run in any order or in parallel.
+// Seed users from scripts/db/seed-accounts.ts. Specs run in parallel and in
+// any order. A spec reads only seed data that no spec writes, or rows that it
+// writes itself: trades.spec.ts and import.spec.ts both write to Erin, with
+// different symbols.
 export const SeedUser = {
 	Alice: "alice@jottrade.test",
 	Bob: "bob@jottrade.test",

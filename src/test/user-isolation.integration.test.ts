@@ -69,7 +69,7 @@ describe.skipIf(!verifyUrl)("user isolation on the seeded database", () => {
 			cashFlows: await import("@/server/cashFlowActions"),
 			strategies: await import("@/server/strategyActions"),
 		};
-		const { eq } = await import("drizzle-orm");
+		const { eq, or } = await import("drizzle-orm");
 		const [trade] = await db
 			.select()
 			.from(schema.trades)
@@ -86,7 +86,12 @@ describe.skipIf(!verifyUrl)("user isolation on the seeded database", () => {
 			trades: await db
 				.select()
 				.from(schema.trades)
-				.where(eq(schema.trades.userId, ALICE)),
+				.where(
+					or(
+						eq(schema.trades.userId, ALICE),
+						eq(schema.trades.portfolioId, ALICE_ACCOUNT),
+					),
+				),
 			accounts: await db
 				.select()
 				.from(schema.portfolios)
@@ -94,7 +99,12 @@ describe.skipIf(!verifyUrl)("user isolation on the seeded database", () => {
 			cashFlows: await db
 				.select()
 				.from(schema.cashFlows)
-				.where(eq(schema.cashFlows.userId, ALICE)),
+				.where(
+					or(
+						eq(schema.cashFlows.userId, ALICE),
+						eq(schema.cashFlows.portfolioId, ALICE_ACCOUNT),
+					),
+				),
 			strategies: await db
 				.select()
 				.from(schema.strategies)
@@ -140,51 +150,81 @@ describe.skipIf(!verifyUrl)("user isolation on the seeded database", () => {
 		const before = await snapshot();
 		session.userId = BOB;
 		const { trades, accounts, cashFlows, strategies } = server;
-		const writes = [
-			trades.createTrade({
-				data: {
-					portfolioId: ALICE_ACCOUNT,
-					symbol: "INTRUDER",
-					side: TradeSide.Long,
-					entryDate: "2026-09-01T08:00:00Z",
-					entryPrice: "100",
-					quantity: "1",
-				},
-			}),
-			trades.updateTrade({ data: { id: aliceTradeId, exitPrice: "1" } }),
-			trades.deleteTrade({ data: { id: aliceTradeId } }),
-			accounts.updateAccount({
-				data: {
-					id: ALICE_ACCOUNT,
-					name: "Taken",
-					description: "",
-					kind: AccountKind.Real,
-					currency: "USD",
-				},
-			}),
-			accounts.deleteAccount({
-				data: { id: ALICE_ACCOUNT, confirmName: "Main USD" },
-			}),
-			cashFlows.addCashFlow({
-				data: {
-					portfolioId: ALICE_ACCOUNT,
-					occurredAt: "2026-09-01T08:00:00Z",
-					amount: 1,
-					kind: AccountEntryKind.Deposit,
-				},
-			}),
-			cashFlows.deleteCashFlow({ data: { id: aliceCashFlowId } }),
-			strategies.updateStrategy({
-				data: { id: ALICE_STRATEGY, name: "Taken" },
-			}),
-			strategies.deleteStrategy({ data: { id: ALICE_STRATEGY } }),
+		// Each handler reports its own ownership check, not an unrelated error.
+		const writes: [Promise<unknown>, string][] = [
+			[
+				trades.createTrade({
+					data: {
+						portfolioId: ALICE_ACCOUNT,
+						symbol: "INTRUDER",
+						side: TradeSide.Long,
+						entryDate: "2026-09-01T08:00:00Z",
+						entryPrice: "100",
+						quantity: "1",
+					},
+				}),
+				"Account not found.",
+			],
+			[
+				trades.updateTrade({ data: { id: aliceTradeId, exitPrice: "1" } }),
+				"Trade not found",
+			],
+			[
+				trades.deleteTrade({ data: { id: aliceTradeId } }),
+				"Trade was removed or belongs to a persisted review.",
+			],
+			[
+				accounts.updateAccount({
+					data: {
+						id: ALICE_ACCOUNT,
+						name: "Taken",
+						description: "",
+						kind: AccountKind.Real,
+						currency: "USD",
+					},
+				}),
+				"Account not found.",
+			],
+			[
+				accounts.deleteAccount({
+					data: { id: ALICE_ACCOUNT, confirmName: "Main USD" },
+				}),
+				"Account not found.",
+			],
+			[
+				cashFlows.addCashFlow({
+					data: {
+						portfolioId: ALICE_ACCOUNT,
+						occurredAt: "2026-09-01T08:00:00Z",
+						amount: 1,
+						kind: AccountEntryKind.Deposit,
+					},
+				}),
+				"Account not found.",
+			],
+			[
+				cashFlows.deleteCashFlow({ data: { id: aliceCashFlowId } }),
+				"Cash flow not found.",
+			],
+			[
+				strategies.updateStrategy({
+					data: { id: ALICE_STRATEGY, name: "Taken" },
+				}),
+				"Strategy not found",
+			],
+			[
+				strategies.deleteStrategy({ data: { id: ALICE_STRATEGY } }),
+				"Strategy not found",
+			],
 		];
 
-		const results = await Promise.allSettled(writes);
+		const results = await Promise.allSettled(writes.map(([write]) => write));
 
-		expect(results.map((result) => result.status)).toEqual(
-			writes.map(() => "rejected"),
-		);
+		expect(
+			results.map((result) =>
+				result.status === "rejected" ? result.reason.message : "fulfilled",
+			),
+		).toEqual(writes.map(([, message]) => message));
 		expect(await snapshot()).toEqual(before);
 	});
 

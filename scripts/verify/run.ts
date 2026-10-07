@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { createServer } from "node:net";
@@ -27,9 +27,12 @@ const BLANK_KEYS = [
 ];
 
 let interrupted = false;
+let active: ChildProcess | undefined;
+// Stop the running step, then let `finally` drop the database.
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
 	process.on(signal, () => {
 		interrupted = true;
+		active?.kill(signal);
 	});
 }
 
@@ -58,7 +61,21 @@ function bin(name: string) {
 	return join("node_modules", ".bin", name);
 }
 
-function run(
+function exec(command: string, args: string[], env: NodeJS.ProcessEnv) {
+	return new Promise<{ code: number | null; signal: string | null }>(
+		(resolve, reject) => {
+			const child = spawn(command, args, { stdio: "inherit", env });
+			active = child;
+			child.once("error", reject);
+			child.once("close", (code, signal) => {
+				active = undefined;
+				resolve({ code, signal });
+			});
+		},
+	);
+}
+
+async function run(
 	label: string,
 	command: string,
 	args: string[],
@@ -66,12 +83,9 @@ function run(
 ) {
 	if (interrupted) throw new Error("Interrupted.");
 	console.log(`\n▶ ${label}`);
-	const result = spawnSync(command, args, { stdio: "inherit", env });
-	if (interrupted) throw new Error("Interrupted.");
-	if (result.error) throw result.error;
-	if (result.status !== 0) {
-		throw new Error(`${label} failed with exit code ${result.status}.`);
-	}
+	const { code, signal } = await exec(command, args, env);
+	if (interrupted || signal) throw new Error("Interrupted.");
+	if (code !== 0) throw new Error(`${label} failed with exit code ${code}.`);
 }
 
 const tsx = (script: string, ...args: string[]): [string, string[]] => [
@@ -107,17 +121,17 @@ async function main(argv: string[]) {
 
 	console.log(`Database: ${database}. App: ${baseUrl}.`);
 	try {
-		run(
+		await run(
 			"Database: create, migrate, seed",
 			...tsx("scripts/db/cli.ts", "reset"),
 			env,
 		);
 		if (shouldBuild) {
-			run("Production build", bin("vite"), ["build"], env);
+			await run("Production build", bin("vite"), ["build"], env);
 		} else if (!existsSync(SERVER_ENTRY)) {
 			throw new Error(`--no-build needs an existing ${SERVER_ENTRY}.`);
 		}
-		run(
+		await run(
 			"Client bundle check",
 			...tsx(
 				"scripts/verify/check-client-bundle.ts",
@@ -126,13 +140,13 @@ async function main(argv: string[]) {
 			),
 			env,
 		);
-		run(
+		await run(
 			"Database isolation tests",
 			bin("vitest"),
 			["run", ISOLATION_TESTS],
 			env,
 		);
-		run("Browser suite", bin("playwright"), ["test", ...playwrightArgs], {
+		await run("Browser suite", bin("playwright"), ["test", ...playwrightArgs], {
 			...env,
 			NODE_ENV: "production",
 		});
@@ -140,8 +154,8 @@ async function main(argv: string[]) {
 	} finally {
 		console.log(`\n▶ Cleanup: drop ${database}`);
 		const [command, args] = tsx("scripts/db/cli.ts", "drop");
-		const drop = spawnSync(command, args, { stdio: "inherit", env });
-		if (drop.status !== 0) {
+		const drop = await exec(command, args, env);
+		if (drop.code !== 0) {
 			console.error(
 				`Cleanup failed. Drop ${database} by hand (npm run db:list).`,
 			);
