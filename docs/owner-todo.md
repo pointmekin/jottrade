@@ -12,10 +12,10 @@ Do the steps below in this sequence. Text in angle brackets, for example `<your-
 
 ## 1. Vercel: get the token and the IDs
 
-- [ ] Open Vercel, go to **Account Settings → Tokens**, and create a token. Name it `jottrade-github-deploy`. Copy the token. You cannot see it again.
-- [ ] On your computer, in the repository folder, run `vercel link`. Select the jottrade project.
-- [ ] Open `.vercel/project.json`. Copy the value of `orgId` and the value of `projectId`.
-- [ ] Do not commit the `.vercel/` folder. `.gitignore` already ignores it.
+- [ ] Open Vercel, go to **Account Settings → Tokens**, and create a token. Name it `jottrade-github-deploy`. Set its scope to the team that owns the project. Copy the token. You cannot see it again. If you set an expiry date, record it: deploys stop when the token expires.
+- [ ] Do not use `VERCEL_OIDC_TOKEN` (from `vercel env pull`) as the token. It expires after a short time and cannot authorise CLI deploys.
+- [ ] Get the org ID: open the team, go to **Settings → General**, and copy the **Team ID** (`team_...`). For a personal account, use the **User ID** from **Account Settings**.
+- [ ] Get the project ID: open the jottrade project, go to **Settings → General**, and copy the **Project ID** (`prj_...`).
 
 ## 2. Neon: get the production connection string
 
