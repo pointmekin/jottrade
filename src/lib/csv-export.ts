@@ -48,9 +48,12 @@ export const TRADE_CSV_COLUMNS: readonly Column[] = [
 	raw("initial_target_price", (trade) => trade.initialTargetPrice),
 	raw("initial_risk_amount", (trade) => trade.initialRiskAmount),
 	raw("initial_risk_percent", (trade) => trade.initialRiskPercent),
-	text("strategy", (trade, context) =>
-		trade.setupId == null ? null : context.strategyNames.get(trade.setupId),
-	),
+	text("strategy", (trade, context) => {
+		if (trade.setupId == null) return null;
+		return (
+			context.strategyNames.get(trade.setupId) ?? `#${trade.setupId} (deleted)`
+		);
+	}),
 	raw("confidence", (trade) => trade.confidence),
 	text("mistake", (trade) => trade.mistake),
 	text("notes", (trade) => trade.notes),

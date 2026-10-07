@@ -8,6 +8,7 @@ import { tradeConditions, tradeFilterSchema } from "@/db/trade-filter";
 import { buildArchive } from "@/lib/archive";
 import { requireUserId } from "@/lib/auth";
 import { exportFileName, tradesToCsv } from "@/lib/csv-export";
+import { DEFAULT_CURRENCY } from "@/lib/currency";
 
 export const exportTradesCsv = createServerFn({ method: "POST" })
 	.validator(tradeFilterSchema)
@@ -30,7 +31,7 @@ export const exportTradesCsv = createServerFn({ method: "POST" })
 			fileName: exportFileName("trades", account.name, now, "csv"),
 			csv: tradesToCsv(rows, {
 				accountName: account.name,
-				accountCurrency: account.currency ?? "",
+				accountCurrency: account.currency ?? DEFAULT_CURRENCY,
 				strategyNames: new Map(
 					strategyRows.map((strategy) => [strategy.id, strategy.name]),
 				),
@@ -46,7 +47,7 @@ export const exportArchive = createServerFn({ method: "POST" }).handler(
 		const archive = buildArchive(await loadArchiveTables(userId), now);
 		return {
 			fileName: exportFileName("archive", null, now, "json"),
-			json: JSON.stringify(archive, null, 2),
+			json: JSON.stringify(archive),
 			counts: archive.counts,
 		};
 	},
