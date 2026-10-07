@@ -15,10 +15,11 @@ export function useExportDownload<Variables>(
 			toast.success(summary, { description: fileName });
 			onDone?.();
 		},
-		onError: (error) =>
+		onError: (error) => {
+			console.error("Export failed", error);
 			toast.error("Export failed. Nothing was downloaded.", {
-				description:
-					error instanceof Error ? error.message : "Try the export again.",
-			}),
+				description: "Try again, or narrow the filters.",
+			});
+		},
 	});
 }

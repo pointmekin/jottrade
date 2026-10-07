@@ -90,6 +90,11 @@ describe("tradesToCsv", () => {
 		expect(row.net_pnl).toBe("-12.3400");
 	});
 
+	it("marks a trade whose strategy was deleted", () => {
+		const [row] = parse(tradesToCsv([trade({ setupId: 99 })], context));
+		expect(row.strategy).toBe("#99 (deleted)");
+	});
+
 	it("resolves the strategy name and counts screenshots", () => {
 		const [row] = parse(tradesToCsv([trade()], context));
 		expect(row.strategy).toBe("Breakout");

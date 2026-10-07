@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useExportDownload } from "@/hooks/use-export-download";
+import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { type JournalSearch, toTradeQuery } from "@/lib/journal-search";
 import { describePeriod, resolvePeriod } from "@/lib/period";
 import { exportTradesCsv } from "@/server/exportActions";
@@ -76,7 +77,8 @@ export function ExportDialog({ search, total }: ExportDialogProps) {
 					<dd className="font-medium tabular-nums">{total}</dd>
 					<dt className="text-muted-foreground">Account</dt>
 					<dd>
-						{activeAccount?.name} ({activeAccount?.currency})
+						{activeAccount?.name} ({activeAccount?.currency ?? DEFAULT_CURRENCY}
+						)
 					</dd>
 					<dt className="text-muted-foreground">Period</dt>
 					<dd>{periodLabel}</dd>
