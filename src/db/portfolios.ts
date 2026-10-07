@@ -7,7 +7,11 @@ export async function requireOwnedPortfolio(
 	portfolioId: number,
 ) {
 	const [portfolio] = await db
-		.select({ id: portfolios.id, currency: portfolios.currency })
+		.select({
+			id: portfolios.id,
+			name: portfolios.name,
+			currency: portfolios.currency,
+		})
 		.from(portfolios)
 		.where(and(eq(portfolios.id, portfolioId), eq(portfolios.userId, userId)));
 	if (!portfolio) throw new Error("Account not found.");

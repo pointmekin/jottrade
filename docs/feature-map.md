@@ -99,6 +99,17 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 - **Data**: `review_periods`, `review_source_trades`, `review_source_cash_flows` (`src/db/review-schema.ts`).
 - **Verification**: Unit `review-period.test.ts`, `review-autosave.test.ts`, `review-editor.test.tsx`, `review-hydration.test.tsx`. DB (optional) `review-database.test.ts`, `feature-integration.test.ts`.
 
+### Data export (issue #15)
+
+- **Entry**: "Export" button in the Journal header on the All entries and Trades tabs (`export-dialog.tsx`); "Your data" card in Settings (`src/components/settings/data-export.tsx`).
+- **Flows**:
+  - Trade CSV: the dialog shows the trade count, the active account and the period. The file has every trade that matches the current filters, not one page. It has a UTF-8 BOM, CRLF rows, a stable column order, exact decimal strings, UTC ISO times and the account currency. Text cells that start with `=`, `+`, `-`, `@`, tab or CR get a leading `'`. The file name is `jottrade-trades-<account>-<date>.csv`.
+  - Full archive: one JSON file (`schemaVersion` 1) with all accounts, trades, funding entries, strategies, reviews and review source links. Screenshots are listed by URL, not bundled. Import batches, sessions and credentials are not included. The file name is `jottrade-archive-<date>.json`.
+  - A failed export shows an error toast and downloads nothing. The server keeps no export job, so a retry cannot create a duplicate.
+- **Server**: `src/server/exportActions.ts` (`exportTradesCsv`, `exportArchive`). The trade filter is shared with `getTrades` in `src/db/trade-filter.ts`. Archive queries: `src/db/journal-archive.ts`. Formatting: `src/lib/csv-export.ts`, `src/lib/archive.ts`.
+- **Data**: reads `portfolios`, `trades`, `cash_flows`, `strategies`, `review_periods`, `review_source_trades`, `review_source_cash_flows`. No schema change.
+- **Verification**: Unit `csv-export.test.ts` (escaping, injection guard, decimals, dates, file names), `export-actions.test.ts` (user and account scope of the query, foreign account refusal, archive counts). Gap: archive against a real database; no check that a screenshot URL still resolves.
+
 ### Dashboard
 
 - **Entry**: `/dashboard` (the post-sign-in page); period picker.
@@ -126,5 +137,5 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 ### Settings and profile
 
 - **Entry**: `/settings`, `/profile`.
-- **Flows**: trading accounts, review preferences, theme (light/dark/system, kept in local storage `vite-ui-theme`). Profile shows name and email; password change and 2FA are disabled.
+- **Flows**: trading accounts, review preferences, the full archive download (see "Data export"), theme (light/dark/system, kept in local storage `vite-ui-theme`). Profile shows name and email; password change and 2FA are disabled.
 - **Verification**: Gap.

@@ -5,6 +5,7 @@ import {
 } from "@tanstack/react-router";
 import { AppPageHeader } from "@/components/app-page-header";
 import { AccountEntriesPanel } from "@/components/journal/AccountEntriesPanel";
+import { ExportDialog } from "@/components/journal/export-dialog";
 import { FilterBar, type JournalFilters } from "@/components/journal/FilterBar";
 import { ImportDialog } from "@/components/journal/import-dialog";
 import {
@@ -55,6 +56,9 @@ function JournalPage() {
 					meta={`${journal.total} trades · ${journal.adjustmentCount} adjustments · ${periodLabel}`}
 					actions={
 						<>
+							{isJournalView && (
+								<ExportDialog search={search} total={journal.total} />
+							)}
 							<ImportDialog />
 							<LogTradeDrawer
 								defaultOpen={search.intent === JournalIntent.Log}
