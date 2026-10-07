@@ -16,10 +16,10 @@ import {
 	FormControl,
 	FormField,
 	FormItem,
+	FormLabel,
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
 	Select,
 	SelectContent,
@@ -111,7 +111,7 @@ export function FirstAccountDialog({
 							name="name"
 							render={({ field }) => (
 								<FormItem className="space-y-1.5">
-									<Label className="field-label">Account name</Label>
+									<FormLabel className="field-label">Account name</FormLabel>
 									<FormControl>
 										<Input placeholder="Exness Standard" {...field} />
 									</FormControl>
@@ -124,7 +124,9 @@ export function FirstAccountDialog({
 							name="broker"
 							render={({ field }) => (
 								<FormItem className="space-y-1.5">
-									<Label className="field-label">Broker (optional)</Label>
+									<FormLabel className="field-label">
+										Broker (optional)
+									</FormLabel>
 									<FormControl>
 										<Input placeholder="Exness" {...field} />
 									</FormControl>
@@ -137,7 +139,9 @@ export function FirstAccountDialog({
 							name="currency"
 							render={({ field }) => (
 								<FormItem className="space-y-1.5">
-									<Label className="field-label">Account currency</Label>
+									<FormLabel className="field-label">
+										Account currency
+									</FormLabel>
 									<FormControl>
 										<Select value={field.value} onValueChange={field.onChange}>
 											<SelectTrigger
@@ -164,7 +168,7 @@ export function FirstAccountDialog({
 							name="timezone"
 							render={({ field }) => (
 								<FormItem className="space-y-1.5">
-									<Label className="field-label">Timezone</Label>
+									<FormLabel className="field-label">Timezone</FormLabel>
 									<FormControl>
 										<Input
 											list={TIMEZONE_LIST_ID}
