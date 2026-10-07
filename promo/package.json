@@ -1,0 +1,11 @@
+{
+  "name": "jottrade-promo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "render": "node render.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "1.50.1"
+  }
+}

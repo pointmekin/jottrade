@@ -1,0 +1,900 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>JotTrade — 15s promo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Azeret+Mono:wght@400;500;600;700&display=block" rel="stylesheet">
+<style>
+  :root {
+    --bg: oklch(0.155 0.009 260);
+    --canvas: oklch(0.185 0.008 260);
+    --card: oklch(0.215 0.009 260);
+    --card-2: oklch(0.25 0.01 260);
+    --border: oklch(0.32 0.01 260);
+    --ink: oklch(0.95 0.003 260);
+    --muted: oklch(0.7 0.01 260);
+    --dim: oklch(0.52 0.012 260);
+    --blue: oklch(0.62 0.17 256);
+    --green: oklch(0.72 0.15 152);
+    --red: oklch(0.68 0.18 25);
+    --sans: "Archivo", system-ui, sans-serif;
+    --mono: "Azeret Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1920px; height: 1080px; overflow: hidden;
+    background: var(--bg); color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  #root { position: absolute; inset: 0; overflow: hidden; background: var(--bg); }
+  .abs { position: absolute; }
+  .scene { position: absolute; inset: 0; transform-origin: 50% 50%; }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .card {
+    position: absolute; background: var(--card);
+    border: 1px solid var(--border); border-radius: 12px;
+  }
+  .ch { display: inline-block; white-space: pre; will-change: transform; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const W = 1920, H = 1080, DURATION = 15, FPS = 60;
+const C = {
+  bg: "oklch(0.155 0.009 260)",
+  canvas: "oklch(0.185 0.008 260)",
+  card: "oklch(0.215 0.009 260)",
+  card2: "oklch(0.25 0.01 260)",
+  border: "oklch(0.32 0.01 260)",
+  ink: "oklch(0.95 0.003 260)",
+  muted: "oklch(0.7 0.01 260)",
+  dim: "oklch(0.52 0.012 260)",
+  blue: "oklch(0.62 0.17 256)",
+  green: "oklch(0.72 0.15 152)",
+  red: "oklch(0.68 0.18 25)",
+  onGreen: "oklch(0.16 0.01 260)",
+};
+const alpha = (color, a) => color.replace(")", ` / ${a})`);
+
+const root = document.getElementById("root");
+
+// ---------- math ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, x) => a + (b - a) * x;
+const outCubic = (x) => 1 - (1 - x) ** 3;
+const outQuint = (x) => 1 - (1 - x) ** 5;
+const outExpo = (x) => (x >= 1 ? 1 : 1 - 2 ** (-10 * x));
+const inCubic = (x) => x ** 3;
+const inExpo = (x) => (x <= 0 ? 0 : 2 ** (10 * x - 10));
+const inOutCubic = (x) => (x < 0.5 ? 4 * x ** 3 : 1 - (-2 * x + 2) ** 3 / 2);
+const inOutQuint = (x) => (x < 0.5 ? 16 * x ** 5 : 1 - (-2 * x + 2) ** 5 / 2);
+const inOutSine = (x) => 0.5 - 0.5 * Math.cos(Math.PI * x);
+const spring = (x, freq = 2.2, damp = 6.5) => {
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  return 1 - Math.exp(-damp * x) * Math.cos(freq * Math.PI * x);
+};
+const seeded = (seed) => () => {
+  seed = (seed + 0x6d2b79f5) | 0;
+  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+const money = (v, digits = 2) => {
+  const sign = v < 0 ? "−" : "+";
+  return `${sign}$${Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+};
+
+// ---------- dom ----------
+const el = (tag, cls, parent, style = {}, text) => {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  Object.assign(node.style, style);
+  if (text != null) node.textContent = text;
+  parent.appendChild(node);
+  return node;
+};
+const NS = "http://www.w3.org/2000/svg";
+const svg = (tag, attrs, parent, style = {}) => {
+  const node = document.createElementNS(NS, tag);
+  for (const k in attrs) node.setAttribute(k, attrs[k]);
+  Object.assign(node.style, style);
+  parent.appendChild(node);
+  return node;
+};
+const show = (node, visible) => { node.style.display = visible ? "" : "none"; };
+const letters = (parent, text, color, style = {}) =>
+  [...text].map((c) => el("span", "ch", parent, { color, ...style }, c));
+const pathFrom = (pts) => pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join("");
+
+// =====================================================================
+// 01  THE TAPE  (0.0 – 2.4)
+// =====================================================================
+const Tape = (() => {
+  const scene = el("div", "scene", root);
+  const stage = svg("svg", { width: W, height: H }, scene, { position: "absolute", inset: 0 });
+  const defs = svg("defs", {}, stage);
+  const grad = svg("linearGradient", { id: "tapeFill", x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  svg("stop", { offset: 0 }, grad, { stopColor: C.blue, stopOpacity: 0.34 });
+  svg("stop", { offset: 1 }, grad, { stopColor: C.blue, stopOpacity: 0 });
+
+  const box = svg("rect", {}, stage, { fill: alpha(C.green, 0.13) });
+  const boxTop = svg("line", {}, stage, { stroke: C.green, strokeWidth: 1.5, strokeDasharray: "6 6" });
+  const boxEntry = svg("line", {}, stage, { stroke: C.blue, strokeWidth: 1.5, strokeDasharray: "6 6" });
+  const area = svg("path", {}, stage, { fill: "url(#tapeFill)" });
+  const line = svg("path", {}, stage, { fill: "none", stroke: C.blue, strokeWidth: 3, strokeLinejoin: "round", strokeLinecap: "round" });
+
+  const rnd = seeded(11);
+  const N = 200, DX = 12;
+  const pts = [];
+  let y = 0;
+  for (let i = 0; i < N; i++) {
+    y += (rnd() - 0.5) * 26 + (i < 70 ? 1.3 : -1.7);
+    pts.push([i * DX, y]);
+  }
+  const argBy = (from, to, better) => {
+    let best = from;
+    for (let i = from; i <= to; i++) if (better(pts[i][1], pts[best][1])) best = i;
+    return best;
+  };
+  const iEntry = argBy(50, 95, (a, b) => a > b);
+  const iExit = argBy(150, 192, (a, b) => a < b);
+  const meanY = pts.reduce((s, p) => s + p[1], 0) / N;
+  const priceAt = (py) => 1.08312 + (pts[iEntry][1] - py) * 0.000018;
+
+  const headT = (t) => lerp(1, N - 1, inOutSine(prog(t, 0.12, 2.0)) * 0.55 + prog(t, 0.12, 2.0) * 0.45);
+  const timeAtIndex = (idx) => {
+    for (let t = 0; t < 2.4; t += 1 / 600) if (headT(t) >= idx) return t;
+    return 2.4;
+  };
+  const tEntry = timeAtIndex(iEntry), tExit = timeAtIndex(iExit);
+
+  const priceLine = el("div", "abs", scene, { left: 0, width: `${W}px`, height: 0, borderTop: `1px dashed ${alpha(C.blue, 0.55)}` });
+  const priceTag = el("div", "abs mono", scene, {
+    right: "56px", padding: "6px 12px", borderRadius: "6px", background: C.blue,
+    color: "white", fontSize: "20px", fontWeight: 600, transform: "translateY(-50%)",
+  });
+  const glow = el("div", "abs", scene, {
+    width: "16px", height: "16px", borderRadius: "50%", background: "white",
+    boxShadow: `0 0 0 6px ${alpha(C.blue, 0.35)}, 0 0 40px 14px ${alpha(C.blue, 0.6)}`,
+    transform: "translate(-50%,-50%)",
+  });
+  const tag = (bg, fg, text) => el("div", "abs mono", scene, {
+    padding: "8px 14px", borderRadius: "8px", background: bg, color: fg,
+    fontSize: "20px", fontWeight: 700, whiteSpace: "nowrap", transformOrigin: "0 50%",
+  }, text);
+  const entryTag = tag(C.blue, "white", `BUY  ${priceAt(pts[iEntry][1]).toFixed(5)}`);
+  const exitTag = tag(C.green, C.onGreen, "TP  +$482.10");
+  const dot = (color) => el("div", "abs", scene, {
+    width: "18px", height: "18px", borderRadius: "50%", border: `3px solid ${color}`,
+    background: C.bg, transform: "translate(-50%,-50%)",
+  });
+  const entryDot = dot(C.blue), exitDot = dot(C.green);
+
+  const live = el("div", "abs mono", scene, { left: "92px", top: "108px", fontSize: "17px", color: C.muted, letterSpacing: "0.12em" });
+  const liveDot = el("span", "", live, { display: "inline-block", width: "9px", height: "9px", borderRadius: "50%", background: C.red, marginRight: "12px", verticalAlign: "middle" });
+  el("span", "", live, {}, "EURUSD · M1 · LIVE");
+
+  const pop = (node, t0, t, ox = 0, oy = 0) => {
+    const k = spring(prog(t, t0, t0 + 0.7), 2.4, 6);
+    node.style.opacity = prog(t, t0, t0 + 0.12);
+    node.style.transform = `translate(${ox}px, ${oy}px) scale(${lerp(0.4, 1, k)})`;
+  };
+
+  return (t) => {
+    const visible = t < 2.45;
+    show(scene, visible);
+    if (!visible) return;
+    const out = prog(t, 2.0, 2.4);
+    scene.style.opacity = prog(t, 0, 0.3) * (1 - out);
+    scene.style.transform = `scale(${1 + 0.14 * inCubic(out)})`;
+    scene.style.filter = out > 0 ? `blur(${out * 16}px)` : "";
+
+    const hf = headT(t);
+    const i0 = Math.floor(hf), f = hf - i0;
+    const next = pts[Math.min(i0 + 1, N - 1)];
+    const hx = lerp(pts[i0][0], next[0], f), hy = lerp(pts[i0][1], next[1], f);
+
+    const zp = inOutCubic(prog(t, 0.25, 2.05));
+    const s = lerp(2.9, 0.68, zp);
+    const cx = lerp(hx, ((N - 1) * DX) / 2, zp), cy = lerp(hy, meanY, zp);
+    const off = lerp(200, 0, zp);
+    const toScreen = ([x, py]) => [960 + off + (x - cx) * s, 560 + (py - cy) * s];
+
+    const drawn = pts.slice(0, i0 + 1).map(toScreen);
+    const head = toScreen([hx, hy]);
+    drawn.push(head);
+    line.setAttribute("d", pathFrom(drawn));
+    area.setAttribute("d", `${pathFrom(drawn)}L${head[0]} ${H + 200}L${drawn[0][0]} ${H + 200}Z`);
+
+    glow.style.left = `${head[0]}px`;
+    glow.style.top = `${head[1]}px`;
+    priceLine.style.top = `${head[1]}px`;
+    priceTag.style.top = `${head[1]}px`;
+    priceTag.textContent = priceAt(hy).toFixed(5);
+    liveDot.style.opacity = Math.floor(t * 3) % 2 ? 0.25 : 1;
+
+    const e = toScreen(pts[iEntry]), x = toScreen(pts[iExit]);
+    const hasEntry = hf >= iEntry, hasExit = hf >= iExit;
+    show(box, hasEntry); show(boxTop, hasEntry); show(boxEntry, hasEntry);
+    show(entryTag, hasEntry); show(entryDot, hasEntry);
+    show(exitTag, hasExit); show(exitDot, hasExit);
+    if (hasEntry) {
+      const right = hasExit ? x[0] : head[0];
+      const top = x[1];
+      box.setAttribute("x", e[0]); box.setAttribute("y", top);
+      box.setAttribute("width", Math.max(0, right - e[0])); box.setAttribute("height", Math.max(0, e[1] - top));
+      box.style.opacity = hasExit ? 1 : 0.55;
+      for (const [ln, yy] of [[boxTop, top], [boxEntry, e[1]]]) {
+        ln.setAttribute("x1", e[0]); ln.setAttribute("x2", right);
+        ln.setAttribute("y1", yy); ln.setAttribute("y2", yy);
+      }
+      boxTop.style.opacity = hasExit ? 1 : 0;
+      entryDot.style.left = `${e[0]}px`; entryDot.style.top = `${e[1]}px`;
+      entryTag.style.left = `${e[0] - 40}px`; entryTag.style.top = `${e[1] + 26}px`;
+      pop(entryTag, tEntry, t);
+    }
+    if (hasExit) {
+      exitDot.style.left = `${x[0]}px`; exitDot.style.top = `${x[1]}px`;
+      exitTag.style.left = `${x[0] - 60}px`; exitTag.style.top = `${x[1] - 72}px`;
+      pop(exitTag, tExit, t);
+    }
+  };
+})();
+
+// =====================================================================
+// 02  THE HABIT  — kinetic type (2.15 – 4.8)
+// =====================================================================
+const Habit = (() => {
+  const scene = el("div", "scene", root);
+  const candleLayer = el("div", "abs", scene, { inset: 0, opacity: 0.12 });
+  const rnd = seeded(5);
+  const candles = [];
+  let y = 900;
+  for (let i = 0; i < 64; i++) {
+    const o = y;
+    y += (rnd() - 0.6) * 70;
+    const c = y;
+    const color = c < o ? C.green : C.red;
+    candles.push({
+      o, c,
+      hi: Math.min(o, c) - rnd() * 50,
+      lo: Math.max(o, c) + rnd() * 50,
+      wick: el("div", "abs", candleLayer, { width: "3px", background: color }),
+      body: el("div", "abs", candleLayer, { width: "22px", borderRadius: "3px", background: color }),
+    });
+  }
+
+  const LINE_H = 250;
+  const stack = el("div", "abs", scene, { left: "150px", top: 0 });
+  const defs = [
+    { at: 2.3, words: [["Every ", C.ink], ["trade.", C.blue]] },
+    { at: 3.05, words: [["Every ", C.ink], ["mistake.", C.red]], strike: true },
+    { at: 3.8, words: [["Every ", C.ink], ["edge.", C.green]] },
+  ];
+  const lines = defs.map((def, i) => {
+    const row = el("div", "abs", stack, {
+      top: `${i * LINE_H}px`, left: 0, height: `${LINE_H}px`, overflow: "hidden",
+      whiteSpace: "nowrap", fontSize: "220px", lineHeight: `${LINE_H}px`,
+      letterSpacing: "-0.035em", paddingRight: "80px",
+    });
+    const wordNodes = [];
+    const chars = [];
+    for (const [text, color] of def.words) {
+      const word = el("span", "", row, { display: "inline-block" });
+      wordNodes.push(word);
+      chars.push(...letters(word, text, color));
+    }
+    const strike = def.strike
+      ? el("div", "abs", row, { top: "136px", height: "16px", borderRadius: "8px", background: C.red, transformOrigin: "0 50%" })
+      : null;
+    return { ...def, row, wordNodes, chars, strike };
+  });
+  const period = lines[2].chars.at(-1);
+
+  const wipeLayer = el("div", "scene", root);
+  const wipe = el("div", "abs", wipeLayer, { borderRadius: "50%" });
+  let wipeCenter = [960, 540];
+
+  const render = (t) => {
+    const visible = t > 2.1 && t < 4.85;
+    show(scene, visible);
+    if (visible) {
+      scene.style.opacity = prog(t, 2.1, 2.3);
+      const drift = (t - 2.1) * 110;
+      candles.forEach((cd, i) => {
+        const g = outCubic(prog(t, 2.15 + i * 0.018, 2.65 + i * 0.018));
+        const x = 40 + i * 44 - drift;
+        const mid = (cd.o + cd.c) / 2 - 200;
+        const bh = Math.max(4, Math.abs(cd.o - cd.c)) * g;
+        cd.body.style.left = `${x - 11}px`;
+        cd.body.style.top = `${mid - bh / 2}px`;
+        cd.body.style.height = `${bh}px`;
+        const wh = (cd.lo - cd.hi) * g;
+        cd.wick.style.left = `${x - 1.5}px`;
+        cd.wick.style.top = `${mid - wh / 2}px`;
+        cd.wick.style.height = `${wh}px`;
+      });
+
+      const cam = LINE_H * (outExpo(prog(t, 2.98, 3.5)) + outExpo(prog(t, 3.73, 4.25)));
+      stack.style.top = `${540 - LINE_H / 2 - cam}px`;
+      lines.forEach((ln, i) => {
+        const nxt = lines[i + 1];
+        ln.row.style.opacity = nxt ? 1 - 0.84 * outCubic(prog(t, nxt.at, nxt.at + 0.4)) : 1;
+        ln.chars.forEach((ch, k) => {
+          const lp = prog(t, ln.at + k * 0.024, ln.at + k * 0.024 + 0.55);
+          const e = outExpo(lp);
+          ch.style.transform = `translateY(${(1 - e) * 110}%) rotate(${(1 - e) * 10}deg)`;
+          ch.style.fontVariationSettings = `"wdth" ${lerp(125, 100, outCubic(lp))}`;
+          ch.style.fontWeight = Math.round(lerp(900, 740, e));
+        });
+        if (ln.strike) {
+          const word = ln.wordNodes[1];
+          const sp = inOutCubic(prog(t, ln.at + 0.42, ln.at + 0.72));
+          ln.strike.style.left = `${word.offsetLeft}px`;
+          ln.strike.style.width = `${word.offsetWidth - 70}px`;
+          ln.strike.style.transform = `scaleX(${sp})`;
+        }
+      });
+    }
+
+    const wp = prog(t, 4.3, 4.82);
+    show(wipe, wp > 0 && t < 8);
+    period.style.visibility = wp > 0 ? "hidden" : "visible";
+    if (wp > 0 && t < 8) {
+      if (visible) {
+        const r = period.getBoundingClientRect();
+        wipeCenter = [r.left + r.width * 0.42, r.top + r.height * 0.745];
+      }
+      const [cx, cy] = wipeCenter;
+      const d = lerp(40, 4800, inOutQuint(wp));
+      wipe.style.width = wipe.style.height = `${d}px`;
+      wipe.style.left = `${cx - d / 2}px`;
+      wipe.style.top = `${cy - d / 2}px`;
+      const mix = Math.round(inOutCubic(prog(t, 4.52, 4.78)) * 100);
+      wipe.style.background = `color-mix(in oklch, ${C.card} ${mix}%, ${C.green})`;
+    }
+    wipeLayer.style.opacity = 1 - prog(t, 7.55, 7.9);
+  };
+  return render;
+})();
+
+// =====================================================================
+// 03  IMPORT  (4.55 – 7.95)
+// =====================================================================
+const Import = (() => {
+  const scene = el("div", "scene", root, { perspective: "2000px" });
+  const inner = el("div", "abs", scene, { inset: 0 });
+
+  const eyebrow = el("div", "abs mono", inner, { left: "120px", top: "150px", fontSize: "17px", letterSpacing: "0.16em", color: C.blue }, "IMPORT · EXNESS MT4/MT5");
+  const headRows = ["Drop the CSV.", "Your journal writes itself."].map((text, i) => {
+    const row = el("div", "abs", inner, {
+      left: "120px", top: `${186 + i * 72}px`, height: "74px", overflow: "hidden",
+      fontSize: "62px", fontWeight: 650, letterSpacing: "-0.025em", lineHeight: "74px",
+      color: i ? C.muted : C.ink, whiteSpace: "nowrap",
+    });
+    return el("div", "", row, {}, text);
+  });
+
+  const file = el("div", "card", inner, { left: "120px", top: "380px", width: "600px", height: "104px", background: C.canvas, display: "flex", alignItems: "center", gap: "20px", padding: "0 24px" });
+  el("div", "mono", file, { width: "56px", height: "56px", borderRadius: "10px", background: alpha(C.blue, 0.18), color: C.blue, display: "grid", placeItems: "center", fontSize: "15px", fontWeight: 700 }, "CSV");
+  const fileText = el("div", "", file);
+  el("div", "", fileText, { fontSize: "22px", fontWeight: 600 }, "ReportHistory-81234.csv");
+  el("div", "mono", fileText, { fontSize: "15px", color: C.muted, marginTop: "6px" }, "84.2 KB · 507 rows · MT5");
+  const fileCheck = el("div", "", file, { marginLeft: "auto", width: "34px", height: "34px", borderRadius: "50%", background: C.green, color: C.onGreen, display: "grid", placeItems: "center", fontSize: "20px", fontWeight: 800 }, "✓");
+
+  const stream = el("div", "card", inner, {
+    left: "120px", top: "504px", width: "600px", height: "440px", overflow: "hidden", background: C.canvas,
+    maskImage: "linear-gradient(transparent, black 18%, black 82%, transparent)",
+  });
+  const streamText = el("div", "abs mono", stream, { left: "22px", top: 0, fontSize: "14.5px", lineHeight: "26px", color: C.dim, whiteSpace: "pre" });
+  const rnd = seeded(21);
+  const syms = ["XAUUSD", "EURUSD", "US30", "BTCUSD", "GBPJPY", "NAS100", "USDJPY", "ETHUSD"];
+  const csv = ["Ticket,Open Time,Type,Volume,Symbol,Price,S/L,T/P,Profit"];
+  for (let i = 0; i < 70; i++) {
+    const sym = syms[Math.floor(rnd() * syms.length)];
+    csv.push(`8123${4000 + i},2026.09.${String(1 + (i % 25)).padStart(2, "0")} ${String(8 + (i % 12)).padStart(2, "0")}:${String(Math.floor(rnd() * 60)).padStart(2, "0")},${rnd() > 0.5 ? "buy" : "sell"},${(rnd() * 2).toFixed(2)},${sym},${(rnd() * 3000).toFixed(2)},${(rnd() * 900 - 300).toFixed(2)}`);
+  }
+  streamText.textContent = csv.join("\n");
+  const beam = el("div", "abs", stream, { left: 0, width: "100%", height: "2px", background: C.blue, boxShadow: `0 0 24px 6px ${alpha(C.blue, 0.5)}` });
+
+  const counterBox = el("div", "abs", inner, { right: "120px", top: "176px", textAlign: "right" });
+  const counter = el("div", "mono", counterBox, { fontSize: "104px", fontWeight: 600, letterSpacing: "-0.04em", lineHeight: 1 }, "0");
+  el("div", "", counterBox, { fontSize: "20px", color: C.muted, marginTop: "10px" }, "trades imported · 0 duplicates");
+  const bar = el("div", "abs", inner, { right: "120px", top: "344px", width: "880px", height: "3px", borderRadius: "2px", background: C.border, overflow: "hidden" });
+  const barFill = el("div", "abs", bar, { left: 0, top: 0, bottom: 0, width: "100%", background: C.blue, transformOrigin: "0 50%" });
+
+  const table = el("div", "card", inner, { right: "120px", top: "372px", width: "880px", height: "572px", overflow: "hidden" });
+  const COLS = [170, 110, 100, 160, 160, 138];
+  const header = el("div", "abs mono", table, { left: "20px", top: 0, height: "52px", display: "flex", alignItems: "center", fontSize: "13px", letterSpacing: "0.1em", color: C.dim });
+  ["SYMBOL", "SIDE", "SIZE", "ENTRY", "EXIT", "P&L"].forEach((h, i) => el("div", "", header, { width: `${COLS[i]}px`, textAlign: i === 5 ? "right" : "left" }, h));
+  el("div", "abs", table, { left: 0, right: 0, top: "52px", height: "1px", background: C.border });
+  const data = [
+    ["XAUUSD", "Buy", "0.50", "2,512.40", "2,531.85", 972.5],
+    ["EURUSD", "Sell", "2.00", "1.08742", "1.08519", 446.0],
+    ["US30", "Buy", "1.00", "42,118.0", "42,061.5", -56.5],
+    ["BTCUSD", "Buy", "0.10", "63,420.00", "64,980.00", 156.0],
+    ["GBPJPY", "Sell", "1.00", "191.442", "190.918", 352.9],
+    ["NAS100", "Buy", "0.80", "19,842.1", "19,801.7", -32.32],
+    ["USDJPY", "Buy", "1.50", "143.215", "143.702", 509.6],
+    ["XAUUSD", "Sell", "0.30", "2,540.10", "2,547.20", -213.0],
+    ["ETHUSD", "Buy", "2.00", "2,614.50", "2,688.30", 147.6],
+  ];
+  const rows = data.map((d, r) => {
+    const row = el("div", "abs", table, { left: 0, right: 0, top: `${53 + r * 57}px`, height: "57px", borderBottom: `1px solid ${alpha(C.border, 0.6)}` });
+    const cells = el("div", "abs", row, { left: "20px", top: 0, bottom: 0, display: "flex", alignItems: "center", fontSize: "19px" });
+    el("div", "", cells, { width: `${COLS[0]}px`, fontWeight: 600 }, d[0]);
+    const sideWrap = el("div", "", cells, { width: `${COLS[1]}px` });
+    const isBuy = d[1] === "Buy";
+    el("span", "mono", sideWrap, { padding: "4px 10px", borderRadius: "6px", fontSize: "14px", fontWeight: 600, background: alpha(isBuy ? C.blue : C.red, 0.16), color: isBuy ? C.blue : C.red }, d[1].toUpperCase());
+    el("div", "mono", cells, { width: `${COLS[2]}px`, color: C.muted }, d[2]);
+    el("div", "mono", cells, { width: `${COLS[3]}px`, color: C.muted }, d[3]);
+    el("div", "mono", cells, { width: `${COLS[4]}px`, color: C.muted }, d[4]);
+    const pnl = el("div", "mono", cells, { width: `${COLS[5]}px`, textAlign: "right", fontWeight: 600, color: d[5] < 0 ? C.red : C.green });
+    const sweep = el("div", "abs", row, { top: "6px", bottom: "6px", width: "3px", background: C.blue, boxShadow: `0 0 18px 4px ${alpha(C.blue, 0.6)}` });
+    return { row, pnl, sweep, value: d[5], at: 5.15 + r * 0.13 };
+  });
+
+  const toast = el("div", "card", inner, {
+    left: "120px", top: "860px", width: "600px", height: "84px", background: C.card2,
+    display: "flex", alignItems: "center", gap: "16px", padding: "0 22px",
+    boxShadow: "0 24px 60px oklch(0 0 0 / 0.45)",
+  });
+  el("div", "", toast, { width: "30px", height: "30px", borderRadius: "50%", background: C.green, color: C.onGreen, display: "grid", placeItems: "center", fontWeight: 800 }, "✓");
+  const toastText = el("div", "", toast, { fontSize: "20px" });
+  el("span", "", toastText, { fontWeight: 600 }, "Import complete ");
+  el("span", "", toastText, { color: C.muted }, "· 507 trades in 1.2s");
+
+  const enter = (node, t0, t, dy = 40, dur = 0.7) => {
+    const k = spring(prog(t, t0, t0 + dur), 1.6, 6.5);
+    node.style.opacity = outCubic(prog(t, t0, t0 + 0.25));
+    node.style.transform = `translateY(${(1 - k) * dy}px)`;
+  };
+
+  return (t) => {
+    const visible = t > 4.5 && t < 8;
+    show(scene, visible);
+    if (!visible) return;
+    const out = inCubic(prog(t, 7.5, 7.95));
+    inner.style.opacity = 1 - out;
+    inner.style.transform = `translateZ(${out * 380}px) rotateX(${out * -8}deg)`;
+    inner.style.filter = out > 0 ? `blur(${out * 10}px)` : "";
+
+    enter(eyebrow, 4.62, t, 20);
+    headRows.forEach((r, i) => {
+      const e = outExpo(prog(t, 4.66 + i * 0.1, 5.3 + i * 0.1));
+      r.style.transform = `translateY(${(1 - e) * 100}%)`;
+    });
+    enter(file, 4.75, t, -70, 0.8);
+    const done = prog(t, 6.9, 7.1);
+    fileCheck.style.transform = `scale(${spring(prog(t, 6.9, 7.5), 2.4, 6)})`;
+    fileCheck.style.opacity = done;
+
+    enter(stream, 4.85, t, 60);
+    streamText.style.transform = `translateY(${-(t - 4.85) * 190}px)`;
+    beam.style.top = `${((t - 4.9) * 520) % 440}px`;
+    beam.style.opacity = 1 - done;
+
+    enter(counterBox, 4.8, t, 30);
+    const cp = outCubic(prog(t, 5.1, 6.95));
+    counter.textContent = Math.round(cp * 507).toString();
+    barFill.style.transform = `scaleX(${cp})`;
+    bar.style.opacity = outCubic(prog(t, 4.9, 5.2));
+
+    const tk = spring(prog(t, 4.85, 5.7), 1.4, 6.5);
+    table.style.opacity = outCubic(prog(t, 4.85, 5.15));
+    table.style.transform = `translateX(${(1 - tk) * 120}px)`;
+    rows.forEach((r) => {
+      const rp = outExpo(prog(t, r.at, r.at + 0.5));
+      r.row.style.clipPath = `inset(0 ${(1 - rp) * 100}% 0 0)`;
+      r.sweep.style.left = `${rp * 880}px`;
+      r.sweep.style.opacity = rp > 0 && rp < 1 ? 1 - rp ** 4 : 0;
+      r.pnl.textContent = money(r.value * outCubic(prog(t, r.at + 0.1, r.at + 0.7)));
+    });
+
+    enter(toast, 7.0, t, 90, 0.8);
+  };
+})();
+
+// =====================================================================
+// 04  REVIEW  — dashboard (7.7 – 12.9)
+// =====================================================================
+const Review = (() => {
+  const scene = el("div", "scene", root, { perspective: "1900px", perspectiveOrigin: "50% 40%" });
+  const stage = el("div", "abs", scene, { left: "140px", top: "90px", width: "1640px", height: "900px", transformStyle: "preserve-3d", transformOrigin: "50% 50%" });
+  const cards = [];
+  const card = (x, y, w, h, delay) => {
+    const node = el("div", "card", stage, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px`, padding: "22px 24px", boxShadow: "0 30px 80px oklch(0 0 0 / 0.35)" });
+    cards.push({ node, delay });
+    return node;
+  };
+  const title = (parent, text, right) => {
+    const row = el("div", "", parent, { display: "flex", justifyContent: "space-between", alignItems: "baseline" });
+    el("div", "", row, { fontSize: "18px", fontWeight: 600 }, text);
+    if (right) el("div", "mono", row, { fontSize: "14px", color: C.dim }, right);
+  };
+  const T0 = 7.85;
+
+  const kpis = [
+    { label: "Net P&L", value: 12480.55, fmt: (v) => money(v), color: C.green, sub: "▲ 18.2% this month" },
+    { label: "Win rate", value: 62.3, fmt: (v) => `${v.toFixed(1)}%`, color: C.ink, sub: "316 W · 191 L", ring: true },
+    { label: "Profit factor", value: 2.31, fmt: (v) => v.toFixed(2), color: C.ink, sub: "$21.97k won / $9.51k lost" },
+    { label: "Expectancy", value: 24.62, fmt: (v) => money(v), color: C.green, sub: "per trade · 507 trades" },
+  ].map((k, i) => {
+    const node = card(i * 415, 0, 395, 150, i * 0.06);
+    el("div", "", node, { fontSize: "16px", color: C.muted }, k.label);
+    const value = el("div", "mono", node, { fontSize: "42px", fontWeight: 600, letterSpacing: "-0.03em", marginTop: "10px", color: k.color });
+    el("div", "mono", node, { fontSize: "14px", color: C.dim, marginTop: "8px" }, k.sub);
+    let ring = null;
+    if (k.ring) {
+      const s = svg("svg", { width: 84, height: 84, viewBox: "0 0 84 84" }, node, { position: "absolute", right: "24px", top: "33px", transform: "rotate(-90deg)" });
+      svg("circle", { cx: 42, cy: 42, r: 34, fill: "none" }, s, { stroke: C.border, strokeWidth: 9 });
+      ring = svg("circle", { cx: 42, cy: 42, r: 34, fill: "none", pathLength: 1 }, s, { stroke: C.blue, strokeWidth: 9, strokeLinecap: "round", strokeDasharray: "1 1" });
+    }
+    return { ...k, value: k.value, node: value, ring, delay: i * 0.06 };
+  });
+
+  const eq = card(0, 170, 1055, 400, 0.24);
+  title(eq, "Equity curve", "SEP 2026 · ALL ACCOUNTS");
+  const EW = 1005, EH = 300;
+  const eqSvg = svg("svg", { width: EW, height: EH }, eq, { position: "absolute", left: "25px", top: "76px", overflow: "visible" });
+  const eqDefs = svg("defs", {}, eqSvg);
+  const eqGrad = svg("linearGradient", { id: "eqFill", x1: 0, y1: 0, x2: 0, y2: 1 }, eqDefs);
+  svg("stop", { offset: 0 }, eqGrad, { stopColor: C.green, stopOpacity: 0.3 });
+  svg("stop", { offset: 1 }, eqGrad, { stopColor: C.green, stopOpacity: 0 });
+  for (let g = 0; g < 4; g++) svg("line", { x1: 0, x2: EW, y1: 20 + g * 88, y2: 20 + g * 88 }, eqSvg, { stroke: C.border, strokeWidth: 1, strokeDasharray: "3 6" });
+  const eqArea = svg("path", {}, eqSvg, { fill: "url(#eqFill)" });
+  const eqLine = svg("path", {}, eqSvg, { fill: "none", stroke: C.green, strokeWidth: 3, strokeLinejoin: "round" });
+  const eqHead = el("div", "abs", eq, { width: "14px", height: "14px", borderRadius: "50%", background: "white", boxShadow: `0 0 0 5px ${alpha(C.green, 0.35)}, 0 0 30px 10px ${alpha(C.green, 0.5)}`, transform: "translate(-50%,-50%)" });
+  const eqTip = el("div", "abs mono", eq, { padding: "6px 12px", borderRadius: "7px", background: C.card2, border: `1px solid ${C.border}`, fontSize: "16px", fontWeight: 600, color: C.green, whiteSpace: "nowrap", transform: "translate(-50%, -150%)" });
+  const rq = seeded(3);
+  const raw = [0];
+  for (let i = 1; i < 150; i++) raw.push(raw[i - 1] + (rq() - 0.37) * 100);
+  const scaleK = 12480.55 / raw.at(-1);
+  const eqVals = raw.map((v) => v * scaleK);
+  const eqMin = Math.min(...eqVals), eqMax = Math.max(...eqVals);
+  const eqPts = eqVals.map((v, i) => [(i / (eqVals.length - 1)) * EW, EH - 16 - ((v - eqMin) / (eqMax - eqMin)) * (EH - 40)]);
+
+  const cal = card(1075, 170, 565, 400, 0.3);
+  title(cal, "September 2026", "+$12.5k");
+  const calGrid = el("div", "abs", cal, { left: "24px", top: "70px", width: "517px" });
+  const days = ["M", "T", "W", "T", "F", "S", "S"];
+  days.forEach((d, i) => el("div", "abs mono", calGrid, { left: `${i * 75}px`, top: 0, width: "68px", textAlign: "center", fontSize: "13px", color: C.dim }, d));
+  const rc = seeded(9);
+  const cells = [];
+  for (let slot = 0; slot < 35; slot++) {
+    const day = slot;
+    const col = slot % 7, row = Math.floor(slot / 7);
+    const node = el("div", "abs", calGrid, { left: `${col * 75}px`, top: `${28 + row * 58}px`, width: "68px", height: "52px", borderRadius: "8px", background: C.canvas, border: `1px solid ${alpha(C.border, 0.7)}` });
+    const valid = day >= 1 && day <= 30;
+    if (valid) el("div", "abs mono", node, { left: "7px", top: "4px", fontSize: "11px", color: C.dim }, String(day));
+    const weekend = col >= 5;
+    if (valid && !weekend && day <= 25) {
+      const v = Math.round((rc() - 0.3) * 1300);
+      const mag = clamp(Math.abs(v) / 900);
+      node.style.background = alpha(v < 0 ? C.red : C.green, 0.12 + mag * 0.45);
+      node.style.borderColor = alpha(v < 0 ? C.red : C.green, 0.35);
+      el("div", "abs mono", node, { left: 0, right: 0, bottom: "5px", textAlign: "center", fontSize: "12px", fontWeight: 600, color: C.ink }, `${v < 0 ? "−" : "+"}${Math.abs(v)}`);
+    }
+    if (day === 26) node.style.border = `1.5px solid ${C.blue}`;
+    if (!valid) node.style.opacity = 0.3;
+    cells.push({ node, order: row + col, baseOpacity: valid ? 1 : 0.3 });
+  }
+
+  const strat = card(0, 590, 800, 310, 0.36);
+  title(strat, "By strategy", "NET P&L");
+  const strategies = [["London breakout", 6240], ["NY reversal", 4105], ["Trend pullback", 2890], ["Asia range", -755]];
+  const bars = strategies.map(([name, v], i) => {
+    const row = el("div", "abs", strat, { left: "24px", right: "24px", top: `${78 + i * 54}px`, height: "30px", display: "flex", alignItems: "center" });
+    el("div", "", row, { width: "200px", fontSize: "18px", color: C.muted }, name);
+    const track = el("div", "", row, { width: "400px", height: "12px", borderRadius: "6px", background: C.canvas, overflow: "hidden" });
+    const fill = el("div", "", track, { height: "100%", borderRadius: "6px", background: v < 0 ? C.red : C.green, width: `${(Math.abs(v) / 6240) * 100}%`, transformOrigin: "0 50%" });
+    const label = el("div", "mono", row, { marginLeft: "auto", fontSize: "18px", fontWeight: 600, color: v < 0 ? C.red : C.green });
+    return { fill, label, v, at: 8.7 + i * 0.1 };
+  });
+
+  const dist = card(820, 590, 820, 310, 0.42);
+  title(dist, "P&L distribution", "PER TRADE");
+  const hist = [];
+  for (let i = 0; i < 26; i++) {
+    const h = 200 * Math.exp(-(((i - 13.5) / 5.2) ** 2)) + 16 + seeded(i + 40)() * 26;
+    const color = i < 11 ? C.red : C.green;
+    const node = el("div", "abs", dist, { left: `${24 + i * 29.6}px`, bottom: "26px", width: "22px", height: `${h}px`, borderRadius: "4px 4px 2px 2px", background: color, transformOrigin: "50% 100%" });
+    hist.push({ node, at: 8.8 + i * 0.022 });
+  }
+  el("div", "abs", dist, { left: "24px", right: "24px", bottom: "25px", height: "1px", background: C.border });
+
+  return (t) => {
+    const visible = t > 7.65 && t < 12.95;
+    show(scene, visible);
+    if (!visible) return;
+    const k = inOutCubic(prog(t, 7.7, 11.3));
+    const enter = outExpo(prog(t, 7.7, 8.5));
+    const push = inOutCubic(prog(t, 10.9, 11.5));
+    stage.style.transform = [
+      `translateY(${lerp(140, -10, k) + push * 20}px)`,
+      `translateZ(${lerp(-700, 0, enter) + push * -120}px)`,
+      `rotateX(${lerp(40, 7, k)}deg)`,
+      `rotateZ(${lerp(-11, -1.5, k)}deg)`,
+      `rotateY(${lerp(-6, 3, k)}deg)`,
+      `scale(${lerp(0.8, 0.97, k)})`,
+    ].join(" ");
+    scene.style.opacity = prog(t, 7.7, 7.95) * (1 - prog(t, 12.45, 12.8));
+    scene.style.filter = push > 0 ? `blur(${push * 7}px) brightness(${1 - push * 0.45})` : "";
+
+    cards.forEach(({ node, delay }) => {
+      const cp = prog(t, T0 + delay, T0 + delay + 1.0);
+      const sp = spring(cp, 1.5, 6.8);
+      node.style.opacity = outCubic(prog(t, T0 + delay, T0 + delay + 0.3));
+      node.style.transform = `translateY(${(1 - sp) * 140}px) translateZ(${(1 - sp) * 160}px) rotateX(${(1 - sp) * -22}deg)`;
+    });
+
+    kpis.forEach((kp) => {
+      const vp = outExpo(prog(t, 8.1 + kp.delay, 9.5 + kp.delay));
+      kp.node.textContent = kp.fmt(kp.value * vp);
+      if (kp.ring) kp.ring.style.strokeDashoffset = 1 - (kp.value / 100) * vp;
+    });
+
+    const ep = inOutCubic(prog(t, 8.35, 10.3));
+    const hf = ep * (eqPts.length - 1);
+    const i0 = Math.floor(hf), f = hf - i0;
+    const nx = eqPts[Math.min(i0 + 1, eqPts.length - 1)];
+    const head = [lerp(eqPts[i0][0], nx[0], f), lerp(eqPts[i0][1], nx[1], f)];
+    const drawn = [...eqPts.slice(0, i0 + 1), head];
+    eqLine.setAttribute("d", pathFrom(drawn));
+    eqArea.setAttribute("d", `${pathFrom(drawn)}L${head[0]} ${EH}L0 ${EH}Z`);
+    const headOn = ep > 0;
+    show(eqHead, headOn); show(eqTip, headOn);
+    eqHead.style.left = eqTip.style.left = `${25 + head[0]}px`;
+    eqHead.style.top = eqTip.style.top = `${76 + head[1]}px`;
+    eqTip.textContent = money(lerp(eqVals[i0], eqVals[Math.min(i0 + 1, eqVals.length - 1)], f));
+    eqTip.style.opacity = outCubic(prog(t, 8.5, 8.8));
+
+    cells.forEach((c) => {
+      const cp = prog(t, 8.45 + c.order * 0.04, 9.05 + c.order * 0.04);
+      c.node.style.transform = `scale(${spring(cp, 2.2, 6)})`;
+      c.node.style.opacity = c.baseOpacity * outCubic(prog(t, 8.45 + c.order * 0.04, 8.6 + c.order * 0.04));
+    });
+
+    bars.forEach((b) => {
+      const bp = outExpo(prog(t, b.at, b.at + 1.1));
+      b.fill.style.transform = `scaleX(${bp})`;
+      b.label.textContent = money(b.v * bp, 0);
+    });
+    hist.forEach((h) => {
+      h.node.style.transform = `scaleY(${spring(prog(t, h.at, h.at + 0.9), 1.8, 6)})`;
+    });
+  };
+})();
+
+// =====================================================================
+// 05  COMMAND  (11.1 – 12.95)  +  06  JOTTRADE  (12.5 – 15)
+// =====================================================================
+const Finale = (() => {
+  const scene = el("div", "scene", root);
+  const dimmer = el("div", "abs", scene, { inset: 0, background: "oklch(0.1 0.01 260 / 0.55)" });
+  const glow = el("div", "abs", scene, { width: "1600px", height: "1600px", borderRadius: "50%", background: `radial-gradient(circle, ${alpha(C.blue, 0.3)}, transparent 60%)`, transform: "translate(-50%,-50%)" });
+
+  const keycap = (glyph, x, mono) => el("div", mono ? "abs mono" : "abs", scene, {
+    left: `${x}px`, top: "170px", width: "112px", height: "112px", borderRadius: "22px",
+    background: C.card2, border: `1px solid ${C.border}`, display: "grid", placeItems: "center",
+    fontSize: mono ? "50px" : "58px", fontWeight: 600, color: C.ink,
+  }, glyph);
+  const keys = [keycap("⌘", 960 - 124, false), keycap("K", 960 + 12, true)];
+
+  const reticle = [
+    el("div", "abs", scene, { height: "1.5px", width: `${W * 2}px`, background: `linear-gradient(90deg, transparent, ${alpha(C.blue, 0.9)} 50%, transparent)` }),
+    el("div", "abs", scene, { width: "1.5px", height: `${H * 2}px`, background: `linear-gradient(180deg, transparent, ${alpha(C.blue, 0.9)} 50%, transparent)` }),
+  ];
+  const ring = el("div", "abs", scene, { border: `2px solid ${C.blue}` });
+
+  const pal = el("div", "abs", scene, { overflow: "hidden", border: `1px solid ${C.border}`, boxShadow: "0 40px 120px oklch(0 0 0 / 0.55)" });
+  const palBody = el("div", "abs", pal, { left: 0, top: 0, width: "780px" });
+  const search = el("div", "", palBody, { height: "76px", display: "flex", alignItems: "center", gap: "16px", padding: "0 26px", borderBottom: `1px solid ${C.border}` });
+  const mag = svg("svg", { width: 26, height: 26, viewBox: "0 0 24 24" }, search, { fill: "none", stroke: C.muted, strokeWidth: 2, strokeLinecap: "round" });
+  svg("circle", { cx: 11, cy: 11, r: 7 }, mag);
+  svg("path", { d: "M16.5 16.5 21 21" }, mag);
+  const query = el("span", "", search, { fontSize: "26px", color: C.ink });
+  const caret = el("span", "", search, { width: "2px", height: "30px", background: C.blue, marginLeft: "-14px" });
+  const placeholder = el("span", "", search, { fontSize: "26px", color: C.dim, marginLeft: "-14px" }, "Type a command or search…");
+  el("div", "mono", palBody, { padding: "16px 26px 8px", fontSize: "13px", letterSpacing: "0.14em", color: C.dim }, "ACTIONS");
+  const items = [["+", "New trade", "N"], ["↓", "Import trades", "I"], ["≡", "Open journal", "J"], ["▦", "Go to calendar", "C"], ["◎", "Strategies", "S"]].map(([icon, label, key], i) => {
+    const wrap = el("div", "", palBody, { overflow: "hidden", padding: "0 12px" });
+    const item = el("div", "", wrap, { height: "58px", display: "flex", alignItems: "center", gap: "16px", padding: "0 14px", borderRadius: "10px", fontSize: "22px", color: i ? C.muted : C.ink });
+    el("div", "", item, { width: "34px", height: "34px", borderRadius: "8px", background: C.canvas, border: `1px solid ${C.border}`, display: "grid", placeItems: "center", fontSize: "18px" }, icon);
+    el("div", "", item, {}, label);
+    el("div", "mono", item, { marginLeft: "auto", padding: "3px 10px", borderRadius: "6px", border: `1px solid ${C.border}`, fontSize: "15px", color: C.dim }, key);
+    return { wrap, item };
+  });
+  const TYPED = "new tr";
+
+  const icon = svg("svg", { width: 70, height: 70, viewBox: "0 0 24 24" }, scene, { position: "absolute", fill: "none", stroke: "white", strokeWidth: 2, strokeLinecap: "round", overflow: "visible" });
+  const iconParts = [
+    svg("circle", { cx: 12, cy: 12, r: 10, pathLength: 1, transform: "rotate(-90 12 12)" }, icon),
+    ...["M2 12h4", "M22 12h-4", "M12 2v4", "M12 22v-4"].map((d) => svg("path", { d, pathLength: 1 }, icon)),
+  ];
+
+  const word = el("div", "abs", scene, { height: "190px", overflow: "hidden", whiteSpace: "nowrap", fontSize: "164px", fontWeight: 720, letterSpacing: "-0.045em", lineHeight: "190px" });
+  const wordChars = letters(word, "JotTrade", C.ink);
+  const tagline = el("div", "abs", scene, { left: 0, width: `${W}px`, top: "660px", textAlign: "center", fontSize: "36px", color: C.muted, letterSpacing: "-0.01em" }, "Journal every trade. Learn from every one.");
+  const pillRow = el("div", "abs mono", scene, { left: 0, width: `${W}px`, top: "740px", display: "flex", justifyContent: "center", gap: "14px" });
+  const pills = ["IMPORT", "JOURNAL", "REVIEW", "IMPROVE"].map((p) => el("div", "", pillRow, { padding: "8px 16px", borderRadius: "999px", border: `1px solid ${C.border}`, fontSize: "15px", letterSpacing: "0.16em", color: C.muted }, p));
+
+  let wordWidth = 0;
+  const measure = () => { wordWidth = word.offsetWidth; };
+
+  const LOGO = 136, LOGO_Y = 500, GAP = 44;
+  return {
+    measure,
+    render: (t) => {
+      const visible = t > 11.05;
+      show(scene, visible);
+      if (!visible) return;
+
+      dimmer.style.opacity = outCubic(prog(t, 11.1, 11.35)) * (1 - prog(t, 12.5, 12.85));
+
+      keys.forEach((k, i) => {
+        const at = 11.1 + i * 0.06;
+        const sp = spring(prog(t, at, at + 0.7), 2, 6);
+        const press = Math.sin(Math.PI * prog(t, 11.36 + i * 0.04, 11.52 + i * 0.04));
+        const exit = inCubic(prog(t, 12.4, 12.6));
+        k.style.opacity = outCubic(prog(t, at, at + 0.15)) * (1 - exit);
+        k.style.transform = `translateY(${(1 - sp) * -80 + press * 8 - exit * 30}px) scale(${1 - press * 0.04})`;
+        k.style.boxShadow = `0 ${10 - press * 7}px 0 oklch(0.13 0.01 260), 0 ${20 - press * 10}px 40px oklch(0 0 0 / 0.5)`;
+        k.style.borderColor = press > 0.3 ? C.blue : C.border;
+      });
+
+      const typed = Math.floor(clamp((t - 11.72) / 0.075, 0, TYPED.length));
+      query.textContent = TYPED.slice(0, typed);
+      query.style.marginRight = typed ? "14px" : "0";
+      show(placeholder, typed === 0);
+      caret.style.opacity = Math.floor(t * 4) % 2 && typed === TYPED.length ? 0 : 1;
+      const collapse = inOutCubic(prog(t, 11.92, 12.2));
+      let bodyH = 76 + 41 + 12;
+      items.forEach((it, i) => {
+        const h = i === 0 ? 58 : 58 * (1 - collapse);
+        it.wrap.style.height = `${h}px`;
+        it.wrap.style.opacity = i === 0 ? 1 : 1 - collapse;
+        bodyH += h;
+      });
+      const flash = Math.sin(Math.PI * prog(t, 12.28, 12.46));
+      items[0].item.style.background = `color-mix(in oklch, ${C.blue} ${Math.round(18 + flash * 70)}%, transparent)`;
+
+      const po = outExpo(prog(t, 11.45, 11.85));
+      const m = inOutQuint(prog(t, 12.45, 12.95));
+      const cx = 960, cy = lerp(430 + bodyH / 2 - 40, LOGO_Y, m);
+      const w = lerp(780, LOGO, m), h = lerp(bodyH, LOGO, m);
+      const settle = inOutQuint(prog(t, 13.3, 13.95));
+      const total = LOGO + GAP + wordWidth;
+      const logoX = lerp(cx, 960 - total / 2 + LOGO / 2, settle);
+      pal.style.left = `${logoX - w / 2}px`;
+      pal.style.top = `${cy - h / 2}px`;
+      pal.style.width = `${w}px`;
+      pal.style.height = `${h}px`;
+      pal.style.borderRadius = `${lerp(16, 32, m)}px`;
+      pal.style.background = `color-mix(in oklch, ${C.blue} ${Math.round(m * 100)}%, ${C.card})`;
+      pal.style.borderColor = alpha(C.border, 1 - m);
+      pal.style.opacity = outCubic(prog(t, 11.45, 11.7));
+      pal.style.transform = `translateY(${(1 - po) * 24}px) scale(${lerp(0.96, 1, po) * (1 + Math.sin(Math.PI * prog(t, 12.9, 13.2)) * 0.06)})`;
+      palBody.style.opacity = 1 - prog(t, 12.45, 12.6);
+
+      const ret = outExpo(prog(t, 12.85, 13.3));
+      const retOut = prog(t, 13.25, 13.7);
+      reticle[0].style.left = `${logoX - W}px`;
+      reticle[0].style.top = `${LOGO_Y}px`;
+      reticle[0].style.transform = `scaleX(${ret})`;
+      reticle[1].style.left = `${logoX}px`;
+      reticle[1].style.top = `${LOGO_Y - H}px`;
+      reticle[1].style.transform = `scaleY(${ret})`;
+      reticle.forEach((r) => { r.style.opacity = ret * (1 - retOut); });
+
+      icon.style.left = `${logoX - 35}px`;
+      icon.style.top = `${LOGO_Y - 35}px`;
+      iconParts.forEach((p, i) => {
+        const at = 12.9 + (i === 0 ? 0 : 0.12 + i * 0.04);
+        p.style.strokeDasharray = "1 1";
+        p.style.strokeDashoffset = 1 - outCubic(prog(t, at, at + 0.4));
+      });
+      icon.style.opacity = t > 12.9 ? 1 : 0;
+
+      const rp = prog(t, 13.12, 13.8);
+      const rs = lerp(LOGO, LOGO * 3.2, outCubic(rp));
+      show(ring, rp > 0 && rp < 1);
+      ring.style.width = ring.style.height = `${rs}px`;
+      ring.style.left = `${logoX - rs / 2}px`;
+      ring.style.top = `${LOGO_Y - rs / 2}px`;
+      ring.style.borderRadius = `${rs * 0.24}px`;
+      ring.style.opacity = 0.8 * (1 - rp);
+
+      glow.style.left = "960px";
+      glow.style.top = `${LOGO_Y}px`;
+      glow.style.opacity = outCubic(prog(t, 12.9, 14)) * (0.85 + 0.15 * Math.sin(t * 3));
+
+      word.style.left = `${logoX + LOGO / 2 + GAP}px`;
+      word.style.top = `${LOGO_Y - 95 - 6}px`;
+      wordChars.forEach((ch, i) => {
+        const lp = prog(t, 13.6 + i * 0.035, 13.6 + i * 0.035 + 0.6);
+        const e = outExpo(lp);
+        ch.style.transform = `translateY(${(1 - e) * 105}%)`;
+        ch.style.fontVariationSettings = `"wdth" ${lerp(125, 100, outCubic(lp))}`;
+      });
+
+      const tg = outExpo(prog(t, 13.95, 14.6));
+      tagline.style.opacity = tg;
+      tagline.style.transform = `translateY(${(1 - tg) * 24}px)`;
+      tagline.style.filter = tg < 1 ? `blur(${(1 - tg) * 8}px)` : "";
+      pills.forEach((p, i) => {
+        const pp = outExpo(prog(t, 14.15 + i * 0.07, 14.75 + i * 0.07));
+        p.style.opacity = pp;
+        p.style.transform = `translateY(${(1 - pp) * 16}px)`;
+      });
+    },
+  };
+})();
+
+// =====================================================================
+// HUD
+// =====================================================================
+const Hud = (() => {
+  const hud = el("div", "abs", root, { inset: 0, zIndex: 50, pointerEvents: "none" });
+  [[48, 48, "Top", "Left"], [48, 48, "Top", "Right"], [48, 48, "Bottom", "Left"], [48, 48, "Bottom", "Right"]].forEach(([a, b, v, h]) => {
+    el("div", "abs", hud, { [v.toLowerCase()]: `${a}px`, [h.toLowerCase()]: `${b}px`, width: "26px", height: "26px", [`border${v}`]: `2px solid ${C.dim}`, [`border${h}`]: `2px solid ${C.dim}` });
+  });
+  const label = (style) => el("div", "abs mono", hud, { fontSize: "15px", letterSpacing: "0.16em", color: C.dim, ...style });
+  label({ left: "92px", top: "54px" }, "").textContent = "JOTTRADE — MOTION REEL";
+  const tc = label({ right: "92px", top: "54px", color: C.muted });
+  const chapterBox = label({ left: "92px", bottom: "50px", height: "20px", overflow: "hidden" });
+  const chapter = el("div", "", chapterBox);
+  const track = el("div", "abs", hud, { right: "92px", bottom: "58px", width: "260px", height: "2px", background: C.border });
+  const trackFill = el("div", "abs", track, { left: 0, top: 0, bottom: 0, width: "100%", background: C.blue, transformOrigin: "0 50%" });
+  const chapters = [[0, "01 / THE TAPE"], [2.15, "02 / THE HABIT"], [4.55, "03 / IMPORT"], [7.7, "04 / REVIEW"], [11.1, "05 / COMMAND"], [12.5, "06 / JOTTRADE"]];
+  return (t) => {
+    hud.style.opacity = prog(t, 0, 0.3) * (1 - prog(t, 13.2, 13.6));
+    const f = Math.round(t * FPS);
+    tc.textContent = `00:${String(Math.floor(f / FPS)).padStart(2, "0")}:${String(f % FPS).padStart(2, "0")}`;
+    let idx = 0;
+    chapters.forEach(([at], i) => { if (t >= at) idx = i; });
+    chapter.textContent = chapters[idx][1];
+    const e = outExpo(prog(t, chapters[idx][0], chapters[idx][0] + 0.45));
+    chapter.style.transform = `translateY(${(1 - e) * 100}%)`;
+    trackFill.style.transform = `scaleX(${t / DURATION})`;
+  };
+})();
+
+window.render = (t) => {
+  Tape(t);
+  Habit(t);
+  Import(t);
+  Review(t);
+  Finale.render(t);
+  Hud(t);
+};
+
+window.ready = (async () => {
+  await document.fonts.ready;
+  await Promise.all([
+    document.fonts.load('700 100px "Archivo"'),
+    document.fonts.load('600 40px "Azeret Mono"'),
+  ]);
+  Finale.measure();
+  window.render(0);
+})();
+
+if (!location.search.includes("capture")) {
+  window.ready.then(() => {
+    const start = performance.now();
+    const loop = (now) => {
+      window.render(((now - start) / 1000) % DURATION);
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  });
+}
+</script>
+</body>
+</html>
