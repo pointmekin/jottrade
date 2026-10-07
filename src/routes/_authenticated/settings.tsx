@@ -3,6 +3,7 @@ import { AppPageHeader, SectionHeading } from "@/components/app-page-header";
 import { ModeToggle } from "@/components/mode-toggle";
 import { ReviewPreferences } from "@/components/reviews/review-preferences";
 import { DataExport } from "@/components/settings/data-export";
+import { OnboardingGuide } from "@/components/settings/onboarding-guide";
 import { TradingAccounts } from "@/components/settings/TradingAccounts";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -19,6 +20,7 @@ function RouteComponent() {
 					description="Set how the workspace behaves without changing the trading record beneath it."
 					meta="Workspace preferences"
 				/>
+				<OnboardingGuide />
 				<TradingAccounts />
 				<div className="mt-6">
 					<ReviewPreferences />

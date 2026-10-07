@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { NotebookPen } from "lucide-react";
 import { z } from "zod";
 import { AppPageHeader } from "@/components/app-page-header";
+import { FirstTradeEmptyState } from "@/components/onboarding/first-trade-empty-state";
 import { ReviewEditor } from "@/components/reviews/review-editor";
 import {
 	ReviewPreferences,
@@ -10,6 +12,7 @@ import {
 import { ReviewTradeQueue } from "@/components/reviews/review-trade-queue";
 import { Button } from "@/components/ui/button";
 import { useAccounts } from "@/hooks/use-accounts";
+import { useOnboarding } from "@/hooks/use-onboarding";
 import { useReviewRouteAccount } from "@/hooks/use-review-route-account";
 import { authClient } from "@/lib/auth-client";
 import { toDayKey } from "@/lib/date";
@@ -79,6 +82,7 @@ function ReviewsContent({
 	matchedAccount,
 	navigate,
 }: ReturnType<typeof useReviewsPage>) {
+	const { hasTrades } = useOnboarding();
 	return (
 		<div className="app-page">
 			<main className="page-frame space-y-5">
@@ -136,26 +140,37 @@ function ReviewsContent({
 						<Button onClick={() => preferences.refetch()}>Retry</Button>
 					</p>
 				)}
-				{!timezone && <ReviewPreferences />}
-				{timezone && query.isPending && <p>Loading review...</p>}
-				{query.isError && (
-					<p role="alert">
-						{query.error.message}{" "}
-						<Button variant="outline" onClick={() => query.refetch()}>
-							Retry
-						</Button>
-					</p>
-				)}
-				{query.data && userId && portfolioId && matchedAccount && (
-					<ReviewEditor
-						key={`${userId}:${portfolioId}:${kind}:${query.data.window.periodStart}`}
-						review={query.data}
-						userId={userId}
-						portfolioId={portfolioId}
-						kind={kind}
+				{hasTrades === false && (
+					<FirstTradeEmptyState
+						icon={NotebookPen}
+						title="Reviews start with a trade"
+						description="Log a trade, then come back to write a short daily review of what you did."
 					/>
 				)}
-				<ReviewTradeQueue key={`${userId}:${portfolioId}`} />
+				{hasTrades !== false && (
+					<>
+						{!timezone && <ReviewPreferences />}
+						{timezone && query.isPending && <p>Loading review...</p>}
+						{query.isError && (
+							<p role="alert">
+								{query.error.message}{" "}
+								<Button variant="outline" onClick={() => query.refetch()}>
+									Retry
+								</Button>
+							</p>
+						)}
+						{query.data && userId && portfolioId && matchedAccount && (
+							<ReviewEditor
+								key={`${userId}:${portfolioId}:${kind}:${query.data.window.periodStart}`}
+								review={query.data}
+								userId={userId}
+								portfolioId={portfolioId}
+								kind={kind}
+							/>
+						)}
+						<ReviewTradeQueue key={`${userId}:${portfolioId}`} />
+					</>
+				)}
 			</main>
 		</div>
 	);

@@ -3,6 +3,7 @@ import {
 	useNavigate,
 	useSearch,
 } from "@tanstack/react-router";
+import { BookOpen } from "lucide-react";
 import { AppPageHeader } from "@/components/app-page-header";
 import { AccountEntriesPanel } from "@/components/journal/AccountEntriesPanel";
 import { ExportDialog } from "@/components/journal/export-dialog";
@@ -14,8 +15,10 @@ import {
 } from "@/components/journal/JournalTable";
 import { JournalPagination } from "@/components/journal/journal-pagination";
 import { LogTradeDrawer } from "@/components/journal/log-trade-drawer";
+import { FirstTradeEmptyState } from "@/components/onboarding/first-trade-empty-state";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useJournalEntries } from "@/hooks/use-journal-entries";
+import { useOnboarding } from "@/hooks/use-onboarding";
 import {
 	JournalIntent,
 	JournalView,
@@ -39,6 +42,7 @@ function JournalPage() {
 	const navigate = useNavigate({ from: "/journal" });
 	const search = useSearch({ from: "/_authenticated/journal" });
 	const journal = useJournalEntries(search);
+	const { hasTrades } = useOnboarding();
 	const isJournalView =
 		search.view === JournalView.All || search.view === JournalView.Trades;
 	const periodLabel = describePeriod({
@@ -96,8 +100,17 @@ function JournalPage() {
 				{search.view === JournalView.Funding && (
 					<AccountEntriesPanel mode="funding" />
 				)}
-				{isJournalView && journal.isLoading && <JournalTableSkeleton />}
-				{isJournalView && !journal.isLoading && (
+				{isJournalView && hasTrades === false && (
+					<FirstTradeEmptyState
+						icon={BookOpen}
+						title="Your journal is empty"
+						description="Log a trade by hand, or import an Exness MT4/MT5 CSV from the Import button above."
+					/>
+				)}
+				{isJournalView && hasTrades !== false && journal.isLoading && (
+					<JournalTableSkeleton />
+				)}
+				{isJournalView && hasTrades !== false && !journal.isLoading && (
 					<>
 						<JournalTable
 							entries={journal.entries}

@@ -42,6 +42,13 @@ export const user = pgTable("user", {
 		.notNull(),
 });
 
+export const userOnboarding = pgTable("user_onboarding", {
+	userId: text("user_id")
+		.primaryKey()
+		.references(() => user.id, { onDelete: "cascade" }),
+	dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+});
+
 export const session = pgTable(
 	"session",
 	{
