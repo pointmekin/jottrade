@@ -31,7 +31,7 @@ async function requireOwnedTrades({ userId, portfolioId, tradeIds }: Scope) {
 	const missing = tradeIds.length - rows.length;
 	if (missing > 0)
 		throw new Error(
-			`${missing} of ${tradeIds.length} selected trades are not in this account. Nothing was changed.`,
+			`${missing} of ${tradeIds.length} selected trades were deleted or are not in this account. Nothing was changed. Clear the selection and select the trades again.`,
 		);
 	return rows;
 }
@@ -131,7 +131,7 @@ async function markReviewedSql(
 	return guardedSql(
 		scope,
 		sql`(SELECT count(*) FROM trades t JOIN jsonb_to_recordset(${JSON.stringify(expected)}::jsonb) AS v(id int, revision int, fingerprint text) ON v.id=t.id AND v.revision=t.edit_revision WHERE t.id IN (SELECT id FROM owned))=${expected.length}`,
-		sql`changed AS (UPDATE trades t SET reviewed_at=${now}, reviewed_execution_fingerprint=v.fingerprint, annotation_revision=t.annotation_revision+1, edit_revision=t.edit_revision+1 FROM jsonb_to_recordset(${JSON.stringify(expected)}::jsonb) AS v(id int, revision int, fingerprint text) WHERE t.id=v.id AND t.id IN (SELECT id FROM owned) AND (SELECT ok FROM allowed) AND NOT (t.reviewed_at IS NOT NULL AND t.reviewed_execution_fingerprint IS NOT DISTINCT FROM v.fingerprint) RETURNING t.id)`,
+		sql`changed AS (UPDATE trades t SET reviewed_at=${now}, reviewed_execution_fingerprint=v.fingerprint, annotation_revision=t.annotation_revision+1, edit_revision=t.edit_revision+1 FROM jsonb_to_recordset(${JSON.stringify(expected)}::jsonb) AS v(id int, revision int, fingerprint text) WHERE t.id=v.id AND t.id IN (SELECT id FROM owned) AND (SELECT ok FROM allowed) AND t.edit_revision=v.revision AND NOT (t.reviewed_at IS NOT NULL AND t.reviewed_execution_fingerprint IS NOT DISTINCT FROM v.fingerprint) RETURNING t.id)`,
 	);
 }
 
@@ -154,7 +154,14 @@ export async function bulkEditTrades(
 		change.action === BulkTradeAction.MarkReviewed
 			? await markReviewedSql(scope, rows, now)
 			: changeSql(scope, change);
-	const result = await db.execute<{ ok: boolean; changed: number }>(statement);
+	// The account lock is its own statement, so the guarded statement takes its
+	// snapshot after it waits; deleteStrategy takes the same lock first.
+	const [, result] = await db.batch([
+		db.execute(
+			sql`SELECT id FROM portfolios WHERE id=${input.portfolioId} AND user_id=${userId} FOR UPDATE`,
+		),
+		db.execute<{ ok: boolean; changed: number }>(statement),
+	]);
 	const [outcome] = result.rows;
 	if (!outcome?.ok) throw new Error(BULK_EDIT_STALE_MESSAGE);
 	return { selected: input.tradeIds.length, changed: Number(outcome.changed) };

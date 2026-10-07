@@ -34,6 +34,7 @@ import {
 import { deleteTag, updateTag } from "@/server/tagActions";
 
 function useTagChange<Variables>(
+	failure: string,
 	run: (variables: Variables) => Promise<unknown>,
 ) {
 	const queryClient = useQueryClient();
@@ -44,17 +45,20 @@ function useTagChange<Variables>(
 				queryClient.invalidateQueries({ queryKey: [QueryKey.Tags] }),
 				invalidateTradeQueries(queryClient),
 			]),
-		onError: (error) =>
-			toast.error("The tag was not saved.", { description: error.message }),
+		onError: (error) => toast.error(failure, { description: error.message }),
 	});
 }
 
 function TagRow({ tag }: { tag: TradeTag }) {
 	const [name, setName] = useState(tag.name);
-	const update = useTagChange((changes: { name?: string; color?: TagColor }) =>
-		updateTag({ data: { id: tag.id, ...changes } }),
+	const update = useTagChange(
+		"The tag was not saved.",
+		(changes: { name?: string; color?: TagColor }) =>
+			updateTag({ data: { id: tag.id, ...changes } }),
 	);
-	const remove = useTagChange(() => deleteTag({ data: { id: tag.id } }));
+	const remove = useTagChange("The tag was not deleted.", () =>
+		deleteTag({ data: { id: tag.id } }),
+	);
 	const rename = () => {
 		const next = normalizeTagName(name);
 		if (!next || next === tag.name) {
@@ -134,7 +138,7 @@ function TagRow({ tag }: { tag: TradeTag }) {
 }
 
 export function TagSettings() {
-	const { data: tags = [], isLoading } = useTags();
+	const { data: tags = [], isLoading, isError, refetch } = useTags();
 	const create = useCreateTag();
 	const [name, setName] = useState("");
 	const submit = (event: FormEvent) => {
@@ -168,7 +172,15 @@ export function TagSettings() {
 					{create.error.message}
 				</p>
 			)}
-			{!isLoading && tags.length === 0 && (
+			{isError && (
+				<div role="alert" className="flex items-center gap-3 text-sm">
+					<span className="text-destructive">Your tags did not load.</span>
+					<Button variant="outline" size="sm" onClick={() => refetch()}>
+						Try again
+					</Button>
+				</div>
+			)}
+			{!isLoading && !isError && tags.length === 0 && (
 				<p className="text-sm text-muted-foreground">
 					No tags yet. Add one here or from a trade.
 				</p>

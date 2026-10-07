@@ -78,13 +78,15 @@ export function BulkEditBar({
 	onClear,
 }: BulkEditBarProps) {
 	const edit = useBulkEdit();
-	const { data: strategies = [] } = useQuery({
+	const { data: strategies = [], isSuccess: hasStrategies } = useQuery({
 		queryKey: [QueryKey.Strategies],
 		queryFn: () => getStrategies(),
 	});
 	const count = selectedIds.length;
+	// A finished edit can move trades out of the filtered view, so the selection
+	// starts again rather than keep trades the user can no longer see.
 	const apply = (change: BulkTradeChange) =>
-		edit.mutate({ tradeIds: selectedIds, change });
+		edit.mutate({ tradeIds: selectedIds, change }, { onSettled: onClear });
 	const isBusy = edit.isPending;
 
 	return (
@@ -131,7 +133,7 @@ export function BulkEditBar({
 					/>
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
-							<ActionButton disabled={isBusy}>
+							<ActionButton disabled={isBusy || !hasStrategies}>
 								Strategy <ChevronDown className="ml-1 size-3.5" />
 							</ActionButton>
 						</DropdownMenuTrigger>

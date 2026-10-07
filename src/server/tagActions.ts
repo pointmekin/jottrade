@@ -12,6 +12,18 @@ import { bulkEditSchema, TagColor, tagNameSchema } from "@/lib/trade-tag";
 const tagIdSchema = z.object({ id: z.number().int().positive() });
 const tagColumns = { id: tags.id, name: tags.name, color: tags.color };
 const DUPLICATE_NAME = "A tag with this name already exists.";
+const UNIQUE_VIOLATION = "23505";
+
+function isUniqueViolation(error: unknown) {
+	const codeOf = (value: unknown) =>
+		typeof value === "object" && value !== null && "code" in value
+			? value.code
+			: undefined;
+	const cause = error instanceof Error ? error.cause : undefined;
+	return (
+		codeOf(error) === UNIQUE_VIOLATION || codeOf(cause) === UNIQUE_VIOLATION
+	);
+}
 
 export const getTags = createServerFn({ method: "GET" }).handler(async () => {
 	const userId = await requireUserId();
@@ -49,33 +61,29 @@ export const createTag = createServerFn({ method: "POST" })
 
 export const updateTag = createServerFn({ method: "POST" })
 	.validator(
-		tagIdSchema.extend({
-			name: tagNameSchema.optional(),
-			color: z.enum(TagColor).optional(),
-		}),
+		tagIdSchema
+			.extend({
+				name: tagNameSchema.optional(),
+				color: z.enum(TagColor).optional(),
+			})
+			.refine((data) => data.name !== undefined || data.color !== undefined, {
+				message: "Change the name or the color.",
+			}),
 	)
 	.handler(async ({ data: { id, ...changes } }) => {
 		const userId = await requireUserId();
-		const [duplicate] = changes.name
-			? await db
-					.select({ id: tags.id })
-					.from(tags)
-					.where(
-						and(
-							eq(tags.userId, userId),
-							sql`lower(${tags.name}) = lower(${changes.name})`,
-							sql`${tags.id} <> ${id}`,
-						),
-					)
-			: [];
-		if (duplicate) throw new Error(DUPLICATE_NAME);
-		const [tag] = await db
-			.update(tags)
-			.set(changes)
-			.where(and(eq(tags.id, id), eq(tags.userId, userId)))
-			.returning(tagColumns);
-		if (!tag) throw new Error("Tag not found.");
-		return tag;
+		try {
+			const [tag] = await db
+				.update(tags)
+				.set(changes)
+				.where(and(eq(tags.id, id), eq(tags.userId, userId)))
+				.returning(tagColumns);
+			if (!tag) throw new Error("Tag not found.");
+			return tag;
+		} catch (error) {
+			if (isUniqueViolation(error)) throw new Error(DUPLICATE_NAME);
+			throw error;
+		}
 	});
 
 /** Deleting a tag removes it from every trade; the trades stay. */

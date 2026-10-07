@@ -3,7 +3,7 @@ import { z } from "zod";
 import { trades } from "@/db/schema";
 import { tagCondition } from "@/db/trade-tags";
 import { TradeConfidence, TradeSide, TradeStatus } from "@/lib/trade";
-import { TagMatch } from "@/lib/trade-tag";
+import { TAG_FILTER_LIMIT, TagMatch } from "@/lib/trade-tag";
 
 export const tradeFilterSchema = z.object({
 	portfolioId: z.number().int().positive(),
@@ -13,7 +13,7 @@ export const tradeFilterSchema = z.object({
 	setupId: z.union([z.number(), z.literal("none")]).optional(),
 	confidence: z.array(z.enum(TradeConfidence)).optional(),
 	mistake: z.array(z.string()).optional(),
-	tagIds: z.array(z.number().int().positive()).max(50).optional(),
+	tagIds: z.array(z.number().int().positive()).max(TAG_FILTER_LIMIT).optional(),
 	tagMatch: z.enum(TagMatch).optional(),
 	dateFrom: z.string().optional(),
 	dateTo: z.string().optional(),

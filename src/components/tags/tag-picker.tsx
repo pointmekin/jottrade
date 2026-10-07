@@ -41,14 +41,15 @@ export function TagPicker({
 	align = "start",
 }: TagPickerProps) {
 	const [query, setQuery] = useState("");
-	const { data: tags = [], isLoading } = useTags();
+	const { data: tags = [], isLoading, isError } = useTags();
 	const create = useCreateTag();
 	const name = normalizeTagName(query);
 	const hasMatch = tags.some((tag) => sameTagName(tag.name, name));
 	const showCreate = canCreate && name.length > 0 && !hasMatch;
 	const selected = new Set(selectedIds);
 	let emptyText = "No tags yet.";
-	if (isLoading) emptyText = "Loading tags…";
+	if (isError) emptyText = "Tags did not load. Close this list and try again.";
+	else if (isLoading) emptyText = "Loading tags…";
 	else if (tags.length) emptyText = "No matching tag.";
 
 	const createAndSelect = () =>

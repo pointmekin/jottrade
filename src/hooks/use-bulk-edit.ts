@@ -20,6 +20,14 @@ const DONE: Record<BulkTradeAction, string> = {
 	[BulkTradeAction.MarkReviewed]: "Marked as reviewed:",
 };
 
+const UNCHANGED: Record<BulkTradeAction, string> = {
+	[BulkTradeAction.AddTags]: "already had the tag",
+	[BulkTradeAction.RemoveTags]: "did not have the tag",
+	[BulkTradeAction.SetStrategy]: "already had this strategy",
+	[BulkTradeAction.SetConfidence]: "already had this confidence",
+	[BulkTradeAction.MarkReviewed]: "were already reviewed",
+};
+
 export function describeBulkResult(
 	change: BulkTradeChange,
 	{ selected, changed }: BulkEditResult,
@@ -27,7 +35,7 @@ export function describeBulkResult(
 	const unchanged = selected - changed;
 	const summary = `${DONE[change.action]} ${plural(changed)}.`;
 	if (!unchanged) return summary;
-	return `${summary} ${plural(unchanged)} already had this value.`;
+	return `${summary} ${plural(unchanged)} ${UNCHANGED[change.action]}.`;
 }
 
 type BulkEditVariables = { tradeIds: number[]; change: BulkTradeChange };
@@ -47,7 +55,7 @@ export function useBulkEdit({ notify = true }: { notify?: boolean } = {}) {
 			return invalidateTradeQueries(queryClient);
 		},
 		onError: (error) => {
-			toast.error("Nothing was changed.", { description: error.message });
+			toast.error("The bulk edit failed.", { description: error.message });
 		},
 	});
 }

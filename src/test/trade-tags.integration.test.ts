@@ -122,7 +122,9 @@ describe.skipIf(!url)("trade tags on migrated PostgreSQL", () => {
 			const tag = await insertTag(OWNER, "FOMO");
 			await expect(
 				bulk([foreign], { action: BulkTradeAction.AddTags, tagIds: [tag] }),
-			).rejects.toThrow("1 of 1 selected trades are not in this account");
+			).rejects.toThrow(
+				"1 of 1 selected trades were deleted or are not in this account",
+			);
 			expect(await tagLinks()).toEqual([]);
 		});
 
@@ -154,7 +156,7 @@ describe.skipIf(!url)("trade tags on migrated PostgreSQL", () => {
 			const otherAccount = await insertTrade(OWNER, 2);
 			await expect(
 				bulk([otherAccount], { action: BulkTradeAction.MarkReviewed }),
-			).rejects.toThrow("not in this account");
+			).rejects.toThrow("are not in this account");
 		});
 
 		it("refuses another user's tag and strategy", async () => {
@@ -194,11 +196,15 @@ describe.skipIf(!url)("trade tags on migrated PostgreSQL", () => {
 		const tag = await insertTag(OWNER, "FOMO");
 		const query = transport.query.getMockImplementation();
 		transport.query.mockImplementation((text: string, ...rest: unknown[]) => {
-			if (text.startsWith("WITH owned"))
-				return pool
-					.query("delete from trades where id=$1", [second])
-					.then(() => query?.(text, ...rest));
-			return query?.(text, ...rest);
+			const request = query?.(text, ...rest);
+			if (!text.startsWith("WITH owned")) return request;
+			return {
+				...request,
+				execute: async (client: unknown) => {
+					await pool.query("delete from trades where id=$1", [second]);
+					return request.execute(client);
+				},
+			};
 		});
 		try {
 			await expect(

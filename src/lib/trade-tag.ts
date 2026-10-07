@@ -23,6 +23,7 @@ export type TradeTag = { id: number; name: string; color: TagColor };
 
 export const TAG_NAME_MAX_LENGTH = 32;
 export const BULK_EDIT_LIMIT = 500;
+export const TAG_FILTER_LIMIT = 50;
 
 /** Trims and collapses inner whitespace, so "  Late   entry " and "Late entry" are one tag. */
 export function normalizeTagName(name: string) {
@@ -63,7 +64,7 @@ export const tradeIdsSchema = z
 const tagIdsSchema = z
 	.array(idSchema)
 	.min(1, "Choose at least one tag.")
-	.max(50)
+	.max(TAG_FILTER_LIMIT)
 	.transform((ids) => [...new Set(ids)]);
 
 export const BulkTradeAction = {
@@ -116,5 +117,5 @@ export function parseTagIds(value?: string) {
 		.split(",")
 		.map(Number)
 		.filter((id) => Number.isInteger(id) && id > 0);
-	return ids.length ? [...new Set(ids)] : undefined;
+	return ids.length ? [...new Set(ids)].slice(0, TAG_FILTER_LIMIT) : undefined;
 }
