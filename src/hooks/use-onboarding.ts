@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { authClient } from "@/lib/auth-client";
+import { JournalView } from "@/lib/journal-search";
 import { deriveOnboarding } from "@/lib/onboarding";
 import { QueryKey } from "@/lib/query-keys";
 import { getOnboarding } from "@/server/onboardingActions";
@@ -24,4 +25,16 @@ export function useOnboarding() {
 		isChecklistVisible: !!progress && !isDismissed && !progress.isComplete,
 		isLoading: query.isPending,
 	};
+}
+
+/** Adjustments count as journal content, so only a user with neither sees the first-run state. */
+export function useIsJournalFirstRun(
+	view: JournalView,
+	adjustmentCount: number,
+): boolean {
+	const { hasTrades } = useOnboarding();
+	return (
+		hasTrades === false &&
+		(view === JournalView.Trades || adjustmentCount === 0)
+	);
 }

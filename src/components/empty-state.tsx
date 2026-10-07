@@ -5,7 +5,6 @@ interface EmptyStateProps {
 	icon: LucideIcon;
 	title: string;
 	description: string;
-	/** The single primary button for the next action. */
 	action: ReactNode;
 }
 

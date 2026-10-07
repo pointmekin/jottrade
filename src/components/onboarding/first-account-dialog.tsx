@@ -70,7 +70,7 @@ export function FirstAccountDialog({
 
 	const saveMutation = useMutation({
 		mutationFn: (values: FirstAccountInput) =>
-			setupFirstAccount({ data: values }),
+			setupFirstAccount({ data: { ...values, accountId: activeAccount?.id } }),
 		onSuccess: async ({ accountId }) => {
 			await queryClient.invalidateQueries({ queryKey: [QueryKey.Accounts] });
 			await queryClient.invalidateQueries({ queryKey: [QueryKey.Onboarding] });

@@ -18,7 +18,7 @@ import { LogTradeDrawer } from "@/components/journal/log-trade-drawer";
 import { FirstTradeEmptyState } from "@/components/onboarding/first-trade-empty-state";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useJournalEntries } from "@/hooks/use-journal-entries";
-import { useOnboarding } from "@/hooks/use-onboarding";
+import { useIsJournalFirstRun } from "@/hooks/use-onboarding";
 import {
 	JournalIntent,
 	JournalView,
@@ -42,7 +42,7 @@ function JournalPage() {
 	const navigate = useNavigate({ from: "/journal" });
 	const search = useSearch({ from: "/_authenticated/journal" });
 	const journal = useJournalEntries(search);
-	const { hasTrades } = useOnboarding();
+	const isFirstRun = useIsJournalFirstRun(search.view, journal.adjustmentCount);
 	const isJournalView =
 		search.view === JournalView.All || search.view === JournalView.Trades;
 	const periodLabel = describePeriod({
@@ -100,17 +100,17 @@ function JournalPage() {
 				{search.view === JournalView.Funding && (
 					<AccountEntriesPanel mode="funding" />
 				)}
-				{isJournalView && hasTrades === false && (
+				{isJournalView && isFirstRun && (
 					<FirstTradeEmptyState
 						icon={BookOpen}
 						title="Your journal is empty"
 						description="Log a trade by hand, or import an Exness MT4/MT5 CSV from the Import button above."
 					/>
 				)}
-				{isJournalView && hasTrades !== false && journal.isLoading && (
+				{isJournalView && !isFirstRun && journal.isLoading && (
 					<JournalTableSkeleton />
 				)}
-				{isJournalView && hasTrades !== false && !journal.isLoading && (
+				{isJournalView && !isFirstRun && !journal.isLoading && (
 					<>
 						<JournalTable
 							entries={journal.entries}

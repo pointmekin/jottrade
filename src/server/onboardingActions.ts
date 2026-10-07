@@ -112,11 +112,17 @@ async function findPrimaryPortfolio(userId: string) {
  * legacy first read already created. It never depends on `getAccounts`.
  */
 export const setupFirstAccount = createServerFn({ method: "POST" })
-	.validator(firstAccountSchema)
+	.validator(
+		firstAccountSchema.extend({
+			accountId: z.number().int().positive().optional(),
+		}),
+	)
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
 
-		let primary = await findPrimaryPortfolio(userId);
+		let primary = data.accountId
+			? { id: data.accountId }
+			: await findPrimaryPortfolio(userId);
 		if (!primary) {
 			// The partial unique index on the default account makes a parallel create a no-op.
 			await db
@@ -138,5 +144,6 @@ export const setupFirstAccount = createServerFn({ method: "POST" })
 			.where(and(eq(portfolios.id, primary.id), eq(portfolios.userId, userId)))
 			.returning({ id: portfolios.id });
 
+		if (!account) throw new Error("Account not found.");
 		return { accountId: account.id };
 	});

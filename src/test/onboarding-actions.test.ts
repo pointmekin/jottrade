@@ -197,6 +197,31 @@ describe.skipIf(!connectionString)(
 			]);
 		});
 
+		it("updates the account named by accountId, not the default", async () => {
+			await sql(
+				"insert into portfolios(user_id,name,is_default) values ('u1','Main',true),('u1','Demo',false)",
+			);
+
+			await setupFirstAccount({ data: { ...account, accountId: 2 } });
+
+			const { rows } = await sql(
+				"select name from portfolios where user_id='u1' order by id",
+			);
+			expect(rows).toEqual([{ name: "Main" }, { name: "Exness Standard" }]);
+		});
+
+		it("rejects an accountId that belongs to another user", async () => {
+			await sql(
+				"insert into portfolios(user_id,name,is_default) values ('u2','Theirs',true)",
+			);
+
+			await expect(
+				setupFirstAccount({ data: { ...account, accountId: 1 } }),
+			).rejects.toThrow("Account not found.");
+			const { rows } = await sql("select name from portfolios");
+			expect(rows).toEqual([{ name: "Theirs" }]);
+		});
+
 		it("rejects an unauthenticated caller", async () => {
 			state.userId = null;
 

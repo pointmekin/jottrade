@@ -140,6 +140,7 @@ function ReviewsContent({
 						<Button onClick={() => preferences.refetch()}>Retry</Button>
 					</p>
 				)}
+				{!timezone && <ReviewPreferences />}
 				{hasTrades === false && (
 					<FirstTradeEmptyState
 						icon={NotebookPen}
@@ -149,7 +150,6 @@ function ReviewsContent({
 				)}
 				{hasTrades !== false && (
 					<>
-						{!timezone && <ReviewPreferences />}
 						{timezone && query.isPending && <p>Loading review...</p>}
 						{query.isError && (
 							<p role="alert">
