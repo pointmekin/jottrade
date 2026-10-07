@@ -8,7 +8,6 @@ import {
 	realizedAt,
 	summarizeTrades,
 } from "@/lib/analytics";
-import { requireUserId } from "@/lib/auth";
 import { toDayKey, zonedDayOfWeek, zonedHour } from "@/lib/date";
 import { summarizeGroup, summarizeGroups } from "@/lib/group-summary";
 import {
@@ -17,6 +16,7 @@ import {
 	computePayoffRatio,
 	computeSharpe,
 } from "@/lib/risk-metrics";
+import { authMiddleware } from "./auth-middleware";
 import { rangeSchema, toDateRange } from "./rangeInput";
 
 const DAY_NAMES = [
@@ -32,9 +32,10 @@ const MONDAY_FIRST = [1, 2, 3, 4, 5, 6, 0];
 const TOP_SYMBOLS = 10;
 
 export const getAdvancedAnalytics = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
 	.validator(rangeSchema)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		const range = toDateRange(data);
 		const [history, userStrategies] = await Promise.all([
 			loadAccountHistory(userId, data.portfolioId),

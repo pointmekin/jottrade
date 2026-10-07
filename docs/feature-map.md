@@ -4,6 +4,8 @@ This map lists the supported product features, where each one starts, which code
 
 Update this file in the same pull request when you add, remove or change a route, an entry point, a user flow, a server module or the verification of a feature.
 
+Template leftovers: the demo routes and demo data were removed before issue #33. Issue #33 removed the unused template assets (`src/logo.svg`, `public/demo-neon.svg`, `public/drizzle.svg`, the TanStack logos, and `public/manifest.json` with its icons, which no page linked). `src/integrations/tanstack-query/` stays: the router and the root layout use it.
+
 ## How to read the verification column
 
 - **Unit**: runs in `npm run test` with no database. It always runs in CI through `npm run quality`.
@@ -48,17 +50,17 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 
 - **Entry**: `/sign-in`, `/sign-up`; protected routes redirect to `/sign-in`.
 - **Flows**: email/password sign-up and sign-in; Google sign-in (`authClient.signIn.social`).
-- **Code**: `src/lib/auth.ts` (server, Drizzle adapter), `src/lib/auth-client.ts`, `src/routes/api/auth/$.ts`. Server functions call `requireUserId()` from `src/lib/auth.ts`.
+- **Code**: `src/lib/auth.ts` (server, Drizzle adapter), `src/lib/auth-client.ts`, `src/routes/api/auth/$.ts`. Server functions use `authMiddleware` (`src/server/auth-middleware.ts`), which calls `requireUserId()` and puts `userId` in the handler context. A Better Auth `user.create.after` hook gives each new user a default account (`ensureDefaultPortfolio` in `src/db/portfolios.ts`).
 - **Data**: `user`, `session`, `account` (OAuth link, not a trading account), `verification` in `src/db/trading-schema.ts`. Better Auth owns them.
-- **Verification**: E2E `auth.spec.ts` (redirect of a signed-out visitor, sign-in that survives a reload, wrong password, another user's trade URL shows "Journal entry not found"). DB (verify) `user-isolation.integration.test.ts`. Gap: sign-up and Google sign-in. DB (optional) `feature-integration.test.ts` and `review-database.test.ts` reject foreign users and unauthenticated calls.
+- **Verification**: E2E `auth.spec.ts` (redirect of a signed-out visitor, sign-in that survives a reload, wrong password, another user's trade URL shows "Journal entry not found"). E2E `server-auth.spec.ts` (a captured server-function read and write, replayed over HTTP with no session and with another user's session, fail). DB (verify) `user-isolation.integration.test.ts` (no session: reads and writes fail with "Unauthorized" before the handler). Unit `server-boundaries.test.ts` (every server function uses `authMiddleware`). Gap: sign-up in the browser and Google sign-in. DB (optional) `feature-integration.test.ts` and `review-database.test.ts` reject foreign users and unauthenticated calls.
 
 ### Trading accounts
 
 - **Entry**: Settings → Trading accounts (`src/components/settings/TradingAccounts.tsx`); account switcher.
 - **Flows**: create and edit an account (real/demo kind, description, reporting currency); delete with a typed-name confirmation; switch the active account. Every journal, dashboard, calendar, strategy and review query reads the active account.
-- **Server**: `src/server/portfolioActions.ts` (`getAccounts`, `createAccount`, `updateAccount`, `deleteAccount`). `getAccounts` creates a default account on first read (a write inside a GET; issue #33).
+- **Server**: `src/server/portfolioActions.ts` (`getAccounts`, `ensureDefaultAccount`, `createAccount`, `updateAccount`, `deleteAccount`). `getAccounts` only reads. Sign-up provisions the default account. For a user without a default account (signed up before the hook, or deleted the default), `useAccounts` calls the idempotent POST `ensureDefaultAccount`, which creates "Main account" or marks the oldest account as the default.
 - **Data**: `portfolios`; queries in `src/db/portfolios.ts`.
-- **Verification**: Unit `delete-account-dialog.test.tsx`, `app-sidebar.test.tsx`. DB (optional) `review-database.test.ts` (account deletion cascades review links), `feature-integration.test.ts` (account isolation). DB (verify) `user-isolation.integration.test.ts` (another user cannot read, edit or delete an account). E2E `accounts.spec.ts` (switch the account; the journal follows and the choice survives a reload). Gap: create and edit.
+- **Verification**: Unit `delete-account-dialog.test.tsx`, `app-sidebar.test.tsx`. DB (optional) `review-database.test.ts` (account deletion cascades review links), `feature-integration.test.ts` (account isolation). DB (verify) `user-isolation.integration.test.ts` (another user cannot read, edit or delete an account; `getAccounts` does not write; five concurrent `ensureDefaultAccount` calls create one default; a missing default is repaired once). DB (verify) `sign-up-provisioning.integration.test.ts` (sign-up through the real Better Auth instance creates the default account). E2E `accounts.spec.ts` (switch the account; the journal follows and the choice survives a reload). Gap: create and edit.
 
 ### Journal (manual trades, funding and adjustments)
 

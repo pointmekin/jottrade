@@ -3,13 +3,14 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { portfolios } from "@/db/schema";
-import { requireUserId } from "@/lib/auth";
 import { reviewPreferencesSchema } from "@/lib/review-period";
+import { authMiddleware } from "./auth-middleware";
 
 export const getReviewPreferences = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
 	.validator(z.object({ portfolioId: z.number().int().positive() }))
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		const [row] = await db
 			.select({
 				timezone: portfolios.reviewTimezone,
@@ -23,9 +24,10 @@ export const getReviewPreferences = createServerFn({ method: "GET" })
 		return row;
 	});
 export const updateReviewPreferences = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(reviewPreferencesSchema)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		const [row] = await db
 			.update(portfolios)
 			.set({

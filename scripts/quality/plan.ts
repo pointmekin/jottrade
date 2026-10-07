@@ -76,6 +76,9 @@ const RULES: Rule[] = [
 		checks: [Check.Build],
 	},
 	{ matches: isUnder("src/components/ui/"), checks: [Check.Build] },
+	// The build runs import protection: a server module that keeps a database
+	// import in the client graph fails there.
+	{ matches: isUnder("src/server/", "src/db/"), checks: [Check.Build] },
 	{ matches: addsOrRemovesRoute, checks: [Check.Build] },
 	{ matches: isUnder(".github/workflows/"), checks: [Check.Workflows] },
 	{

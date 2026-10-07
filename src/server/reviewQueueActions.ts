@@ -5,11 +5,12 @@ import { db } from "@/db";
 import { requireOwnedPortfolio } from "@/db/portfolios";
 import { trades } from "@/db/schema";
 import { realizedAt } from "@/lib/analytics";
-import { requireUserId } from "@/lib/auth";
 import { currentExecutionFingerprint } from "@/lib/review-execution-fingerprint";
 import { TradeStatus } from "@/lib/trade";
+import { authMiddleware } from "./auth-middleware";
 
 export const getReviewQueue = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
 	.validator(
 		z.object({
 			portfolioId: z.number().int().positive(),
@@ -17,8 +18,8 @@ export const getReviewQueue = createServerFn({ method: "GET" })
 			page: z.number().int().positive().default(1),
 		}),
 	)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		await requireOwnedPortfolio(userId, data.portfolioId);
 		const rows = await db
 			.select()

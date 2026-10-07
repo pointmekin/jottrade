@@ -3,12 +3,12 @@ import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { trades } from "@/db/schema";
-import { requireUserId } from "@/lib/auth";
 import {
 	createSignedUploadUrl,
 	deleteGcpObject,
 	publicObjectUrl,
 } from "@/lib/gcp";
+import { authMiddleware } from "./auth-middleware";
 
 const MAX_IMAGES = 10;
 
@@ -43,6 +43,7 @@ function requireOwnObjectName(url: string, userId: string, tradeId: number) {
 }
 
 export const getSignedUploadUrl = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(
 		z.object({
 			tradeId: z.number(),
@@ -55,8 +56,8 @@ export const getSignedUploadUrl = createServerFn({ method: "POST" })
 			]),
 		}),
 	)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		requireRoomForImage(await requireOwnedScreenshots(userId, data.tradeId));
 		const reserved = await db
 			.update(trades)
@@ -73,9 +74,10 @@ export const getSignedUploadUrl = createServerFn({ method: "POST" })
 	});
 
 export const saveTradeImage = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(imageSchema)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		requireOwnObjectName(data.url, userId, data.tradeId);
 		const screenshots = await requireOwnedScreenshots(userId, data.tradeId);
 		requireRoomForImage(screenshots);
@@ -102,9 +104,10 @@ export const saveTradeImage = createServerFn({ method: "POST" })
 	});
 
 export const deleteTradeImage = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(imageSchema)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		await requireOwnedScreenshots(userId, data.tradeId);
 		const reserved = await db
 			.update(trades)

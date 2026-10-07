@@ -6,14 +6,15 @@ import { requireOwnedPortfolio } from "@/db/portfolios";
 import { strategies, trades } from "@/db/schema";
 import { tradeConditions, tradeFilterSchema } from "@/db/trade-filter";
 import { buildArchive } from "@/lib/archive";
-import { requireUserId } from "@/lib/auth";
 import { exportFileName, tradesToCsv } from "@/lib/csv-export";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
+import { authMiddleware } from "./auth-middleware";
 
 export const exportTradesCsv = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(tradeFilterSchema)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		const account = await requireOwnedPortfolio(userId, data.portfolioId);
 		const [rows, strategyRows] = await Promise.all([
 			db
@@ -40,9 +41,10 @@ export const exportTradesCsv = createServerFn({ method: "POST" })
 		};
 	});
 
-export const exportArchive = createServerFn({ method: "POST" }).handler(
-	async () => {
-		const userId = await requireUserId();
+export const exportArchive = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
+	.handler(async ({ context }) => {
+		const { userId } = context;
 		const now = new Date();
 		const archive = buildArchive(await loadArchiveTables(userId), now);
 		return {
@@ -50,5 +52,4 @@ export const exportArchive = createServerFn({ method: "POST" }).handler(
 			json: JSON.stringify(archive),
 			counts: archive.counts,
 		};
-	},
-);
+	});

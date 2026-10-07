@@ -5,17 +5,18 @@ import { db } from "@/db";
 import { loadAccountHistory } from "@/db/account-history";
 import { trades } from "@/db/schema";
 import { tradeConditions, tradeFilterSchema } from "@/db/trade-filter";
-import { requireUserId } from "@/lib/auth";
 import { computeAccountReturn } from "@/lib/risk-metrics";
+import { authMiddleware } from "./auth-middleware";
 
 const PAGE_SIZE = 50;
 
 const filterSchema = tradeFilterSchema.extend({ page: z.number().default(1) });
 
 export const getTrades = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
 	.validator(filterSchema)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		const where = tradeConditions(userId, data);
 
 		const [rows, [{ total }]] = await Promise.all([
@@ -38,14 +39,15 @@ export const getTrades = createServerFn({ method: "GET" })
 	});
 
 export const getTradeById = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
 	.validator(
 		z.object({
 			portfolioId: z.number().int().positive(),
 			id: z.coerce.number().int().positive(),
 		}),
 	)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		const [history, [trade]] = await Promise.all([
 			loadAccountHistory(userId, data.portfolioId),
 			db

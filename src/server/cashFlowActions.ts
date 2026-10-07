@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { requireOwnedPortfolio } from "@/db/portfolios";
 import { cashFlows } from "@/db/schema";
 import { AccountEntryKind, type AccountEntryRecord } from "@/lib/account-entry";
-import { requireUserId } from "@/lib/auth";
+import { authMiddleware } from "./auth-middleware";
 
 export type CashFlowRecord = AccountEntryRecord;
 
@@ -14,9 +14,10 @@ const cashFlowScopeSchema = z.object({
 });
 
 export const getCashFlows = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
 	.validator(cashFlowScopeSchema)
-	.handler(async ({ data }): Promise<CashFlowRecord[]> => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }): Promise<CashFlowRecord[]> => {
+		const { userId } = context;
 
 		const rows = await db
 			.select()
@@ -53,11 +54,12 @@ const accountEntrySchema = z.object({
 });
 
 export const addCashFlow = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(
 		accountEntrySchema.extend({ portfolioId: z.number().int().positive() }),
 	)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		await requireOwnedPortfolio(userId, data.portfolioId);
 
 		const occurredAt = new Date(
@@ -86,14 +88,15 @@ export const addCashFlow = createServerFn({ method: "POST" })
 	});
 
 export const updateCashFlow = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(
 		accountEntrySchema.extend({
 			id: z.number().int().positive(),
 			expectedRevision: z.number().int().nonnegative().optional(),
 		}),
 	)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		const occurredAt = new Date(data.occurredAt);
 
 		if (Number.isNaN(occurredAt.getTime())) {
@@ -135,9 +138,10 @@ export const updateCashFlow = createServerFn({ method: "POST" })
 	});
 
 export const deleteCashFlow = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(z.object({ id: z.number() }))
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 
 		const deleted = await db
 			.delete(cashFlows)
