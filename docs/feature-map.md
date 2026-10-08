@@ -42,7 +42,7 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 ## Global entry points
 
 - **Navigation**: `src/lib/nav-items.ts` feeds the desktop sidebar (`app-sidebar.tsx`) and the mobile bottom nav (`bottom-nav.tsx`). Order: Dashboard, Journal, Calendar, Strategies, Reviews, Settings. Verified: Unit `nav-items.test.ts`, `app-sidebar.test.tsx` (navigates on primary mouse-down).
-- **Account switcher**: in the sidebar and the mobile drawer (`src/components/account/account-switcher.tsx`). The active account is kept in local storage (`jottrade.active-accounts`, `src/lib/account-store.ts`). Verified: Unit `app-sidebar.test.tsx`.
+- **Account switcher**: in the sidebar and the mobile drawer (`src/components/account/account-switcher.tsx`). The active account is kept in local storage (`jottrade.active-accounts`, `src/lib/account-store.ts`). If the accounts do not load, it shows an error with a Retry action. Verified: Unit `app-sidebar.test.tsx`, `account-switcher.test.tsx`.
 - **Command palette**: `Cmd+K` / `Ctrl+K` (`src/hooks/use-command-shortcut.ts`), or the command button in the sidebar and bottom nav. Commands (`src/lib/commands/registry.ts`): go to each nav page, log a trade, add a deposit, add a withdrawal, change the theme. Free text is parsed locally; `GEMINI_API_KEY` enables an optional Gemini fallback (`src/server/commandIntentActions.ts`). Dictation uses the browser speech API. Verified: Unit `commands.test.ts`, `command-intent.test.ts`, `command-intent-server.test.ts`, `command-palette.test.tsx`, `command-palette-fallback.test.tsx`, `command-palette-speech.test.tsx`, `command-preview.test.tsx`.
 
 ## Features

@@ -54,5 +54,6 @@ export function useAccounts() {
 		clearActiveAccount,
 		isLoading: query.isPending,
 		isError: query.isError,
+		refetch: query.refetch,
 	};
 }

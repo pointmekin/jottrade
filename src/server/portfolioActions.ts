@@ -179,20 +179,7 @@ export const deleteAccount = createServerFn({ method: "POST" })
 			throw new Error("The account changed. Reload before deleting it.");
 
 		// A failed promotion after deletion leaves no default; useAccounts then calls ensureDefaultAccount.
-		if (account.isDefault) {
-			const [next] = await db
-				.select({ id: portfolios.id })
-				.from(portfolios)
-				.where(eq(portfolios.userId, userId))
-				.orderBy(asc(portfolios.id))
-				.limit(1);
-			if (next) {
-				await db
-					.update(portfolios)
-					.set({ isDefault: true })
-					.where(eq(portfolios.id, next.id));
-			}
-		}
+		if (account.isDefault) await ensureDefaultPortfolio(userId);
 
 		return { success: true };
 	});

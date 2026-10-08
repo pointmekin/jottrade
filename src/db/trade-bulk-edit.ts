@@ -61,7 +61,7 @@ async function requireOwnedStrategy(userId: string, setupId: number | null) {
  */
 function guardedSql(scope: Scope, extraGuard: SQL, change: SQL) {
 	const { userId, portfolioId, tradeIds } = scope;
-	return sql`WITH owned AS MATERIALIZED (SELECT id FROM trades WHERE user_id=${userId} AND portfolio_id=${portfolioId} AND id IN ${idSet(tradeIds)} ORDER BY id FOR UPDATE),
+	return sql`WITH owned AS MATERIALIZED (SELECT id, edit_revision FROM trades WHERE user_id=${userId} AND portfolio_id=${portfolioId} AND id IN ${idSet(tradeIds)} ORDER BY id FOR UPDATE),
  allowed AS MATERIALIZED (SELECT (SELECT count(*) FROM owned)=${tradeIds.length} AND ${extraGuard} AS ok),
  ${change}
  SELECT (SELECT ok FROM allowed) AS ok, (SELECT count(*)::int FROM changed) AS changed`;
@@ -130,7 +130,7 @@ async function markReviewedSql(
 	);
 	return guardedSql(
 		scope,
-		sql`(SELECT count(*) FROM trades t JOIN jsonb_to_recordset(${JSON.stringify(expected)}::jsonb) AS v(id int, revision int, fingerprint text) ON v.id=t.id AND v.revision=t.edit_revision WHERE t.id IN (SELECT id FROM owned))=${expected.length}`,
+		sql`(SELECT count(*) FROM owned o JOIN jsonb_to_recordset(${JSON.stringify(expected)}::jsonb) AS v(id int, revision int, fingerprint text) ON v.id=o.id AND v.revision=o.edit_revision)=${expected.length}`,
 		sql`changed AS (UPDATE trades t SET reviewed_at=${now}, reviewed_execution_fingerprint=v.fingerprint, annotation_revision=t.annotation_revision+1, edit_revision=t.edit_revision+1 FROM jsonb_to_recordset(${JSON.stringify(expected)}::jsonb) AS v(id int, revision int, fingerprint text) WHERE t.id=v.id AND t.id IN (SELECT id FROM owned) AND (SELECT ok FROM allowed) AND t.edit_revision=v.revision AND NOT (t.reviewed_at IS NOT NULL AND t.reviewed_execution_fingerprint IS NOT DISTINCT FROM v.fingerprint) RETURNING t.id)`,
 	);
 }

@@ -23,6 +23,7 @@ import {
 	stageImport,
 	undoImportBatch,
 } from "@/server/importActions";
+import { deleteAccount } from "@/server/portfolioActions";
 import {
 	bulkEditTrades,
 	createTag,
@@ -205,6 +206,67 @@ describe.skipIf(!url)("trade tags on migrated PostgreSQL", () => {
 		expect(
 			await rows("select edit_revision from trades where id=$1", [first]),
 		).toEqual([{ edit_revision: 0 }]);
+	});
+
+	it("refuses to mark reviewed when a single-trade edit commits after the statement snapshot", async () => {
+		const trade = await insertTrade(OWNER, 1);
+		const editor = await pool.connect();
+		try {
+			await editor.query("begin");
+			await editor.query(
+				"update trades set edit_revision=edit_revision+1 where id=$1",
+				[trade],
+			);
+			const outcome = bulk([trade], {
+				action: BulkTradeAction.MarkReviewed,
+			}).then(
+				() => "ok",
+				(error: Error) => error.message,
+			);
+			await vi.waitFor(async () =>
+				expect(
+					await rows(
+						"select 1 from pg_stat_activity where wait_event_type='Lock' and query like 'WITH owned%'",
+					),
+				).toHaveLength(1),
+			);
+			await editor.query("commit");
+			expect(await outcome).toBe(BULK_EDIT_STALE_MESSAGE);
+		} finally {
+			editor.release();
+		}
+		expect(
+			await rows("select reviewed_at, edit_revision from trades where id=$1", [
+				trade,
+			]),
+		).toEqual([{ reviewed_at: null, edit_revision: 1 }]);
+	});
+
+	it("deletes a default account when another account became the default meanwhile", async () => {
+		await rows(
+			"insert into portfolios(id,user_id,name,currency) values(4,$1,'C','USD')",
+			[OWNER],
+		);
+		await rows("update portfolios set is_default=(id=1) where user_id=$1", [
+			OWNER,
+		]);
+		const transaction = transport.transaction.getMockImplementation();
+		transport.transaction.mockImplementation(async (requests: unknown) => {
+			const results = await transaction?.(requests);
+			await pool.query("update portfolios set is_default=true where id=4");
+			return results;
+		});
+		try {
+			await deleteAccount({ data: { id: 1, confirmName: "A" } });
+		} finally {
+			transport.transaction.mockImplementation(transaction as never);
+		}
+		expect(
+			await rows(
+				"select id from portfolios where user_id=$1 and is_default order by id",
+				[OWNER],
+			),
+		).toEqual([{ id: 4 }]);
 	});
 
 	it("adds and removes tags, counts only real changes, and bumps the edit revision", async () => {
