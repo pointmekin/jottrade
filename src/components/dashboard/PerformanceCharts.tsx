@@ -1,9 +1,12 @@
+import { Link, useNavigate } from "@tanstack/react-router";
 // Only loaded through React.lazy, so recharts stays out of the first bundle.
 // react-doctor-disable-next-line react-doctor/prefer-dynamic-import
 import {
 	Bar,
 	BarChart,
+	type BarShapeProps,
 	Cell,
+	Rectangle,
 	ResponsiveContainer,
 	Tooltip,
 	XAxis,
@@ -12,6 +15,11 @@ import {
 import { useCurrency } from "@/hooks/use-currency";
 import { formatMoney } from "@/lib/currency";
 import type { GroupSummary } from "@/lib/group-summary";
+import {
+	ChartGroup,
+	type DashboardSearch,
+	drillDownSearch,
+} from "@/lib/journal-search";
 import { UNAVAILABLE } from "@/lib/metric";
 import {
 	AXIS_TICK,
@@ -28,7 +36,46 @@ interface PerformanceChartsProps {
 	byHour: GroupStats[];
 }
 
-function AvgPnlBar({ data, title }: { data: GroupStats[]; title: string }) {
+function DrillDownBar({
+	chartGroup,
+	...props
+}: BarShapeProps & { chartGroup: ChartGroup }) {
+	const navigate = useNavigate({ from: "/dashboard" });
+	const group = props.payload as GroupStats;
+	const search = (prev: DashboardSearch) => ({
+		...prev,
+		...drillDownSearch(chartGroup, group.key),
+	});
+	return (
+		<Link
+			from="/dashboard"
+			to="/journal"
+			search={search}
+			aria-label={`Open ${group.count} ${group.name} trades`}
+			className="group cursor-pointer outline-none"
+			onKeyDown={(event) => {
+				if (event.key !== " ") return;
+				event.preventDefault();
+				navigate({ to: "/journal", search });
+			}}
+		>
+			<Rectangle
+				{...props}
+				className="group-focus-visible:stroke-ring group-focus-visible:stroke-2"
+			/>
+		</Link>
+	);
+}
+
+function AvgPnlBar({
+	data,
+	title,
+	drillDown,
+}: {
+	data: GroupStats[];
+	title: string;
+	drillDown?: ChartGroup;
+}) {
 	const currency = useCurrency();
 
 	return (
@@ -73,7 +120,16 @@ function AvgPnlBar({ data, title }: { data: GroupStats[]; title: string }) {
 							];
 						}}
 					/>
-					<Bar dataKey="avgPnl" radius={[4, 4, 0, 0]}>
+					<Bar
+						dataKey="avgPnl"
+						radius={[4, 4, 0, 0]}
+						shape={
+							drillDown &&
+							((props: BarShapeProps) => (
+								<DrillDownBar {...props} chartGroup={drillDown} />
+							))
+						}
+					>
 						{data.map((group) => (
 							<Cell
 								key={group.key}
@@ -97,8 +153,16 @@ export function PerformanceCharts({
 }: PerformanceChartsProps) {
 	return (
 		<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-			<AvgPnlBar data={byStrategy} title="Avg P&L by strategy" />
-			<AvgPnlBar data={bySymbol} title="Avg P&L by symbol (top 10)" />
+			<AvgPnlBar
+				data={byStrategy}
+				title="Avg P&L by strategy"
+				drillDown={ChartGroup.Strategy}
+			/>
+			<AvgPnlBar
+				data={bySymbol}
+				title="Avg P&L by symbol (top 10)"
+				drillDown={ChartGroup.Symbol}
+			/>
 			<AvgPnlBar data={byDayOfWeek} title="Avg P&L by day of week" />
 			<AvgPnlBar data={byHour} title="Avg P&L by entry hour" />
 		</div>

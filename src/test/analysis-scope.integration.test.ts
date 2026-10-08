@@ -2,7 +2,13 @@ import type { NeonQueryFunction } from "@neondatabase/serverless";
 import type { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { AccountEntryKind } from "@/lib/account-entry";
-import type { TradeFilter } from "@/lib/analysis-scope";
+import { type TradeFilter, toDateRange } from "@/lib/analysis-scope";
+import {
+	ChartGroup,
+	drillDownSearch,
+	journalSearchSchema,
+	toTradeQuery,
+} from "@/lib/journal-search";
 import { TradeConfidence, TradeSide, TradeStatus } from "@/lib/trade";
 import { TagMatch } from "@/lib/trade-tag";
 import { getCalendarData } from "@/server/calendarActions";
@@ -180,6 +186,17 @@ describe.skipIf(!url)("one analysis scope on migrated PostgreSQL", () => {
 			tagged: false,
 		});
 		await insertTrade(OWNER, {
+			...fixtureTrades(1)[1],
+			symbol: "EURUSDT",
+			entryDate: new Date("2026-02-10T10:00:00.000Z"),
+			exitDate: new Date("2026-02-10T12:00:00.000Z"),
+			netPnl: 7.5,
+			hasStrategy: true,
+			confidence: null,
+			mistake: null,
+			tagged: false,
+		});
+		await insertTrade(OWNER, {
 			...fixtureTrades(1)[0],
 			symbol: "STALE",
 			entryDate: new Date("2026-01-20T10:00:00.000Z"),
@@ -238,7 +255,7 @@ describe.skipIf(!url)("one analysis scope on migrated PostgreSQL", () => {
 		{
 			name: "symbol",
 			filter: () => ({ symbol: "EUR" }),
-			matches: (t) => t.symbol === "EURUSD",
+			matches: (t) => t.symbol.includes("EUR"),
 		},
 		{
 			name: "side and confidence",
@@ -377,6 +394,33 @@ describe.skipIf(!url)("one analysis scope on migrated PostgreSQL", () => {
 
 		expect(await month(2026, 1)).toEqual({ journal: 1, calendar: 1 });
 		expect(await month(2026, 2)).toEqual({ journal: 0, calendar: 0 });
+	});
+
+	it("opens the same closed count and net P&L as each strategy and symbol bar", async () => {
+		const scope = { portfolioId: 1, timeZone: "UTC", ...FEB };
+		const { byStrategy, bySymbol } = await getAdvancedAnalytics({
+			data: scope,
+		});
+		const groups = [
+			...byStrategy.map((group) => ({ chart: ChartGroup.Strategy, group })),
+			...bySymbol.map((group) => ({ chart: ChartGroup.Symbol, group })),
+		];
+
+		expect(bySymbol.map((group) => group.key)).toEqual(
+			expect.arrayContaining(["EURUSD", "EURUSDT"]),
+		);
+		expect(byStrategy.map((group) => group.key)).toContain("none");
+		for (const { chart, group } of groups) {
+			const search = journalSearchSchema.parse(
+				drillDownSearch(chart, group.key),
+			);
+			const query = toTradeQuery(search, toDateRange(FEB));
+			const { closedSummary } = await getTrades({
+				data: { ...scope, ...query },
+			});
+			expect(closedSummary.count, group.name).toBe(group.count);
+			expect(closedSummary.netPnl, group.name).toBeCloseTo(group.totalPnl, 2);
+		}
 	});
 
 	it("returns nothing from another user's account", async () => {

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { AccountEntryRecord } from "./account-entry";
+import { SymbolMatch } from "./analysis-scope";
 import { PeriodPreset } from "./period";
 import { TradeConfidence, TradeSide, TradeStatus } from "./trade";
 import { SortDirection, TradeSortField } from "./trade-sort";
@@ -21,6 +22,7 @@ export const NO_STRATEGY = "none" as const;
 /** One scope in the URL of the journal, the dashboard and the calendar. */
 export const scopeSearchSchema = z.object({
 	symbol: z.string().optional(),
+	symbolMatch: z.enum(SymbolMatch).optional(),
 	side: z.enum(TradeSide).optional(),
 	status: z.enum(TradeStatus).optional(),
 	setupId: z.string().optional(),
@@ -40,6 +42,7 @@ export const SCOPE_SEARCH_KEYS = scopeSearchSchema.keyof().options;
 /** Explicit undefined values, so a merge with the current search and retainSearchParams both drop them. */
 export const CLEARED_TRADE_FILTERS = {
 	symbol: undefined,
+	symbolMatch: undefined,
 	side: undefined,
 	status: undefined,
 	setupId: undefined,
@@ -68,6 +71,8 @@ export const dashboardSearchSchema = scopeSearchSchema
 		dateTo: search.dateTo ?? to,
 	}));
 
+export type DashboardSearch = z.infer<typeof dashboardSearchSchema>;
+
 const CONFIDENCE_LEVELS = new Set<string>(Object.values(TradeConfidence));
 
 const splitList = (value?: string) => value?.split(",").filter(Boolean);
@@ -86,6 +91,7 @@ export function toTradeQuery(
 	);
 	return {
 		symbol: search.symbol,
+		symbolMatch: search.symbolMatch,
 		side: search.side,
 		status: search.status,
 		setupId: toSetupFilter(search.setupId),
@@ -99,6 +105,19 @@ export function toTradeQuery(
 		sort: search.sort,
 		dir: search.dir,
 	};
+}
+
+export const ChartGroup = { Strategy: "strategy", Symbol: "symbol" } as const;
+
+export type ChartGroup = (typeof ChartGroup)[keyof typeof ChartGroup];
+
+/** Opens only closed trades, because the chart groups count closed trades. */
+export function drillDownSearch(group: ChartGroup, key: string) {
+	const filter =
+		group === ChartGroup.Strategy
+			? { setupId: key }
+			: { symbol: key, symbolMatch: SymbolMatch.Exact };
+	return { ...filter, status: TradeStatus.Closed };
 }
 
 const isBetween = (date: Date, from?: Date | null, to?: Date | null) =>

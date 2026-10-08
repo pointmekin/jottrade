@@ -4,6 +4,13 @@ import { isValidTimeZone } from "./date";
 import { TradeConfidence, TradeSide, TradeStatus } from "./trade";
 import { TAG_FILTER_LIMIT, TagMatch } from "./trade-tag";
 
+export const SymbolMatch = {
+	Contains: "contains",
+	Exact: "exact",
+} as const;
+
+export type SymbolMatch = (typeof SymbolMatch)[keyof typeof SymbolMatch];
+
 /**
  * The client resolves a period preset against its own clock, then sends
  * absolute bounds. That keeps "this month" aligned with the user's timezone.
@@ -11,6 +18,7 @@ import { TAG_FILTER_LIMIT, TagMatch } from "./trade-tag";
 export const tradeFilterSchema = z.object({
 	portfolioId: z.number().int().positive(),
 	symbol: z.string().optional(),
+	symbolMatch: z.enum(SymbolMatch).optional(),
 	side: z.enum(TradeSide).optional(),
 	status: z.enum(TradeStatus).optional(),
 	setupId: z.union([z.number(), z.literal("none")]).optional(),

@@ -3,6 +3,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FilterBar, type JournalFilters } from "@/components/journal/FilterBar";
+import { SymbolMatch } from "@/lib/analysis-scope";
 import { CLEARED_TRADE_FILTERS } from "@/lib/journal-search";
 import { PeriodPreset } from "@/lib/period";
 
@@ -193,6 +194,24 @@ describe("FilterBar", () => {
 
 		expect(screen.getByText("Closed or opened in: This month")).toBeTruthy();
 		expect(screen.getByText("Strategy: None")).toBeTruthy();
+	});
+
+	it("shows an exact symbol from a chart and drops the exact match when the user types", () => {
+		vi.useFakeTimers();
+		const { onFiltersChange } = renderFilterBar({
+			symbol: "EURUSD",
+			symbolMatch: SymbolMatch.Exact,
+		});
+		expect(screen.getByText("Symbol is EURUSD")).toBeTruthy();
+
+		fireEvent.click(screen.getByRole("button", { name: /Filters/ }));
+		fireEvent.change(screen.getByRole("textbox", { name: "Symbol" }), {
+			target: { value: "EUR" },
+		});
+		act(() => vi.advanceTimersByTime(300));
+		expect(onFiltersChange).toHaveBeenLastCalledWith(
+			expect.objectContaining({ symbol: "EUR", symbolMatch: undefined }),
+		);
 	});
 
 	it("clears the symbol input when the URL symbol is cleared", () => {
