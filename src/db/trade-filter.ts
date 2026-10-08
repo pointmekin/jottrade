@@ -13,7 +13,7 @@ import {
 } from "drizzle-orm";
 import { trades } from "@/db/schema";
 import { tagCondition } from "@/db/trade-tags";
-import type { TradeFilter } from "@/lib/analysis-scope";
+import { SymbolMatch, type TradeFilter } from "@/lib/analysis-scope";
 import { TradeStatus } from "@/lib/trade";
 import {
 	SortDirection,
@@ -34,11 +34,17 @@ function setupCondition(setupId: TradeFilter["setupId"]) {
 	return eq(trades.setupId, setupId);
 }
 
+function symbolCondition({ symbol, symbolMatch }: TradeFilter) {
+	if (!symbol) return undefined;
+	if (symbolMatch === SymbolMatch.Exact) return eq(trades.symbol, symbol);
+	return like(trades.symbol, `%${symbol.replaceAll(/[\\%_]/g, "\\$&")}%`);
+}
+
 export function tradeConditions(userId: string, filter: TradeFilter) {
 	return and(
 		eq(trades.userId, userId),
 		eq(trades.portfolioId, filter.portfolioId),
-		filter.symbol ? like(trades.symbol, `%${filter.symbol}%`) : undefined,
+		symbolCondition(filter),
 		filter.side ? eq(trades.side, filter.side) : undefined,
 		filter.status ? eq(trades.status, filter.status) : undefined,
 		setupCondition(filter.setupId),

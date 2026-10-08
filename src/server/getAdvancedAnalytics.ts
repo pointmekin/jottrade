@@ -11,6 +11,7 @@ import {
 } from "@/lib/analytics";
 import { toDayKey, zonedDayOfWeek, zonedHour } from "@/lib/date";
 import { summarizeGroup, summarizeGroups } from "@/lib/group-summary";
+import { NO_STRATEGY } from "@/lib/journal-search";
 import {
 	computeAvgHoldTime,
 	computeMaxDrawdown,
@@ -66,7 +67,7 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" })
 		const byStrategy = Array.from(
 			summarizeGroups(closed, (trade) => trade.setupId, pnlOf),
 			([setupId, summary]) => ({
-				key: String(setupId),
+				key: setupId === null ? NO_STRATEGY : String(setupId),
 				name:
 					setupId === null
 						? "Unassigned"

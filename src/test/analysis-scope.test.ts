@@ -5,6 +5,7 @@ import { AccountEntryKind } from "@/lib/account-entry";
 import {
 	analysisScopeSchema,
 	isTradeAttributeFiltered,
+	SymbolMatch,
 	toDateRange,
 } from "@/lib/analysis-scope";
 import { closedTradesInRange, summarizeScope } from "@/lib/analytics";
@@ -52,6 +53,31 @@ describe("analysis scope schema", () => {
 		expect(isTradeAttributeFiltered({ portfolioId: 1, tagIds: [2] })).toBe(
 			true,
 		);
+	});
+});
+
+describe("symbol filter", () => {
+	const symbolQuery = (symbol: string, symbolMatch?: SymbolMatch) =>
+		new PgDialect().sqlToQuery(
+			tradeConditions("user-a", {
+				portfolioId: 7,
+				symbol,
+				symbolMatch,
+			}) as never,
+		);
+
+	it("matches a chart symbol exactly", () => {
+		const { sql, params } = symbolQuery("EURUSD", SymbolMatch.Exact);
+
+		expect(sql).toContain('"trades"."symbol" = $3');
+		expect(params[2]).toBe("EURUSD");
+	});
+
+	it("escapes LIKE wildcards in a contains match", () => {
+		const { sql, params } = symbolQuery("A_B%C\\");
+
+		expect(sql).toContain('"trades"."symbol" like $3');
+		expect(params[2]).toBe("%A\\_B\\%C\\\\%");
 	});
 });
 

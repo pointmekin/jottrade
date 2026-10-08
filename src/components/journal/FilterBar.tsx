@@ -5,6 +5,7 @@ import { PeriodPicker } from "@/components/period-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useTags } from "@/hooks/use-tags";
+import { SymbolMatch } from "@/lib/analysis-scope";
 import { CLEARED_TRADE_FILTERS, NO_STRATEGY } from "@/lib/journal-search";
 import { describePeriod, PeriodPreset } from "@/lib/period";
 import { QueryKey } from "@/lib/query-keys";
@@ -18,6 +19,7 @@ const SYMBOL_DEBOUNCE_MS = 300;
 /** Read from and written to the URL search params. */
 export type JournalFilters = {
 	symbol?: string;
+	symbolMatch?: SymbolMatch;
 	side?: TradeSide;
 	status?: TradeStatus;
 	/** A strategy id, or "none". */
@@ -160,9 +162,10 @@ function FilterChips({
 			{filters.symbol && (
 				<FilterChip
 					clearLabel="Clear symbol filter"
-					onClear={() => update({ symbol: undefined })}
+					onClear={() => update({ symbol: undefined, symbolMatch: undefined })}
 				>
-					Symbol: {filters.symbol}
+					{filters.symbolMatch === SymbolMatch.Exact ? "Symbol is" : "Symbol:"}{" "}
+					{filters.symbol}
 				</FilterChip>
 			)}
 			{filters.side && (
@@ -222,7 +225,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 		[filters, onFiltersChange],
 	);
 	const commitSymbol = useCallback(
-		(symbol: string | undefined) => update({ symbol }),
+		(symbol: string | undefined) => update({ symbol, symbolMatch: undefined }),
 		[update],
 	);
 	const [symbolInput, setSymbolInput] = useDebouncedSymbol(
