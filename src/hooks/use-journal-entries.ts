@@ -17,7 +17,7 @@ import { isDefaultTradeSort, tradeSortSchema } from "@/lib/trade-sort";
 import { getTrades } from "@/server/getTrades";
 
 export function useJournalEntries(search: JournalSearch) {
-	const { activeAccount } = useAccounts();
+	const { activeAccount, isLoading: isAccountLoading } = useAccounts();
 	const portfolioId = activeAccount?.id;
 	const range = resolvePeriod({
 		preset: search.period,
@@ -28,7 +28,13 @@ export function useJournalEntries(search: JournalSearch) {
 	const filter =
 		portfolioId === undefined
 			? undefined
-			: { ...query, page: undefined, portfolioId };
+			: {
+					...query,
+					page: undefined,
+					sort: undefined,
+					dir: undefined,
+					portfolioId,
+				};
 
 	const trades = useQuery({
 		queryKey: [QueryKey.Trades, portfolioId, query],
@@ -70,7 +76,8 @@ export function useJournalEntries(search: JournalSearch) {
 		adjustmentCount: adjustments.length,
 		filter,
 		isLoading:
-			trades.isPending ||
-			(search.view === JournalView.All && accountEntries.isPending),
+			isAccountLoading ||
+			trades.isLoading ||
+			(search.view === JournalView.All && accountEntries.isLoading),
 	};
 }
