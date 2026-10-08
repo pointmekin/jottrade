@@ -11,6 +11,7 @@ import { getTradeIds } from "@/server/getTrades";
 export function useTradeSelection(filter: TradeFilter | undefined) {
 	const scope = JSON.stringify(filter ?? null);
 	const [state, setState] = useState({ scope, ids: new Set<number>() });
+	if (state.scope !== scope) setState({ scope, ids: new Set() });
 	const ids = state.scope === scope ? state.ids : new Set<number>();
 	const update = (next: Set<number>) => setState({ scope, ids: next });
 
