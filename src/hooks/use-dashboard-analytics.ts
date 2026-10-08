@@ -17,8 +17,8 @@ export function useDashboardAnalytics(selection: PeriodSelection) {
 		const { from, to } = resolvePeriod(selection);
 		return {
 			portfolioId: portfolioId as number,
-			from: from?.toISOString(),
-			to: to?.toISOString(),
+			dateFrom: from?.toISOString(),
+			dateTo: to?.toISOString(),
 			timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 		};
 	}, [selection, portfolioId]);

@@ -1,25 +1,15 @@
-import { and, eq, gte, inArray, isNull, like, lte } from "drizzle-orm";
-import { z } from "zod";
+import { and, eq, gte, inArray, isNull, like, lte, sql } from "drizzle-orm";
 import { trades } from "@/db/schema";
 import { tagCondition } from "@/db/trade-tags";
-import { TradeConfidence, TradeSide, TradeStatus } from "@/lib/trade";
-import { TAG_FILTER_LIMIT, TagMatch } from "@/lib/trade-tag";
+import type { TradeFilter } from "@/lib/analysis-scope";
+import { TradeStatus } from "@/lib/trade";
 
-export const tradeFilterSchema = z.object({
-	portfolioId: z.number().int().positive(),
-	symbol: z.string().optional(),
-	side: z.enum(TradeSide).optional(),
-	status: z.enum(TradeStatus).optional(),
-	setupId: z.union([z.number(), z.literal("none")]).optional(),
-	confidence: z.array(z.enum(TradeConfidence)).optional(),
-	mistake: z.array(z.string()).optional(),
-	tagIds: z.array(z.number().int().positive()).max(TAG_FILTER_LIMIT).optional(),
-	tagMatch: z.enum(TagMatch).optional(),
-	dateFrom: z.string().optional(),
-	dateTo: z.string().optional(),
-});
+/** The scope date of every screen: closed trades by exit, other trades by entry, as in `groupTradesByDay`. */
+export const tradeScopeDate = sql`case when ${trades.status} = ${TradeStatus.Closed} then coalesce(${trades.exitDate}, ${trades.entryDate}) else ${trades.entryDate} end`;
 
-export type TradeFilter = z.infer<typeof tradeFilterSchema>;
+/** Encodes like the timestamp columns, so the bound is UTC in any server timezone. */
+export const scopeDateBound = (iso: string) =>
+	sql.param(new Date(iso), trades.entryDate);
 
 function setupCondition(setupId: TradeFilter["setupId"]) {
 	if (setupId === "none") return isNull(trades.setupId);
@@ -43,8 +33,10 @@ export function tradeConditions(userId: string, filter: TradeFilter) {
 			: undefined,
 		tagCondition(filter.tagIds, filter.tagMatch),
 		filter.dateFrom
-			? gte(trades.entryDate, new Date(filter.dateFrom))
+			? gte(tradeScopeDate, scopeDateBound(filter.dateFrom))
 			: undefined,
-		filter.dateTo ? lte(trades.entryDate, new Date(filter.dateTo)) : undefined,
+		filter.dateTo
+			? lte(tradeScopeDate, scopeDateBound(filter.dateTo))
+			: undefined,
 	);
 }

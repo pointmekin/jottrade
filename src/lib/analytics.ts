@@ -215,3 +215,38 @@ export function summarizeTrades(
 		equityCurve,
 	};
 }
+
+/**
+ * Under a trade attribute filter, the trade metrics read only the matching
+ * trades and leave out broker adjustments, which have no trade attributes.
+ * The balance metrics and the equity curve stay account-wide.
+ */
+export function summarizeScope(
+	history: { trades: TradeRecord[]; cashFlows: CashFlow[] },
+	matching: TradeRecord[] | undefined,
+	range: DateRange = UNBOUNDED,
+	timeZone = "UTC",
+) {
+	const account = summarizeTrades(
+		history.trades,
+		history.cashFlows,
+		range,
+		timeZone,
+	);
+	if (!matching)
+		return { ...account, scope: { isFiltered: false, excludedAdjustments: 0 } };
+
+	const { stats } = summarizeTrades(matching, [], range, timeZone);
+	const { openingBalance, netDeposits, totalBalance } = account.stats;
+	const excludedAdjustments = history.cashFlows.filter(
+		(flow) =>
+			flow.kind === AccountEntryKind.Adjustment &&
+			!isBefore(flow.occurredAt, range.from) &&
+			!isAfter(flow.occurredAt, range.to),
+	).length;
+	return {
+		stats: { ...stats, openingBalance, netDeposits, totalBalance },
+		equityCurve: account.equityCurve,
+		scope: { isFiltered: true, excludedAdjustments },
+	};
+}

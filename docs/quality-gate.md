@@ -187,7 +187,7 @@ Three layers stop the most common server mistakes. Each layer fails with a messa
 
 Narrow exceptions, each with a reason, are in `scripts/quality/server-boundaries.ts`:
 
-- `SERVER_MODULE_EXPORTS`: `src/server/rangeInput.ts` (a shared Zod schema).
+- `SERVER_MODULE_EXPORTS`: none.
 - `PUBLIC_SERVER_FUNCTIONS`: none. Every server function needs a session.
 - `NO_INPUT_POSTS`: `exportArchive` and `ensureDefaultAccount` take no input.
 

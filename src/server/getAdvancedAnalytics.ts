@@ -1,8 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { loadAccountHistory } from "@/db/account-history";
+import { loadAccountHistory, loadMatchingTrades } from "@/db/account-history";
 import { strategies } from "@/db/schema";
+import { analysisScopeSchema, toDateRange } from "@/lib/analysis-scope";
 import {
 	closedTradesInRange,
 	realizedAt,
@@ -17,7 +18,6 @@ import {
 	computeSharpe,
 } from "@/lib/risk-metrics";
 import { authMiddleware } from "./auth-middleware";
-import { rangeSchema, toDateRange } from "./rangeInput";
 
 const DAY_NAMES = [
 	"Sunday",
@@ -33,16 +33,17 @@ const TOP_SYMBOLS = 10;
 
 export const getAdvancedAnalytics = createServerFn({ method: "GET" })
 	.middleware([authMiddleware])
-	.validator(rangeSchema)
+	.validator(analysisScopeSchema)
 	.handler(async ({ data, context }) => {
 		const { userId } = context;
 		const range = toDateRange(data);
-		const [history, userStrategies] = await Promise.all([
+		const [history, matching, userStrategies] = await Promise.all([
 			loadAccountHistory(userId, data.portfolioId),
+			loadMatchingTrades(userId, data),
 			db.select().from(strategies).where(eq(strategies.userId, userId)),
 		]);
 
-		const closed = closedTradesInRange(history.trades, range);
+		const closed = closedTradesInRange(matching ?? history.trades, range);
 		const pnlOf = (trade: (typeof closed)[number]) => trade.netPnl;
 		const { equityCurve } = summarizeTrades(
 			history.trades,

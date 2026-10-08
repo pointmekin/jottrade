@@ -1,22 +1,25 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq, gte, lt, or } from "drizzle-orm";
+import { and, gte, lt } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { trades } from "@/db/schema";
+import {
+	scopeDateBound,
+	tradeConditions,
+	tradeScopeDate,
+} from "@/db/trade-filter";
+import { analysisScopeSchema } from "@/lib/analysis-scope";
 import { groupTradesByDay } from "@/lib/calendar-days";
-import { isValidTimeZone } from "@/lib/date";
 import { authMiddleware } from "./auth-middleware";
 
 export const getCalendarData = createServerFn({ method: "GET" })
 	.middleware([authMiddleware])
 	.validator(
-		z.object({
-			portfolioId: z.number().int().positive(),
+		analysisScopeSchema.extend({
 			year: z.number(),
 			month: z.number(),
 			from: z.iso.datetime(),
 			to: z.iso.datetime(),
-			timeZone: z.string().refine(isValidTimeZone, "Invalid IANA timezone"),
 		}),
 	)
 	.handler(async ({ data, context }) => {
@@ -35,18 +38,9 @@ export const getCalendarData = createServerFn({ method: "GET" })
 			.from(trades)
 			.where(
 				and(
-					eq(trades.userId, userId),
-					eq(trades.portfolioId, data.portfolioId),
-					or(
-						and(
-							gte(trades.exitDate, range.from),
-							lt(trades.exitDate, range.to),
-						),
-						and(
-							gte(trades.entryDate, range.from),
-							lt(trades.entryDate, range.to),
-						),
-					),
+					tradeConditions(userId, data),
+					gte(tradeScopeDate, scopeDateBound(data.from)),
+					lt(tradeScopeDate, scopeDateBound(data.to)),
 				),
 			);
 		return groupTradesByDay(
