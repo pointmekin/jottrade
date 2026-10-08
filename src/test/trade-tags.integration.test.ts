@@ -51,22 +51,7 @@ vi.mock("@/db", async () => {
 	};
 });
 vi.mock("@/lib/auth", () => ({ requireUserId: async () => transport.userId }));
-vi.mock("@tanstack/react-start", () => ({
-	createServerFn: () => {
-		let schema: { parse: (data: unknown) => unknown } | undefined;
-		const builder = {
-			validator: (value: typeof schema) => {
-				schema = value;
-				return builder;
-			},
-			handler:
-				(handler: (context: { data: unknown }) => unknown) =>
-				(context: { data: unknown } = { data: undefined }) =>
-					handler({ data: schema ? schema.parse(context.data) : undefined }),
-		};
-		return builder;
-	},
-}));
+vi.mock("@tanstack/react-start", () => import("./server-fn-mock"));
 
 /** A local jottrade_test_* database: `npm run db:reset` rules, and the tests drop its schema. */
 const url = process.env.TAGS_TEST_DATABASE_URL;

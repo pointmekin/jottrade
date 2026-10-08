@@ -16,7 +16,10 @@ drops the database.
 
 const DEFAULT_PORT = 3101;
 const SERVER_ENTRY = ".output/server/index.mjs";
-const ISOLATION_TESTS = "src/test/user-isolation.integration.test.ts";
+const DATABASE_TESTS = [
+	"src/test/user-isolation.integration.test.ts",
+	"src/test/sign-up-provisioning.integration.test.ts",
+];
 // Blank optional integrations, so a developer's .env never reaches the run.
 const BLANK_KEYS = [
 	"GOOGLE_CLIENT_ID",
@@ -36,13 +39,18 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 	});
 }
 
-function portIsFree(port: number): Promise<boolean> {
+function canListen(port: number, host?: string): Promise<boolean> {
 	return new Promise((resolve) => {
 		const server = createServer()
 			.once("error", () => resolve(false))
 			.once("listening", () => server.close(() => resolve(true)))
-			.listen(port, "127.0.0.1");
+			.listen(port, host);
 	});
+}
+
+// The app listens on all interfaces, and the suite calls 127.0.0.1.
+async function portIsFree(port: number) {
+	return (await canListen(port)) && (await canListen(port, "127.0.0.1"));
 }
 
 function anyFreePort(): Promise<number> {
@@ -140,12 +148,7 @@ async function main(argv: string[]) {
 			),
 			env,
 		);
-		await run(
-			"Database isolation tests",
-			bin("vitest"),
-			["run", ISOLATION_TESTS],
-			env,
-		);
+		await run("Database tests", bin("vitest"), ["run", ...DATABASE_TESTS], env);
 		await run("Browser suite", bin("playwright"), ["test", ...playwrightArgs], {
 			...env,
 			NODE_ENV: "production",
@@ -154,8 +157,12 @@ async function main(argv: string[]) {
 	} finally {
 		console.log(`\n▶ Cleanup: drop ${database}`);
 		const [command, args] = tsx("scripts/db/cli.ts", "drop");
-		const drop = await exec(command, args, env);
+		const drop = await exec(command, args, env).catch((error: unknown) => {
+			console.error(error);
+			return { code: 1 };
+		});
 		if (drop.code !== 0) {
+			process.exitCode = 1;
 			console.error(
 				`Cleanup failed. Drop ${database} by hand (npm run db:list).`,
 			);

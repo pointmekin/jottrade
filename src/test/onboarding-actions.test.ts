@@ -36,22 +36,7 @@ vi.mock("@/lib/auth", () => ({
 		return state.userId;
 	},
 }));
-vi.mock("@tanstack/react-start", () => ({
-	createServerFn: () => {
-		let schema: { parse: (data: unknown) => unknown } | undefined;
-		const builder = {
-			validator: (value: NonNullable<typeof schema>) => {
-				schema = value;
-				return builder;
-			},
-			handler:
-				(handler: (context: { data: unknown }) => unknown) =>
-				async (context?: { data: unknown }) =>
-					handler({ data: schema?.parse(context?.data) }),
-		};
-		return builder;
-	},
-}));
+vi.mock("@tanstack/react-start", () => import("./server-fn-mock"));
 
 const connectionString = process.env.ONBOARDING_TEST_DATABASE_URL;
 const account = {

@@ -54,22 +54,7 @@ vi.mock("@/lib/auth", () => ({ requireUserId: async () => transport.userId }));
 vi.mock("@/lib/gcp", () => ({
 	publicObjectUrl: (name: string) => `https://fixture.invalid/${name}`,
 }));
-vi.mock("@tanstack/react-start", () => ({
-	createServerFn: () => {
-		let schema: { parse: (data: unknown) => unknown };
-		const builder = {
-			validator: (value: typeof schema) => {
-				schema = value;
-				return builder;
-			},
-			handler:
-				(handler: (context: { data: unknown }) => unknown) =>
-				(context: { data: unknown }) =>
-					handler({ data: schema.parse(context.data) }),
-		};
-		return builder;
-	},
-}));
+vi.mock("@tanstack/react-start", () => import("./server-fn-mock"));
 const scope = { portfolioId: 1, kind: ReviewKind.Daily, start: "2026-09-01" };
 const saveReview = (expectedRevision: number, complete = false) =>
 	saveReviewPeriod({

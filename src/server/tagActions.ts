@@ -6,8 +6,8 @@ import { requireOwnedPortfolio } from "@/db/portfolios";
 import { tags } from "@/db/schema";
 import { bulkEditTrades as applyBulkEdit } from "@/db/trade-bulk-edit";
 import { listTags } from "@/db/trade-tags";
-import { requireUserId } from "@/lib/auth";
 import { bulkEditSchema, TagColor, tagNameSchema } from "@/lib/trade-tag";
+import { authMiddleware } from "./auth-middleware";
 
 const tagIdSchema = z.object({ id: z.number().int().positive() });
 const tagColumns = { id: tags.id, name: tags.name, color: tags.color };
@@ -25,21 +25,24 @@ function isUniqueViolation(error: unknown) {
 	);
 }
 
-export const getTags = createServerFn({ method: "GET" }).handler(async () => {
-	const userId = await requireUserId();
-	return listTags(userId);
-});
+export const getTags = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
+	.handler(async ({ context }) => {
+		const { userId } = context;
+		return listTags(userId);
+	});
 
 /** Creating a name that exists (in any letter case) returns the existing tag, so create-on-enter is safe to repeat. */
 export const createTag = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(
 		z.object({
 			name: tagNameSchema,
 			color: z.enum(TagColor).default(TagColor.Gray),
 		}),
 	)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		const [created] = await db
 			.insert(tags)
 			.values({ userId, name: data.name, color: data.color })
@@ -60,6 +63,7 @@ export const createTag = createServerFn({ method: "POST" })
 	});
 
 export const updateTag = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(
 		tagIdSchema
 			.extend({
@@ -70,8 +74,8 @@ export const updateTag = createServerFn({ method: "POST" })
 				message: "Change the name or the color.",
 			}),
 	)
-	.handler(async ({ data: { id, ...changes } }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data: { id, ...changes }, context }) => {
+		const { userId } = context;
 		try {
 			const [tag] = await db
 				.update(tags)
@@ -88,9 +92,10 @@ export const updateTag = createServerFn({ method: "POST" })
 
 /** Deleting a tag removes it from every trade; the trades stay. */
 export const deleteTag = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(tagIdSchema)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		const deleted = await db
 			.delete(tags)
 			.where(and(eq(tags.id, data.id), eq(tags.userId, userId)))
@@ -100,9 +105,10 @@ export const deleteTag = createServerFn({ method: "POST" })
 	});
 
 export const bulkEditTrades = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(bulkEditSchema)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		await requireOwnedPortfolio(userId, data.portfolioId);
 		return applyBulkEdit(userId, data);
 	});

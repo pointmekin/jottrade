@@ -2,7 +2,21 @@ import { useQuery } from "@tanstack/react-query";
 import { useAccountStore } from "@/lib/account-store";
 import { authClient } from "@/lib/auth-client";
 import { QueryKey } from "@/lib/query-keys";
-import { type AccountRecord, getAccounts } from "@/server/portfolioActions";
+import {
+	type AccountRecord,
+	ensureDefaultAccount,
+	getAccounts,
+} from "@/server/portfolioActions";
+
+// Every screen reads the active account's currency. A user who signed up
+// before sign-up provisioning, or who deleted the default account, gets one
+// through an explicit, idempotent POST; the GET never writes.
+async function loadAccounts(): Promise<AccountRecord[]> {
+	const accounts = await getAccounts();
+	return accounts.some((account) => account.isDefault)
+		? accounts
+		: ensureDefaultAccount();
+}
 
 export function useAccounts() {
 	const { data: session } = authClient.useSession();
@@ -10,7 +24,7 @@ export function useAccounts() {
 
 	const query = useQuery({
 		queryKey: [QueryKey.Accounts, userId],
-		queryFn: () => getAccounts(),
+		queryFn: loadAccounts,
 		enabled: !!userId,
 		staleTime: 10 * 60 * 1000,
 	});

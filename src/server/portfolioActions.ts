@@ -2,10 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, asc, count, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
+import { ensureDefaultPortfolio } from "@/db/portfolios";
 import { portfolios, trades } from "@/db/schema";
 import { AccountKind } from "@/lib/account";
-import { requireUserId } from "@/lib/auth";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
+import { authMiddleware } from "./auth-middleware";
 
 export type AccountRecord = {
 	id: number;
@@ -16,49 +17,6 @@ export type AccountRecord = {
 	isDefault: boolean;
 	tradeCount: number;
 };
-
-/**
- * The default portfolio for a user, created on first read.
- * Every screen reads its currency, so it must always exist.
- *
- * Keep this unexported. `useCurrency` pulls this module into the client graph,
- * and an exported function that touches `db` keeps the Neon driver in the
- * client bundle, where it throws for a missing connection string.
- */
-async function resolveDefaultPortfolio(userId: string) {
-	const [existing] = await db
-		.select()
-		.from(portfolios)
-		.where(eq(portfolios.userId, userId))
-		.orderBy(desc(portfolios.isDefault), asc(portfolios.id))
-		.limit(1);
-
-	if (existing) return existing;
-
-	// A parallel read can provision the same default first; the partial unique
-	// index on (user_id) WHERE is_default turns the loser into a no-op.
-	const [created] = await db
-		.insert(portfolios)
-		.values({
-			userId,
-			name: "Main account",
-			currency: DEFAULT_CURRENCY,
-			isDefault: true,
-		})
-		.onConflictDoNothing()
-		.returning();
-
-	if (created) return created;
-
-	const [winner] = await db
-		.select()
-		.from(portfolios)
-		.where(eq(portfolios.userId, userId))
-		.orderBy(asc(portfolios.id))
-		.limit(1);
-
-	return winner;
-}
 
 type AccountFields = Pick<
 	typeof portfolios.$inferSelect,
@@ -77,51 +35,44 @@ function toAccountRecord(row: AccountFields, tradeCount = 0): AccountRecord {
 	};
 }
 
-// Creating the default account on first read is idempotent: a partial unique index turns a repeat into a no-op.
-// react-doctor-disable-next-line react-doctor/tanstack-start-get-mutation
-export const getAccounts = createServerFn({ method: "GET" }).handler(
-	async (): Promise<AccountRecord[]> => {
-		const userId = await requireUserId();
+async function readAccounts(userId: string): Promise<AccountRecord[]> {
+	const rows = await db
+		.select({
+			id: portfolios.id,
+			name: portfolios.name,
+			description: portfolios.description,
+			kind: portfolios.kind,
+			currency: portfolios.currency,
+			isDefault: portfolios.isDefault,
+			tradeCount: count(trades.id),
+		})
+		.from(portfolios)
+		.leftJoin(trades, eq(trades.portfolioId, portfolios.id))
+		.where(eq(portfolios.userId, userId))
+		.groupBy(portfolios.id)
+		.orderBy(desc(portfolios.isDefault), asc(portfolios.id));
+	return rows.map((row) => toAccountRecord(row, row.tradeCount));
+}
 
-		const rows = await db
-			.select({
-				id: portfolios.id,
-				name: portfolios.name,
-				description: portfolios.description,
-				kind: portfolios.kind,
-				currency: portfolios.currency,
-				isDefault: portfolios.isDefault,
-				tradeCount: count(trades.id),
-			})
-			.from(portfolios)
-			.leftJoin(trades, eq(trades.portfolioId, portfolios.id))
-			.where(eq(portfolios.userId, userId))
-			.groupBy(portfolios.id)
-			.orderBy(desc(portfolios.isDefault), asc(portfolios.id));
+/** A read with no side effects. `useAccounts` calls `ensureDefaultAccount` when no account is the default. */
+export const getAccounts = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
+	.handler(
+		async ({ context }): Promise<AccountRecord[]> =>
+			readAccounts(context.userId),
+	);
 
-		if (rows.length === 0) {
-			const created = await resolveDefaultPortfolio(userId);
-			return [toAccountRecord(created)];
+export const ensureDefaultAccount = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
+	.handler(async ({ context }): Promise<AccountRecord[]> => {
+		await ensureDefaultPortfolio(context.userId);
+		const accounts = await readAccounts(context.userId);
+		// A concurrent delete can remove the account that the repair chose.
+		if (!accounts.some((account) => account.isDefault)) {
+			throw new Error("Could not set a default account. Reload the page.");
 		}
-
-		if (!rows.some((row) => row.isDefault)) {
-			// Self-heal the single-default invariant after out-of-band data changes.
-			const oldest = rows[0];
-			await db
-				.update(portfolios)
-				.set({ isDefault: true })
-				.where(eq(portfolios.id, oldest.id));
-			return rows.map((row) =>
-				toAccountRecord(
-					{ ...row, isDefault: row.id === oldest.id },
-					row.tradeCount,
-				),
-			);
-		}
-
-		return rows.map((row) => toAccountRecord(row, row.tradeCount));
-	},
-);
+		return accounts;
+	});
 
 const accountDetailsSchema = z.object({
 	name: z.string().trim().min(1).max(64),
@@ -131,9 +82,10 @@ const accountDetailsSchema = z.object({
 });
 
 export const createAccount = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(accountDetailsSchema)
-	.handler(async ({ data }): Promise<AccountRecord> => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }): Promise<AccountRecord> => {
+		const { userId } = context;
 
 		const [created] = await db
 			.insert(portfolios)
@@ -155,9 +107,10 @@ const updateAccountSchema = accountDetailsSchema
 	.extend({ id: z.number().int().positive() });
 
 export const updateAccount = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(updateAccountSchema)
-	.handler(async ({ data }): Promise<AccountRecord> => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }): Promise<AccountRecord> => {
+		const { userId } = context;
 
 		const patch: Partial<typeof portfolios.$inferInsert> = {};
 		if (data.name !== undefined) patch.name = data.name;
@@ -183,9 +136,10 @@ const deleteAccountSchema = z.object({
 });
 
 export const deleteAccount = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(deleteAccountSchema)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 
 		const [account] = await db
 			.select()
@@ -224,7 +178,7 @@ export const deleteAccount = createServerFn({ method: "POST" })
 		if (!results[4].length)
 			throw new Error("The account changed. Reload before deleting it.");
 
-		// A failed promotion after deletion leaves no default; getAccounts self-heals it.
+		// A failed promotion after deletion leaves no default; useAccounts then calls ensureDefaultAccount.
 		if (account.isDefault) {
 			const [next] = await db
 				.select({ id: portfolios.id })

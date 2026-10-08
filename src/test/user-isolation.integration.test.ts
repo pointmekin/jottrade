@@ -11,23 +11,13 @@ import { checkTarget } from "../../scripts/db/target";
 const verifyUrl = process.env.VERIFY_DATABASE_URL;
 
 const session = vi.hoisted(() => ({ userId: "" }));
-vi.mock("@/lib/auth", () => ({ requireUserId: async () => session.userId }));
-vi.mock("@tanstack/react-start", () => ({
-	createServerFn: () => {
-		let schema: { parse: (data: unknown) => unknown } | undefined;
-		const builder = {
-			validator: (value: NonNullable<typeof schema>) => {
-				schema = value;
-				return builder;
-			},
-			handler:
-				(handler: (context: { data: unknown }) => unknown) =>
-				(context: { data?: unknown } = {}) =>
-					handler({ data: schema ? schema.parse(context.data) : undefined }),
-		};
-		return builder;
+vi.mock("@/lib/auth", () => ({
+	requireUserId: async () => {
+		if (!session.userId) throw new Error("Unauthorized");
+		return session.userId;
 	},
 }));
+vi.mock("@tanstack/react-start", () => import("./server-fn-mock"));
 
 // Seed facts from scripts/db/seed-accounts.ts.
 const ALICE = "seed-alice";
@@ -35,6 +25,7 @@ const BOB = "seed-bob";
 const ALICE_ACCOUNT = 1;
 const BOB_ACCOUNT = 4;
 const ALICE_STRATEGY = 1;
+const NORA = "seed-nora";
 
 describe.skipIf(!verifyUrl)("user isolation on the seeded database", () => {
 	let server: {
@@ -247,5 +238,87 @@ describe.skipIf(!verifyUrl)("user isolation on the seeded database", () => {
 			.from(schema.trades)
 			.where(eq(schema.trades.id, bobTrade.id));
 		expect(after).toEqual(bobTrade);
+	});
+
+	it("rejects reads and writes without a session before the handler runs", async () => {
+		const before = await snapshot();
+		session.userId = "";
+		const { trades, reads, accounts, strategies } = server;
+		const calls = [
+			reads.getTrades({ data: { portfolioId: ALICE_ACCOUNT, page: 1 } }),
+			reads.getTradeById({
+				data: { portfolioId: ALICE_ACCOUNT, id: aliceTradeId },
+			}),
+			accounts.getAccounts(),
+			strategies.getStrategies(),
+			accounts.ensureDefaultAccount(),
+			trades.deleteTrade({ data: { id: aliceTradeId } }),
+			// Invalid input: the session check still comes first.
+			trades.createTrade({ data: { portfolioId: -1 } as never }),
+		];
+
+		const results = await Promise.allSettled(calls);
+
+		expect(
+			results.map((result) =>
+				result.status === "rejected" ? result.reason.message : "fulfilled",
+			),
+		).toEqual(calls.map(() => "Unauthorized"));
+		expect(await snapshot()).toEqual(before);
+	});
+
+	it("reads accounts without a write, then provisions one default under concurrent calls", async () => {
+		const { eq } = await import("drizzle-orm");
+		const noraAccounts = () =>
+			db
+				.select()
+				.from(schema.portfolios)
+				.where(eq(schema.portfolios.userId, NORA));
+		session.userId = NORA;
+
+		expect(await server.accounts.getAccounts()).toEqual([]);
+		expect(await noraAccounts()).toEqual([]);
+
+		const results = await Promise.all(
+			Array.from({ length: 5 }, () => server.accounts.ensureDefaultAccount()),
+		);
+
+		const rows = await noraAccounts();
+		expect(rows).toHaveLength(1);
+		expect(rows[0]).toMatchObject({ name: "Main account", isDefault: true });
+		for (const accounts of results) {
+			expect(accounts.map((account) => account.id)).toEqual([rows[0].id]);
+		}
+	});
+
+	it("repairs a missing default once, on the oldest account, under concurrent calls", async () => {
+		const { eq } = await import("drizzle-orm");
+		session.userId = NORA;
+		await server.accounts.createAccount({
+			data: {
+				name: "Second",
+				description: "",
+				kind: AccountKind.Real,
+				currency: "USD",
+			},
+		});
+		await db
+			.update(schema.portfolios)
+			.set({ isDefault: false })
+			.where(eq(schema.portfolios.userId, NORA));
+
+		await Promise.all(
+			Array.from({ length: 5 }, () => server.accounts.ensureDefaultAccount()),
+		);
+
+		const rows = await db
+			.select()
+			.from(schema.portfolios)
+			.where(eq(schema.portfolios.userId, NORA))
+			.orderBy(schema.portfolios.id);
+		expect(rows.map((row) => [row.name, row.isDefault])).toEqual([
+			["Main account", true],
+			["Second", false],
+		]);
 	});
 });

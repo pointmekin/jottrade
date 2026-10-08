@@ -182,6 +182,15 @@ describe("focused checks", () => {
 		);
 	});
 
+	it("builds when a server function or database module changes", () => {
+		write("src/server/fixtureActions.ts");
+		write("src/db/fixture.ts");
+
+		expect(plan().checks).toEqual({
+			[Check.Build]: ["src/db/fixture.ts", "src/server/fixtureActions.ts"],
+		});
+	});
+
 	it("runs no focused check for a plain source change", () => {
 		write("src/lib/kept.ts", "export const value = 3;\n");
 

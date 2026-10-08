@@ -3,11 +3,12 @@ import { and, eq, gte, lt, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { trades } from "@/db/schema";
-import { requireUserId } from "@/lib/auth";
 import { groupTradesByDay } from "@/lib/calendar-days";
 import { isValidTimeZone } from "@/lib/date";
+import { authMiddleware } from "./auth-middleware";
 
 export const getCalendarData = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
 	.validator(
 		z.object({
 			portfolioId: z.number().int().positive(),
@@ -18,8 +19,8 @@ export const getCalendarData = createServerFn({ method: "GET" })
 			timeZone: z.string().refine(isValidTimeZone, "Invalid IANA timezone"),
 		}),
 	)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		const range = { from: new Date(data.from), to: new Date(data.to) };
 		const rows = await db
 			.select({

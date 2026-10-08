@@ -65,7 +65,7 @@ Key server modules include:
 - `strategyActions.ts` for strategy queries and mutations.
 - `portfolioActions.ts` for trading accounts, and `cashFlowActions.ts` for deposits, withdrawals and adjustments.
 
-Every handler calls `requireUserId()` from `src/lib/auth.ts` and validates its input with `.validator()`. Pure logic (metrics, CSV parsing, search params) lives in `src/lib/` with tests in `src/test/`.
+Every server function starts with `createServerFn(...).middleware([authMiddleware])` (`src/server/auth-middleware.ts`) and reads the user from `context.userId`. A POST validates its input with `.validator()`. A test in `src/test/server-boundaries.test.ts` enforces these rules; see "Server boundaries" in [docs/quality-gate.md](docs/quality-gate.md). Pure logic (metrics, CSV parsing, search params) lives in `src/lib/` with tests in `src/test/`.
 
 ### Database
 
@@ -132,7 +132,8 @@ Fix the cause of a finding. Do not suppress a rule or change a threshold to pass
 - Default to no comment. Write one only for a reason the code cannot show: a business rule, an external constraint, or a workaround.
 - Keep a component to one job. Biome fails a function above 120 lines, and SonarJS fails a file above 400 lines (500 for tests).
 - A component reads shared state (account, currency) from its hook, not from props passed down.
-- `src/server/` files export only `createServerFn` results. Put a helper they share in a server-only module: `src/lib/auth.ts` for the session, `src/db/` for queries. `src/server/rangeInput.ts` (a shared Zod schema) is an existing exception.
+- `src/server/` files export only `createServerFn` or `createMiddleware` results and types. Put a helper they share in a server-only module: `src/lib/auth.ts` for the session, `src/db/` for queries. `src/server/rangeInput.ts` (a shared Zod schema) is an existing exception.
+- Client code (components, hooks, routes, `src/lib/`) never imports `src/db/`, `src/lib/auth.ts`, `src/lib/gcp.ts` or a database driver. Call a server function instead. `import type` is allowed. `scripts/quality/server-only.ts` lists these modules; the build fails on a violation.
 
 ## Environment variables
 

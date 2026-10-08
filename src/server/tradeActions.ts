@@ -4,7 +4,6 @@ import { z } from "zod";
 import { db } from "@/db";
 import { requireOwnedPortfolio } from "@/db/portfolios";
 import { trades } from "@/db/schema";
-import { requireUserId } from "@/lib/auth";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { calculateManualPnl } from "@/lib/pnl-context";
 import { TradeConfidence, TradeStatus } from "@/lib/trade";
@@ -17,6 +16,7 @@ import {
 	blankDecimalsToNull,
 	manualPnlForUpdate,
 } from "@/lib/trade-update";
+import { authMiddleware } from "./auth-middleware";
 
 const tradeSchema = tradeCaptureSchema.extend({
 	portfolioId: z.number().int().positive(),
@@ -41,9 +41,10 @@ const updateTradeSchema = tradeSchema
 	.strict();
 
 export const createTrade = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(tradeSchema)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		const portfolio = await requireOwnedPortfolio(userId, data.portfolioId);
 		const accountCurrency = portfolio.currency ?? DEFAULT_CURRENCY;
 		const execution = blankDecimalsToNull({ ...data });
@@ -120,12 +121,14 @@ function validateUpdateRevision(
 }
 
 export const updateTrade = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(updateTradeSchema)
 	.handler(
 		async ({
 			data: { id, expectedRevision, expectedAnnotationRevision, ...changes },
+			context,
 		}) => {
-			const userId = await requireUserId();
+			const { userId } = context;
 			const [existing] = await db
 				.select()
 				.from(trades)
@@ -192,9 +195,10 @@ export const updateTrade = createServerFn({ method: "POST" })
 	);
 
 export const deleteTrade = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(z.object({ id: z.number() }))
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		const deleted = await db
 			.delete(trades)
 			.where(

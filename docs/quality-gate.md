@@ -63,6 +63,7 @@ Some changes can break the build or the tooling without a change to application 
 | `eslint.config.js` | SonarJS on the whole project |
 | `vite.config.ts`, `tsconfig.json`, `vercel.json`, `src/styles.css` | build |
 | `src/components/ui/**` | build |
+| `src/server/**`, `src/db/**` | build (runs import protection) |
 | `src/routes/**` added, deleted or renamed; `src/routeTree.gen.ts` | build |
 | `.github/workflows/**` | workflow validation |
 | `scripts/quality.sh`, `scripts/quality/**` | all focused checks |
@@ -105,7 +106,9 @@ The command needs PostgreSQL on `127.0.0.1:54329`. `scripts/db` starts the local
 1. It creates a new database `jottrade_test_verify_<random>`, then migrates and seeds it (`scripts/db/cli.ts reset`). The seed data is synthetic.
 2. It builds the app (`vite build`, Nitro `node-server` output).
 3. It checks the client bundle (see "Client bundle check").
-4. It runs `src/test/user-isolation.integration.test.ts`: as Bob, the real server handlers cannot read, create, edit, move or delete Alice's trades, accounts, cash flows or strategies, and Alice's rows stay the same.
+4. It runs the database tests:
+   - `src/test/user-isolation.integration.test.ts`: as Bob, the real server handlers cannot read, create, edit, move or delete Alice's trades, accounts, cash flows or strategies, and Alice's rows stay the same. Without a session, reads and writes fail. Account provisioning is checked under concurrent calls.
+   - `src/test/sign-up-provisioning.integration.test.ts`: a sign-up through the real Better Auth instance creates one default account.
 5. It starts the production server on port 3101, or on a free port if 3101 is in use, and runs the Playwright suite in `e2e/`.
 6. It always drops the database at the end, also after a failure or `Ctrl+C`.
 
@@ -117,6 +120,7 @@ The run uses a new random `BETTER_AUTH_SECRET` and blank Google, GCP and Gemini 
 | --- | --- | --- |
 | `auth.spec.ts` | Redirect to sign-in; sign in and reload; wrong password; another user's trade URL | Alice, Bob |
 | `accounts.spec.ts` | Switch the account; the journal follows; the choice survives a reload | Alice |
+| `server-auth.spec.ts` | A captured server-function read and write fail with no session and with another user's session | Alice, Bob |
 | `trades.spec.ts` | Log, edit and delete a trade; each change survives a reload | Erin |
 | `import.spec.ts` | Import a synthetic Exness CSV, then import it again: no duplicates | Erin |
 | `totals.spec.ts` | Dashboard, calendar and strategy totals agree for Bob Main | Bob |
@@ -168,6 +172,46 @@ Conditions: production build, Nitro `node-server`, local PostgreSQL, seeded data
 | 2026-10-07 | GitHub Actions `ubuntu-latest`, E2E job (1 run) | 7 ms | 309 ms | 289 ms | 349 ms |
 
 These numbers are a record. They are not budgets. Set a budget only after several CI runs show the normal spread.
+
+## Server boundaries
+
+Three layers stop the most common server mistakes. Each layer fails with a message that names the file, the line and the fix.
+
+| Check | Runs in | Fails when |
+| --- | --- | --- |
+| `src/test/server-boundaries.test.ts` (`scripts/quality/server-boundaries.ts`) | `npm run quality` (Vitest), before any build | A `createServerFn` has no `.middleware([authMiddleware])`; a POST has no `.validator()`; a `src/server/` file exports a helper or re-exports a value; a server function imports `requireUserId`; client code (components, hooks, routes, `src/lib/`) directly imports `src/db/`, `src/lib/auth.ts`, `src/lib/gcp.ts` or a driver package |
+| TanStack Start import protection (`vite.config.ts`) | `bun run build`: the **Build** check, and the focused build check when `src/server/` or `src/db/` changes | Any module in the client graph, also through other files, imports a module in `scripts/quality/server-only.ts` |
+| Client bundle check (`scripts/verify/check-client-bundle.ts`) | **Build** and `npm run verify` | The built client files contain a server-only marker, variable name or secret value |
+
+`import type` from a server-only module is allowed, because TypeScript removes it. A client import of a server function from `src/server/` is allowed, because TanStack Start replaces the handler with an RPC call.
+
+Narrow exceptions, each with a reason, are in `scripts/quality/server-boundaries.ts`:
+
+- `SERVER_MODULE_EXPORTS`: `src/server/rangeInput.ts` (a shared Zod schema).
+- `PUBLIC_SERVER_FUNCTIONS`: none. Every server function needs a session.
+- `NO_INPUT_POSTS`: `exportArchive` and `ensureDefaultAccount` take no input.
+
+### Authenticated server functions
+
+```ts
+export const getRows = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
+	.validator(scopeSchema)
+	.handler(async ({ data, context }) => readRows(context.userId, data));
+```
+
+`authMiddleware` (`src/server/auth-middleware.ts`) runs first. A request without a session fails with "Unauthorized" before the validator and the handler. A handler still checks ownership of each record it reads or writes (`requireOwnedPortfolio` and `userId` conditions).
+
+Tests that call server functions use `src/test/server-fn-mock.ts`. It runs the middleware, the validator and the handler in the same order as the server.
+
+Negative tests:
+
+- `src/test/user-isolation.integration.test.ts` (in `npm run verify`): no session, and another user's session, for reads and writes, on PostgreSQL.
+- `e2e/server-auth.spec.ts`: a real server-function read and write, captured in the browser and sent again over HTTP with no session and with another user's session.
+
+### Sign-in rate limit and client address
+
+Better Auth limits sign-in per client address, from `x-forwarded-for` (`src/lib/auth.ts`). Vercel overwrites `x-forwarded-for` with the real client address, so a client cannot choose its rate-limit key in production. A different host must also overwrite the header. The E2E suite sends its own address for each test (`e2e/support.ts`), because it talks to the server with no proxy.
 
 ## Branch protection
 

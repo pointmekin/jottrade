@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
+import { ensureDefaultPortfolio } from "@/db/portfolios";
 import {
 	cashFlows,
 	portfolios,
@@ -10,18 +11,19 @@ import {
 	userOnboarding,
 } from "@/db/schema";
 import { AccountEntryKind } from "@/lib/account-entry";
-import { requireUserId } from "@/lib/auth";
 import { firstAccountSchema, type OnboardingFacts } from "@/lib/onboarding";
 import { ReviewKind, ReviewStatus } from "@/lib/review";
+import { authMiddleware } from "./auth-middleware";
 
 export type OnboardingState = {
 	facts: OnboardingFacts;
 	isDismissed: boolean;
 };
 
-export const getOnboarding = createServerFn({ method: "GET" }).handler(
-	async (): Promise<OnboardingState> => {
-		const userId = await requireUserId();
+export const getOnboarding = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
+	.handler(async ({ context }): Promise<OnboardingState> => {
+		const { userId } = context;
 
 		const [configured, deposit, trade, review, dismissal] = await Promise.all([
 			db
@@ -77,13 +79,13 @@ export const getOnboarding = createServerFn({ method: "GET" }).handler(
 			},
 			isDismissed: dismissal[0]?.dismissedAt != null,
 		};
-	},
-);
+	});
 
 export const setOnboardingDismissed = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(z.object({ isDismissed: z.boolean() }))
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		const dismissedAt = data.isDismissed ? new Date() : null;
 
 		await db
@@ -112,23 +114,20 @@ async function findPrimaryPortfolio(userId: string) {
  * legacy first read already created. It never depends on `getAccounts`.
  */
 export const setupFirstAccount = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(
 		firstAccountSchema.extend({
 			accountId: z.number().int().positive().optional(),
 		}),
 	)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 
 		let primary = data.accountId
 			? { id: data.accountId }
 			: await findPrimaryPortfolio(userId);
 		if (!primary) {
-			// The partial unique index on the default account makes a parallel create a no-op.
-			await db
-				.insert(portfolios)
-				.values({ userId, name: data.name, isDefault: true })
-				.onConflictDoNothing();
+			await ensureDefaultPortfolio(userId);
 			primary = await findPrimaryPortfolio(userId);
 		}
 		if (!primary) throw new Error("The account could not be created.");

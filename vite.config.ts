@@ -5,6 +5,7 @@ import viteReact from '@vitejs/plugin-react'
 import viteTsConfigPaths from 'vite-tsconfig-paths'
 import tailwindcss from '@tailwindcss/vite'
 import { nitro } from 'nitro/vite'
+import { SERVER_ONLY_FILES, SERVER_ONLY_PACKAGES } from './scripts/quality/server-only'
 
 const config = defineConfig({
   plugins: [
@@ -14,7 +15,16 @@ const config = defineConfig({
       projects: ['./tsconfig.json'],
     }),
     tailwindcss(),
-    tanstackStart(),
+    tanstackStart({
+      // The production build fails when client code imports a server-only
+      // module; dev serves a mock instead. Lists: scripts/quality/server-only.ts.
+      importProtection: {
+        client: {
+          specifiers: SERVER_ONLY_PACKAGES,
+          files: ['**/*.server.*', ...SERVER_ONLY_FILES.map((file) => `**/${file}`)],
+        },
+      },
+    }),
     // Must follow tanstackStart(). Nitro builds the server output Vercel serves.
     nitro(),
     viteReact({

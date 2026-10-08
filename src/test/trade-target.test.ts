@@ -8,22 +8,7 @@ const mocks = vi.hoisted(() => ({
 	set: vi.fn(),
 	session: vi.fn(),
 }));
-vi.mock("@tanstack/react-start", () => ({
-	createServerFn: () => {
-		let schema: { parse: (data: unknown) => unknown } | undefined;
-		const builder = {
-			validator: (value: typeof schema) => {
-				schema = value;
-				return builder;
-			},
-			handler:
-				(fn: (context: { data: unknown }) => unknown) =>
-				async (context: { data: unknown }) =>
-					fn({ data: schema ? schema.parse(context.data) : context.data }),
-		};
-		return builder;
-	},
-}));
+vi.mock("@tanstack/react-start", () => import("./server-fn-mock"));
 vi.mock("@/lib/auth", () => ({
 	requireUserId: async () => {
 		const session = await mocks.session();

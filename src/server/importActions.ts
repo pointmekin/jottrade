@@ -14,7 +14,6 @@ import {
 import { loadImportMatches } from "@/db/import-records";
 import { requireOwnedPortfolio } from "@/db/portfolios";
 import { importBatches } from "@/db/schema";
-import { requireUserId } from "@/lib/auth";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { sha256Hex } from "@/lib/hash";
 import { ImportAction, ImportKind } from "@/lib/import-batch";
@@ -25,6 +24,7 @@ import {
 	parseImportSource,
 	readImportCsv,
 } from "@/lib/import-source";
+import { authMiddleware } from "./auth-middleware";
 
 const batchIdSchema = z.object({ batchId: z.uuid() });
 const scopeSchema = z.object({ portfolioId: z.number().int().positive() });
@@ -35,9 +35,10 @@ const sourceSchema = scopeSchema.extend({
 	sourceCurrency: z.string().regex(/^[A-Z]{3}$/),
 });
 export const stageImport = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(sourceSchema)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		const portfolio = await requireOwnedPortfolio(userId, data.portfolioId);
 		if ((portfolio.currency ?? DEFAULT_CURRENCY) !== data.sourceCurrency)
 			throw Error(
@@ -77,6 +78,7 @@ export const stageImport = createServerFn({ method: "POST" })
 		return importReceipt(batch);
 	});
 export const repairImportRow = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(
 		batchIdSchema.extend({
 			revision: z.number().int().nonnegative(),
@@ -84,8 +86,8 @@ export const repairImportRow = createServerFn({ method: "POST" })
 			source: z.record(z.string().max(80), z.string().max(4096)),
 		}),
 	)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		const batch = await requireImportBatch(userId, data.batchId);
 		if (batch.state !== "staged" || batch.expiresAt.getTime() <= Date.now())
 			throw Error("This import stage expired or was already applied.");
@@ -146,14 +148,15 @@ const decisionSchema = z.object({
 	expectedRevision: z.number().int().nonnegative().optional(),
 });
 export const commitImport = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(
 		batchIdSchema.extend({
 			revision: z.number().int().nonnegative(),
 			decisions: z.array(decisionSchema).max(5000),
 		}),
 	)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		const batch = await requireImportBatch(userId, data.batchId);
 		if (batch.state !== "staged") return importReceipt(batch);
 		if (batch.revision !== data.revision)
@@ -171,6 +174,7 @@ export const commitImport = createServerFn({ method: "POST" })
 		);
 	});
 export const getImportHistory = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
 	.validator(
 		scopeSchema.extend({
 			cursor: z
@@ -178,23 +182,26 @@ export const getImportHistory = createServerFn({ method: "GET" })
 				.optional(),
 		}),
 	)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		await requireOwnedPortfolio(userId, data.portfolioId);
 		return accountImportHistory(userId, data.portfolioId, data.cursor);
 	});
 export const getImportBatch = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
 	.validator(batchIdSchema)
-	.handler(async ({ data }) =>
-		importReceipt(
-			await requireImportBatch(await requireUserId(), data.batchId),
-		),
+	.handler(async ({ data, context }) =>
+		importReceipt(await requireImportBatch(context.userId, data.batchId)),
 	);
 export const getImportUndoPreview = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
 	.validator(batchIdSchema)
-	.handler(async ({ data }) =>
-		previewImportUndo(await requireUserId(), data.batchId),
+	.handler(async ({ data, context }) =>
+		previewImportUndo(context.userId, data.batchId),
 	);
 export const undoImportBatch = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(batchIdSchema)
-	.handler(async ({ data }) => undoImport(await requireUserId(), data.batchId));
+	.handler(async ({ data, context }) =>
+		undoImport(context.userId, data.batchId),
+	);

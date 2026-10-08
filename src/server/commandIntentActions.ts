@@ -1,11 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireUserId } from "@/lib/auth";
 import {
 	type ExtractedIntent,
 	extractedIntentSchema,
 	intentJsonSchema,
 } from "@/lib/commands/intent-schema";
+import { authMiddleware } from "./auth-middleware";
 
 const ENDPOINT =
 	"https://generativelanguage.googleapis.com/v1beta/interactions";
@@ -34,10 +34,9 @@ Examples:
 Command:`;
 
 export const extractCommandIntent = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(z.object({ command: z.string().trim().min(1) }))
 	.handler(async ({ data }): Promise<ExtractedIntent> => {
-		await requireUserId();
-
 		const apiKey = process.env.GEMINI_API_KEY;
 		if (!apiKey)
 			throw new Error(

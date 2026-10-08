@@ -3,9 +3,9 @@ import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { strategies, trades } from "@/db/schema";
-import { requireUserId } from "@/lib/auth";
 import { summarizeGroup } from "@/lib/group-summary";
 import { TradeStatus } from "@/lib/trade";
+import { authMiddleware } from "./auth-middleware";
 
 const strategyFieldsSchema = z.object({
 	name: z.string().min(1).max(100),
@@ -14,23 +14,24 @@ const strategyFieldsSchema = z.object({
 
 const strategyIdSchema = z.object({ id: z.number() });
 
-export const getStrategies = createServerFn({ method: "GET" }).handler(
-	async () => {
-		const userId = await requireUserId();
+export const getStrategies = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
+	.handler(async ({ context }) => {
+		const { userId } = context;
 		return db.select().from(strategies).where(eq(strategies.userId, userId));
-	},
-);
+	});
 
 /** All time, over every closed trade of the strategy, so it does not depend on journal pages. */
 export const getStrategyPerformance = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
 	.validator(
 		z.object({
 			portfolioId: z.number().int().positive(),
 			strategyId: z.number().int().positive(),
 		}),
 	)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		const rows = await db
 			.select({ netPnl: trades.netPnl })
 			.from(trades)
@@ -46,9 +47,10 @@ export const getStrategyPerformance = createServerFn({ method: "GET" })
 	});
 
 export const createStrategy = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(strategyFieldsSchema)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		const [strategy] = await db
 			.insert(strategies)
 			.values({ ...data, userId })
@@ -57,9 +59,10 @@ export const createStrategy = createServerFn({ method: "POST" })
 	});
 
 export const updateStrategy = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(strategyFieldsSchema.extend(strategyIdSchema.shape))
-	.handler(async ({ data: { id, ...fields } }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data: { id, ...fields }, context }) => {
+		const { userId } = context;
 		const [strategy] = await db
 			.update(strategies)
 			.set(fields)
@@ -70,9 +73,10 @@ export const updateStrategy = createServerFn({ method: "POST" })
 	});
 
 export const deleteStrategy = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(strategyIdSchema)
-	.handler(async ({ data: { id } }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data: { id }, context }) => {
+		const { userId } = context;
 		const results = await db.batch([
 			db.execute(
 				sql`SELECT id FROM portfolios WHERE user_id=${userId} ORDER BY id FOR UPDATE`,

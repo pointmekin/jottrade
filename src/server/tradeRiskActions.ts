@@ -4,7 +4,6 @@ import { z } from "zod";
 import { db } from "@/db";
 import { requireOwnedPortfolio } from "@/db/portfolios";
 import { trades } from "@/db/schema";
-import { requireUserId } from "@/lib/auth";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { shouldRecalculatePnl } from "@/lib/finance";
 import { tradeCaptureSchema } from "@/lib/trade-capture";
@@ -15,6 +14,7 @@ import {
 	type RiskPlan,
 } from "@/lib/trade-risk-schema";
 import { manualPnlFieldsForUpdate } from "@/lib/trade-update";
+import { authMiddleware } from "./auth-middleware";
 
 const correctionSchema = tradeCaptureSchema
 	.omit({
@@ -34,9 +34,10 @@ const correctionSchema = tradeCaptureSchema
 	.strict();
 
 export const correctTradeInitialRisk = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.validator(correctionSchema)
-	.handler(async ({ data }) => {
-		const userId = await requireUserId();
+	.handler(async ({ data, context }) => {
+		const { userId } = context;
 		const [existing] = await db
 			.select()
 			.from(trades)

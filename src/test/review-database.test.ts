@@ -40,22 +40,7 @@ vi.mock("@/lib/auth", () => ({
 		return transport.userId;
 	},
 }));
-vi.mock("@tanstack/react-start", () => ({
-	createServerFn: () => {
-		let schema: { parse: (data: unknown) => unknown };
-		const builder = {
-			validator: (value: typeof schema) => {
-				schema = value;
-				return builder;
-			},
-			handler:
-				(handler: (context: { data: unknown }) => unknown) =>
-				(context: { data: unknown }) =>
-					handler({ data: schema.parse(context.data) }),
-		};
-		return builder;
-	},
-}));
+vi.mock("@tanstack/react-start", () => import("./server-fn-mock"));
 const connectionString = process.env.REVIEW_TEST_DATABASE_URL;
 const scope = { portfolioId: 1, kind: ReviewKind.Daily, start: "2026-10-02" };
 const save = (expectedRevision: number, complete = false, notes = "daily") =>
