@@ -95,9 +95,12 @@ export function ReviewEditor({
 			});
 		},
 		onSuccess: () =>
-			queryClient.invalidateQueries({
-				queryKey: [QueryKey.ReviewPeriod, userId, portfolioId],
-			}),
+			Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: [QueryKey.ReviewPeriod, userId, portfolioId],
+				}),
+				queryClient.invalidateQueries({ queryKey: [QueryKey.Onboarding] }),
+			]),
 	});
 	return (
 		<div className="grid gap-5 lg:grid-cols-2">

@@ -5,15 +5,17 @@ import {
 	useSearch,
 } from "@tanstack/react-router";
 import { format } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
 import { AppPageHeader } from "@/components/app-page-header";
 import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 import { CalendarSkeleton } from "@/components/calendar/CalendarSkeleton";
+import { FirstTradeEmptyState } from "@/components/onboarding/first-trade-empty-state";
 import { Button } from "@/components/ui/button";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useCurrency } from "@/hooks/use-currency";
+import { useOnboarding } from "@/hooks/use-onboarding";
 import type { CalendarDay } from "@/lib/calendar-days";
 import { QueryKey } from "@/lib/query-keys";
 import { getCalendarData } from "@/server/calendarActions";
@@ -33,6 +35,7 @@ function CalendarPage() {
 	const { year, month } = useSearch({ from: "/_authenticated/calendar" });
 	const currency = useCurrency();
 	const { activeAccount } = useAccounts();
+	const { hasTrades } = useOnboarding();
 	const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 	const range = useMemo(
 		() => ({
@@ -121,9 +124,15 @@ function CalendarPage() {
 					}
 				/>
 
-				{isLoading ? (
-					<CalendarSkeleton />
-				) : (
+				{hasTrades === false && (
+					<FirstTradeEmptyState
+						icon={CalendarDays}
+						title="Your calendar fills in as you trade"
+						description="Each day you trade shows its result here. Log a trade to see your first day."
+					/>
+				)}
+				{hasTrades !== false && isLoading && <CalendarSkeleton />}
+				{hasTrades !== false && !isLoading && (
 					<CalendarGrid year={year} month={month} data={calendarData} />
 				)}
 			</main>

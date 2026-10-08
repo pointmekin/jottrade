@@ -1,6 +1,6 @@
 # Feature map
 
-This map lists the supported product features, where each one starts, which code owns its data, and how each one is verified today. It describes `main` after PR #37, with the verification added for issue #31.
+This map lists the supported product features, where each one starts, which code owns its data, and how each one is verified today. It describes `main` after PR #46, with the verification added for issue #31 and the onboarding change.
 
 Update this file in the same pull request when you add, remove or change a route, an entry point, a user flow, a server module or the verification of a feature.
 
@@ -60,6 +60,14 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 - **Data**: `portfolios`; queries in `src/db/portfolios.ts`.
 - **Verification**: Unit `delete-account-dialog.test.tsx`, `app-sidebar.test.tsx`. DB (optional) `review-database.test.ts` (account deletion cascades review links), `feature-integration.test.ts` (account isolation). DB (verify) `user-isolation.integration.test.ts` (another user cannot read, edit or delete an account). E2E `accounts.spec.ts` (switch the account; the journal follows and the choice survives a reload). Gap: create and edit.
 
+### First-run onboarding (issue #14)
+
+- **Entry**: the checklist card at the top of `/dashboard` (`src/components/onboarding/onboarding-checklist.tsx`). Settings → "Setup guide" shows it again after a dismissal.
+- **Flows**: four steps, each derived from real data: account set up (a review timezone is saved, or the user has a trade), opening deposit recorded, first trade added, first daily review completed. Each step links to the screen that does the work; "Set up account" opens `first-account-dialog.tsx` (name, broker, currency, timezone). The card hides itself when all steps are done or when the user dismisses it. Empty states with one primary button: journal, calendar and reviews (no trades yet, `first-trade-empty-state.tsx`), strategies (no strategies, `StrategyList.tsx`) and the dashboard equity curve.
+- **Server**: `src/server/onboardingActions.ts` (`getOnboarding`, `setOnboardingDismissed`, `setupFirstAccount`). `setupFirstAccount` creates the default account when the user has none, and otherwise finishes the setup of the existing default account. It does not use `getAccounts`. The broker is stored in the account description. Logic in `src/lib/onboarding.ts`.
+- **Data**: reads `portfolios`, `cash_flows`, `trades`, `review_periods`. Writes `user_onboarding` (only the dismissal time) and, in `setupFirstAccount`, `portfolios`.
+- **Verification**: Unit `onboarding.test.ts` (step derivation and input schema), `onboarding-checklist.test.tsx`. E2E `onboarding.spec.ts` (Nora sets up the account from the checklist and sees 1 of 4 steps done, also after a reload). DB (optional) `onboarding-actions.test.ts` with `ONBOARDING_TEST_DATABASE_URL` set to any local database; it uses temporary tables and leaves real tables unchanged. Gap: sample data is not built.
+
 ### Journal (manual trades, funding and adjustments)
 
 - **Entry**: `/journal`; "Log trade" drawer (`log-trade-drawer.tsx`, also `/journal?intent=log`); command palette "Log trade"; row click → `/journal/$tradeId`.
@@ -115,14 +123,14 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 ### Dashboard
 
 - **Entry**: `/dashboard` (the post-sign-in page); period picker.
-- **Flows**: account summary and funding notice; balance and trading P&L curves; risk metrics (Sharpe, drawdown, payoff ratio); performance and strategy charts; setup calculator (`src/components/tools/SetupCalculator.tsx`). Metric definitions: [metrics.md](metrics.md).
+- **Flows**: onboarding checklist (see "First-run onboarding"); account summary and funding notice; balance and trading P&L curves; risk metrics (Sharpe, drawdown, payoff ratio); performance and strategy charts; setup calculator (`src/components/tools/SetupCalculator.tsx`). Metric definitions: [metrics.md](metrics.md).
 - **Server**: `getAnalytics.ts`, `getAdvancedAnalytics.ts`. Logic in `src/lib/analytics.ts`, `risk-metrics.ts`, `group-summary.ts`, `equity-series.ts`.
 - **Data**: reads `trades`, `cash_flows`, `strategies`; writes nothing.
 - **Verification**: Unit `analytics.test.ts`, `risk-metrics.test.ts`, `risk-metrics.test.tsx`, `group-summary.test.ts`. E2E `totals.spec.ts` (net P&L and trade count for one seeded account agree with the calendar and the strategy page). Gap: charts and risk metrics in the browser.
 
 ### Calendar
 
-- **Entry**: `/calendar`; month navigation.
+- **Entry**: `/calendar`; month navigation. A user with no trades sees an empty state with "Log your first trade".
 - **Flows**: daily P&L per month; select a day → trade list (`DayTradesPopover.tsx`) → open a trade. A closed trade counts on its exit day, or its entry day when it has no exit.
 - **Server**: `calendarActions.ts` (`getCalendarData`). Logic in `src/lib/calendar-days.ts`.
 - **Data**: reads `trades`.
