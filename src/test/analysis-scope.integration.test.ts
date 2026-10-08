@@ -179,6 +179,16 @@ describe.skipIf(!url)("one analysis scope on migrated PostgreSQL", () => {
 			confidence: null,
 			tagged: false,
 		});
+		await insertTrade(OWNER, {
+			...fixtureTrades(1)[0],
+			symbol: "STALE",
+			entryDate: new Date("2026-01-20T10:00:00.000Z"),
+			exitDate: new Date("2026-02-03T10:00:00.000Z"),
+			hasStrategy: false,
+			confidence: null,
+			mistake: null,
+			tagged: false,
+		});
 	}
 
 	async function totals(filter: Omit<TradeFilter, "portfolioId">) {
@@ -332,6 +342,41 @@ describe.skipIf(!url)("one analysis scope on migrated PostgreSQL", () => {
 		expect(february.list).toEqual({ count: 1, netPnl: 40 });
 		expect(february.analytics.stats.totalPnL).toBe(40);
 		expect(february.calendar).toEqual({ count: 1, netPnl: 40 });
+	});
+
+	it("keeps an open trade with a stale exit time in its entry month", async () => {
+		const month = async (year: number, monthNumber: number) => {
+			const from = new Date(Date.UTC(year, monthNumber - 1, 1));
+			const to = new Date(Date.UTC(year, monthNumber, 1));
+			const scope = { portfolioId: 1, symbol: "STALE" };
+			const [list, calendar] = await Promise.all([
+				getTrades({
+					data: {
+						...scope,
+						page: 1,
+						dateFrom: from.toISOString(),
+						dateTo: new Date(to.getTime() - 1).toISOString(),
+					},
+				}),
+				getCalendarData({
+					data: {
+						...scope,
+						timeZone: "UTC",
+						year,
+						month: monthNumber,
+						from: from.toISOString(),
+						to: to.toISOString(),
+					},
+				}),
+			]);
+			return {
+				journal: list.total,
+				calendar: Object.values(calendar).flatMap((day) => day.trades).length,
+			};
+		};
+
+		expect(await month(2026, 1)).toEqual({ journal: 1, calendar: 1 });
+		expect(await month(2026, 2)).toEqual({ journal: 0, calendar: 0 });
 	});
 
 	it("returns nothing from another user's account", async () => {

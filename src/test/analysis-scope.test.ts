@@ -56,15 +56,22 @@ describe("analysis scope schema", () => {
 });
 
 describe("scope date", () => {
-	it("filters the journal by coalesce(exit, entry) with UTC bounds", () => {
+	it("filters the journal by exit for closed trades and by entry otherwise, with UTC bounds", () => {
 		const { sql, params } = new PgDialect().sqlToQuery(
 			tradeConditions("user-a", { portfolioId: 7, ...FEBRUARY }) as never,
 		);
 
 		expect(sql).toContain(
-			'coalesce("trades"."exit_date", "trades"."entry_date") >= $3',
+			'case when "trades"."status" = $3 then coalesce("trades"."exit_date", "trades"."entry_date") else "trades"."entry_date" end >= $4',
 		);
-		expect(params).toEqual(["user-a", 7, FEBRUARY.dateFrom, FEBRUARY.dateTo]);
+		expect(params).toEqual([
+			"user-a",
+			7,
+			TradeStatus.Closed,
+			FEBRUARY.dateFrom,
+			TradeStatus.Closed,
+			FEBRUARY.dateTo,
+		]);
 	});
 
 	it("puts a trade opened on 31 Jan and closed on 1 Feb in February", () => {

@@ -2,9 +2,10 @@ import { and, eq, gte, inArray, isNull, like, lte, sql } from "drizzle-orm";
 import { trades } from "@/db/schema";
 import { tagCondition } from "@/db/trade-tags";
 import type { TradeFilter } from "@/lib/analysis-scope";
+import { TradeStatus } from "@/lib/trade";
 
-/** The scope date of every screen: closed trades by exit, open trades by entry. */
-export const tradeScopeDate = sql`coalesce(${trades.exitDate}, ${trades.entryDate})`;
+/** The scope date of every screen: closed trades by exit, other trades by entry, as in `groupTradesByDay`. */
+export const tradeScopeDate = sql`case when ${trades.status} = ${TradeStatus.Closed} then coalesce(${trades.exitDate}, ${trades.entryDate}) else ${trades.entryDate} end`;
 
 /** Encodes like the timestamp columns, so the bound is UTC in any server timezone. */
 export const scopeDateBound = (iso: string) =>
