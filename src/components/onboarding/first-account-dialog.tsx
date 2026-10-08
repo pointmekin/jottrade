@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRef } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,8 @@ export function FirstAccountDialog({
 }: FirstAccountDialogProps) {
 	const queryClient = useQueryClient();
 	const { activeAccount, setActiveAccount } = useAccounts();
+	// The dialog has no DialogTrigger, so Radix cannot return focus on close.
+	const openerRef = useRef<HTMLElement | null>(null);
 	const form = useForm<FirstAccountInput>({
 		resolver: zodResolver(firstAccountSchema),
 		values: {
@@ -91,7 +94,16 @@ export function FirstAccountDialog({
 				onOpenChange(next);
 			}}
 		>
-			<DialogContent className="bg-card sm:max-w-md">
+			<DialogContent
+				className="bg-card sm:max-w-md"
+				onOpenAutoFocus={() => {
+					openerRef.current = document.activeElement as HTMLElement | null;
+				}}
+				onCloseAutoFocus={(event) => {
+					event.preventDefault();
+					openerRef.current?.focus();
+				}}
+			>
 				<DialogHeader>
 					<DialogTitle>Set up your trading account</DialogTitle>
 					<DialogDescription>

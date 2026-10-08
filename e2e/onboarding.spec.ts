@@ -10,10 +10,18 @@ test("a new user sets up the account from the checklist and keeps the progress",
 	});
 	await expect(checklist).toContainText("0 of 4 steps done");
 
-	await checklist.getByRole("button", { name: "Set up account" }).click();
+	const setUp = checklist.getByRole("button", { name: "Set up account" });
 	const dialog = page.getByRole("dialog", {
 		name: "Set up your trading account",
 	});
+	await setUp.focus();
+	await page.keyboard.press("Enter");
+	await expect(dialog).toBeVisible();
+	await page.keyboard.press("Escape");
+	await expect(dialog).toBeHidden();
+	await expect(setUp).toBeFocused();
+
+	await setUp.click();
 	await dialog
 		.getByRole("textbox", { name: "Account name" })
 		.fill("Exness Standard");
