@@ -240,10 +240,13 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 		filters.mistake,
 		filters.tags,
 	].filter(Boolean).length;
-	const clearAll = () => update(CLEARED_TRADE_FILTERS);
+	const clearAll = () => {
+		setSymbolInput("");
+		update(CLEARED_TRADE_FILTERS);
+	};
 
 	return (
-		<section aria-label="Journal filters" className="border-y border-border">
+		<section aria-label="Filters" className="border-y border-border">
 			<div className="flex min-w-0 flex-wrap items-center gap-2 py-2.5">
 				<PeriodPicker
 					value={{ preset: period, from: filters.dateFrom, to: filters.dateTo }}

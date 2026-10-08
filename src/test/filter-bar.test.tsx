@@ -52,7 +52,7 @@ describe("FilterBar", () => {
 	it("renders a compact, purpose-built toolbar instead of a card surface", () => {
 		renderFilterBar();
 
-		const toolbar = screen.getByRole("region", { name: "Journal filters" });
+		const toolbar = screen.getByRole("region", { name: "Filters" });
 		expect(toolbar.className).toContain("border-y");
 		expect(toolbar.className).not.toContain("surface");
 		expect(
@@ -119,6 +119,24 @@ describe("FilterBar", () => {
 
 		act(() => vi.advanceTimersByTime(300));
 		expect(onFiltersChange).toHaveBeenCalledWith({ symbol: "NVDA" });
+	});
+
+	it("drops a pending symbol when the user clears all filters", () => {
+		vi.useFakeTimers();
+		const { onFiltersChange } = renderFilterBar({ side: "LONG" });
+		fireEvent.click(screen.getByRole("button", { name: /Filters/ }));
+		const input = screen.getByRole("textbox", { name: "Symbol" });
+
+		fireEvent.change(input, { target: { value: "NVDA" } });
+		fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
+		act(() => vi.advanceTimersByTime(300));
+
+		expect((input as HTMLInputElement).value).toBe("");
+		expect(onFiltersChange).toHaveBeenCalledTimes(1);
+		expect(onFiltersChange).toHaveBeenCalledWith({
+			...CLEARED_TRADE_FILTERS,
+			side: undefined,
+		});
 	});
 
 	it("shows the tag filter with its match mode and switches to every tag", () => {
