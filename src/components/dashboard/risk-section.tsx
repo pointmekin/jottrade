@@ -47,10 +47,12 @@ export function RiskSection({
 	data,
 	isLoading,
 	periodLabel,
+	isAccountWide,
 }: {
 	data: AdvancedAnalytics | undefined;
 	isLoading: boolean;
 	periodLabel: string;
+	isAccountWide?: boolean;
 }) {
 	const currency = useCurrency();
 	if (!isLoading && !data) return null;
@@ -67,7 +69,10 @@ export function RiskSection({
 			/>
 			{data ? (
 				<>
-					<RiskMetrics metrics={data.riskMetrics} />
+					<RiskMetrics
+						metrics={data.riskMetrics}
+						isAccountWide={isAccountWide}
+					/>
 					<Suspense fallback={<ChartsSkeleton />}>
 						<PerformanceCharts
 							byStrategy={data.byStrategy}

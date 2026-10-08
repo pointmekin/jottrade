@@ -20,6 +20,7 @@ interface EquityCurveSectionProps {
 	isLoading: boolean;
 	totalTrades: number;
 	periodLabel: string;
+	isAccountWide?: boolean;
 }
 
 function SeriesToggle({
@@ -75,7 +76,9 @@ function CurveBody({
 	isLoading,
 	series,
 	periodLabel,
-}: Omit<EquityCurveSectionProps, "totalTrades"> & { series: EquitySeries }) {
+}: Omit<EquityCurveSectionProps, "totalTrades" | "isAccountWide"> & {
+	series: EquitySeries;
+}) {
 	if (isLoading) return <Skeleton className="h-full w-full" />;
 	if (data.length === 0) return <EmptyPeriod periodLabel={periodLabel} />;
 	return (
@@ -90,6 +93,7 @@ export function EquityCurveSection({
 	isLoading,
 	totalTrades,
 	periodLabel,
+	isAccountWide,
 }: EquityCurveSectionProps) {
 	const currency = useCurrency();
 	const [series, setSeries] = useState<EquitySeries>(EquitySeries.Balance);
@@ -102,7 +106,7 @@ export function EquityCurveSection({
 		<section className="surface mt-6 p-3 sm:p-4 md:p-5">
 			<SectionHeading
 				title="Equity curve"
-				detail={detail}
+				detail={isAccountWide ? `Account-wide · ${detail}` : detail}
 				actions={
 					<div className="flex items-center gap-2">
 						<SeriesToggle value={series} onChange={setSeries} />

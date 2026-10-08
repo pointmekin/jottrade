@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
+	retainSearchParams,
 	useNavigate,
 	useSearch,
 } from "@tanstack/react-router";
@@ -11,28 +12,37 @@ import { z } from "zod";
 import { AppPageHeader } from "@/components/app-page-header";
 import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 import { CalendarSkeleton } from "@/components/calendar/CalendarSkeleton";
+import { FilterBar } from "@/components/journal/FilterBar";
 import { FirstTradeEmptyState } from "@/components/onboarding/first-trade-empty-state";
 import { Button } from "@/components/ui/button";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useCurrency } from "@/hooks/use-currency";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import type { CalendarDay } from "@/lib/calendar-days";
+import {
+	SCOPE_SEARCH_KEYS,
+	scopeSearchSchema,
+	toTradeQuery,
+} from "@/lib/journal-search";
+import { resolvePeriod } from "@/lib/period";
 import { QueryKey } from "@/lib/query-keys";
 import { getCalendarData } from "@/server/calendarActions";
 
-const calendarSearchSchema = z.object({
+const calendarSearchSchema = scopeSearchSchema.extend({
 	year: z.number().default(() => new Date().getFullYear()),
 	month: z.number().default(() => new Date().getMonth() + 1),
 });
 
 export const Route = createFileRoute("/_authenticated/calendar")({
 	validateSearch: calendarSearchSchema,
+	search: { middlewares: [retainSearchParams(SCOPE_SEARCH_KEYS)] },
 	component: CalendarPage,
 });
 
 function CalendarPage() {
 	const navigate = useNavigate({ from: "/calendar" });
-	const { year, month } = useSearch({ from: "/_authenticated/calendar" });
+	const search = useSearch({ from: "/_authenticated/calendar" });
+	const { year, month } = search;
 	const currency = useCurrency();
 	const { activeAccount } = useAccounts();
 	const { hasTrades } = useOnboarding();
@@ -44,13 +54,29 @@ function CalendarPage() {
 		}),
 		[year, month],
 	);
+	const tradeQuery = toTradeQuery(
+		search,
+		resolvePeriod({
+			preset: search.period,
+			from: search.dateFrom,
+			to: search.dateTo,
+		}),
+	);
 
 	const { data: calendarData = {} as Record<string, CalendarDay>, isLoading } =
 		useQuery({
-			queryKey: [QueryKey.Calendar, activeAccount?.id, year, month, timeZone],
+			queryKey: [
+				QueryKey.Calendar,
+				activeAccount?.id,
+				year,
+				month,
+				timeZone,
+				tradeQuery,
+			],
 			queryFn: () =>
 				getCalendarData({
 					data: {
+						...tradeQuery,
 						year,
 						month,
 						timeZone,
@@ -124,6 +150,12 @@ function CalendarPage() {
 					}
 				/>
 
+				<FilterBar
+					filters={search}
+					onFiltersChange={(filters) =>
+						navigate({ search: { ...search, ...filters } })
+					}
+				/>
 				{hasTrades === false && (
 					<FirstTradeEmptyState
 						icon={CalendarDays}

@@ -1,9 +1,12 @@
 import {
 	createFileRoute,
+	Navigate,
+	retainSearchParams,
 	useNavigate,
 	useSearch,
 } from "@tanstack/react-router";
 import { BookOpen } from "lucide-react";
+import { useEffect } from "react";
 import { AppPageHeader } from "@/components/app-page-header";
 import { AccountEntriesPanel } from "@/components/journal/AccountEntriesPanel";
 import { BulkEditBar } from "@/components/journal/bulk-edit-bar";
@@ -18,19 +21,24 @@ import { JournalPagination } from "@/components/journal/journal-pagination";
 import { LogTradeDrawer } from "@/components/journal/log-trade-drawer";
 import { FirstTradeEmptyState } from "@/components/onboarding/first-trade-empty-state";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useCurrency } from "@/hooks/use-currency";
 import { useJournalEntries } from "@/hooks/use-journal-entries";
 import { useIsJournalFirstRun } from "@/hooks/use-onboarding";
 import { useTradeSelection } from "@/hooks/use-trade-selection";
+import { useAccountStore } from "@/lib/account-store";
+import { formatMoney } from "@/lib/currency";
 import {
 	JournalIntent,
 	type JournalSearch,
 	JournalView,
 	journalSearchSchema,
+	SCOPE_SEARCH_KEYS,
 } from "@/lib/journal-search";
 import { describePeriod } from "@/lib/period";
 
 export const Route = createFileRoute("/_authenticated/journal")({
 	validateSearch: journalSearchSchema,
+	search: { middlewares: [retainSearchParams(SCOPE_SEARCH_KEYS)] },
 	component: JournalPage,
 });
 
@@ -45,6 +53,14 @@ function JournalPage() {
 	const navigate = useNavigate({ from: "/journal" });
 	const search = useSearch({ from: "/_authenticated/journal" });
 	const journal = useJournalEntries(search);
+	const currency = useCurrency();
+	useEffect(
+		() =>
+			useAccountStore.subscribe(() =>
+				navigate({ search: (prev) => ({ ...prev, page: 1 }), replace: true }),
+			),
+		[navigate],
+	);
 	const isJournalView =
 		search.view === JournalView.All || search.view === JournalView.Trades;
 	const periodLabel = describePeriod({
@@ -59,7 +75,7 @@ function JournalPage() {
 				<AppPageHeader
 					title="Journal"
 					description="Every trade you have recorded, with filters and full detail."
-					meta={`${journal.total} trades · ${journal.adjustmentCount} adjustments · ${periodLabel}`}
+					meta={`${journal.total} trades · ${journal.closedSummary.count} closed · net P&L ${formatMoney(journal.closedSummary.netPnl, currency, { signed: true })} · ${journal.adjustmentCount} adjustments · ${periodLabel}`}
 					actions={
 						<>
 							{isJournalView && (
@@ -92,7 +108,7 @@ function JournalPage() {
 					<FilterBar
 						filters={search}
 						onFiltersChange={(filters: JournalFilters) =>
-							navigate({ search: { ...search, ...filters } })
+							navigate({ search: { ...search, ...filters, page: 1 } })
 						}
 					/>
 				)}
@@ -131,6 +147,11 @@ function JournalTradesSection({
 			/>
 		);
 	if (journal.isLoading) return <JournalTableSkeleton />;
+	const lastPage = Math.max(journal.totalPages, 1);
+	if (search.page > lastPage)
+		return (
+			<Navigate to="/journal" search={{ ...search, page: lastPage }} replace />
+		);
 	return (
 		<>
 			<JournalTable

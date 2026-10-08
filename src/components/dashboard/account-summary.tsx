@@ -26,11 +26,16 @@ function winRateSub(stats: TradeStats) {
 export function AccountSummary({
 	stats,
 	isAllTime,
+	isAccountWide,
 }: {
 	stats: TradeStats;
 	isAllTime: boolean;
+	isAccountWide?: boolean;
 }) {
 	const currency = useCurrency();
+	const balanceSub = isAllTime
+		? `Deposits ${formatMoney(stats.netDeposits, currency, { signed: true })}`
+		: `Opened at ${formatMoney(stats.openingBalance, currency)}`;
 
 	return (
 		<section
@@ -41,11 +46,7 @@ export function AccountSummary({
 				variant={MetricVariant.Cell}
 				label="Account balance"
 				value={formatMoney(stats.totalBalance, currency)}
-				sub={
-					isAllTime
-						? `Deposits ${formatMoney(stats.netDeposits, currency, { signed: true })}`
-						: `Opened at ${formatMoney(stats.openingBalance, currency)}`
-				}
+				sub={isAccountWide ? `Account-wide · ${balanceSub}` : balanceSub}
 				definition={
 					<p>
 						{

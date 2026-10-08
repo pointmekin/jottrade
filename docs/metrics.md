@@ -7,6 +7,7 @@ This file defines each performance metric in JotTrade. The code is in `src/lib/a
 - **Account.** Every metric reads one account (portfolio). The dashboard and the strategy page use the active account.
 - **Period.** The dashboard reads the selected period. A trade belongs to the period of its exit time. A closed trade without an exit time uses its entry time. The strategy page is always all time.
 - **Scope date.** The journal, the trade CSV, the dashboard and the calendar use one period rule: a `CLOSED` trade by its exit time (its entry time without an exit time), and every other trade by its entry time, also when it has a stale exit time. Under a trade attribute filter, trade metrics read only the matching trades and leave out adjustments; balance metrics stay account-wide.
+- **Period label.** The period chip says "Closed in" when the status filter is `CLOSED`, and "Closed or opened in" otherwise. The label names the scope date rule.
 - **Day.** A day is a civil day in the browser timezone. The calendar and the charts use the same day.
 - **Currency.** Money is in the account currency.
 

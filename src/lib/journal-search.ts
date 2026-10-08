@@ -17,7 +17,8 @@ export const JournalIntent = { Log: "log" } as const;
 
 export const NO_STRATEGY = "none" as const;
 
-export const journalSearchSchema = z.object({
+/** One scope in the URL of the journal, the dashboard and the calendar. */
+export const scopeSearchSchema = z.object({
 	symbol: z.string().optional(),
 	side: z.enum(TradeSide).optional(),
 	status: z.enum(TradeStatus).optional(),
@@ -29,12 +30,40 @@ export const journalSearchSchema = z.object({
 	period: z.enum(PeriodPreset).default(PeriodPreset.All),
 	dateFrom: z.string().optional(),
 	dateTo: z.string().optional(),
+});
+
+export type ScopeSearch = z.infer<typeof scopeSearchSchema>;
+
+export const SCOPE_SEARCH_KEYS = scopeSearchSchema.keyof().options;
+
+/** Explicit undefined values, so a merge with the current search and retainSearchParams both drop them. */
+export const CLEARED_TRADE_FILTERS = {
+	symbol: undefined,
+	side: undefined,
+	status: undefined,
+	setupId: undefined,
+	confidence: undefined,
+	mistake: undefined,
+	tags: undefined,
+	tagMatch: undefined,
+} satisfies Partial<ScopeSearch>;
+
+export const journalSearchSchema = scopeSearchSchema.extend({
 	intent: z.enum(JournalIntent).optional(),
 	view: z.enum(JournalView).default(JournalView.All),
-	page: z.number().default(1),
+	page: z.number().int().min(1).default(1).catch(1),
 });
 
 export type JournalSearch = z.infer<typeof journalSearchSchema>;
+
+/** Old links used from/to; they map once to the shared dateFrom/dateTo names. */
+export const dashboardSearchSchema = scopeSearchSchema
+	.extend({ from: z.string().optional(), to: z.string().optional() })
+	.transform(({ from, to, ...search }) => ({
+		...search,
+		dateFrom: search.dateFrom ?? from,
+		dateTo: search.dateTo ?? to,
+	}));
 
 const CONFIDENCE_LEVELS = new Set<string>(Object.values(TradeConfidence));
 
@@ -46,7 +75,7 @@ function toSetupFilter(setupId?: string) {
 }
 
 export function toTradeQuery(
-	search: JournalSearch,
+	search: ScopeSearch & { page?: number },
 	range: { from: Date | null; to: Date | null },
 ) {
 	const confidence = splitList(search.confidence)?.filter(
