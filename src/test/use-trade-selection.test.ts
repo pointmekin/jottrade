@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { TradeFilter } from "@/db/trade-filter";
 import { useTradeSelection } from "@/hooks/use-trade-selection";
+import type { TradeFilter } from "@/lib/analysis-scope";
 
 vi.mock("@/server/getTrades", () => ({ getTradeIds: vi.fn() }));
 

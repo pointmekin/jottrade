@@ -14,6 +14,7 @@ Template leftovers: the demo routes and demo data were removed before issue #33.
   - `IMPORT_TEST_DATABASE_URL` → `src/test/import-sql.integration.test.ts`.
   - `REVIEW_TEST_DATABASE_URL` → `src/test/review-database.test.ts`.
   - `TAGS_TEST_DATABASE_URL` → `src/test/trade-tags.integration.test.ts`. It accepts any local `jottrade_test_*` database (the `npm run db:check` rules) and drops its schema.
+  - `SCOPE_TEST_DATABASE_URL` → `src/test/analysis-scope.integration.test.ts`. The same rules as `TAGS_TEST_DATABASE_URL`.
   - Gap: the fixtures accept only `127.0.0.1` with fixed ports, users and database names (for example port `49485`, database `integration_behavior`). They do not accept the `jottrade_test_*` databases that `npm run db:reset` creates ([development-database.md](development-database.md)), so `npm run verify` does not run them.
 - **DB (verify)**: `src/test/user-isolation.integration.test.ts`. `npm run verify` runs it on a fresh, seeded `jottrade_test_*` database through the real `@/db` client. CI runs it in the **E2E** check. Without `VERIFY_DATABASE_URL`, Vitest skips it.
 - **E2E**: a Playwright spec in `e2e/`. `npm run verify` runs the suite against the production build and the seeded database. CI runs it in the **E2E** check. See [quality-gate.md](quality-gate.md), section "Critical-flow verification".
@@ -134,7 +135,7 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
   - Trade CSV: the dialog shows the trade count, the active account and the period. The file has every trade that matches the current filters (tags included), not one page. The `tags` column lists tag names separated by `; `. It has a UTF-8 BOM, CRLF rows, a stable column order, exact decimal strings, UTC ISO times and the account currency. Text cells that start with `=`, `+`, `-`, `@`, tab or CR get a leading `'`. The file name is `jottrade-trades-<account>-<date>.csv`.
   - Full archive: one JSON file (`schemaVersion` 1) with all accounts, trades, funding entries, strategies, tags, trade-tag links, reviews and review source links. Screenshots are listed by URL, not bundled. Import batches, sessions and credentials are not included. The file name is `jottrade-archive-<date>.json`.
   - A failed export shows an error toast and downloads nothing. The server keeps no export job, so a retry cannot create a duplicate.
-- **Server**: `src/server/exportActions.ts` (`exportTradesCsv`, `exportArchive`). The trade filter is shared with `getTrades` in `src/db/trade-filter.ts`. Archive queries: `src/db/journal-archive.ts`. Formatting: `src/lib/csv-export.ts`, `src/lib/archive.ts`.
+- **Server**: `src/server/exportActions.ts` (`exportTradesCsv`, `exportArchive`). The trade filter is shared with `getTrades` in `src/db/trade-filter.ts`; the period uses the scope date (see "Analysis scope"). Archive queries: `src/db/journal-archive.ts`. Formatting: `src/lib/csv-export.ts`, `src/lib/archive.ts`.
 - **Data**: reads `portfolios`, `trades`, `cash_flows`, `strategies`, `tags`, `trade_tags`, `review_periods`, `review_source_trades`, `review_source_cash_flows`. No schema change.
 - **Verification**: Unit `csv-export.test.ts` (escaping, injection guard, decimals, dates, file names), `export-actions.test.ts` (user and account scope of the query, foreign account refusal, archive counts). Gap: archive against a real database; no check that a screenshot URL still resolves.
 
@@ -145,6 +146,13 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 - **Server**: `getAnalytics.ts`, `getAdvancedAnalytics.ts`. Logic in `src/lib/analytics.ts`, `risk-metrics.ts`, `group-summary.ts`, `equity-series.ts`.
 - **Data**: reads `trades`, `cash_flows`, `strategies`; writes nothing.
 - **Verification**: Unit `analytics.test.ts`, `risk-metrics.test.ts`, `risk-metrics.test.tsx`, `group-summary.test.ts`. E2E `totals.spec.ts` (net P&L and trade count for one seeded account agree with the calendar and the strategy page). Gap: charts and risk metrics in the browser.
+
+### Analysis scope (issue #12, slice A1)
+
+- **Entry**: no new UI. The journal, the trade CSV, the dashboard and the calendar send the scope to the server.
+- **Rules**: one period rule for every screen: closed trades by exit time, open trades by entry time ([metrics.md](metrics.md), "Scope"). The journal and the trade CSV used the entry time before. Under a trade attribute filter (symbol, side, status, strategy, confidence, mistake, tags), the dashboard trade metrics read only the matching trades and leave out adjustments; the balance metrics and the equity curve stay account-wide. `getAnalytics` returns `scope: { isFiltered, excludedAdjustments }`. `getTrades` returns `closedSummary: { count, netPnl }`.
+- **Code**: `src/lib/analysis-scope.ts` (client-safe `tradeFilterSchema`, `analysisScopeSchema`), `src/db/trade-filter.ts` (`tradeConditions`, `tradeScopeDate`), `src/db/account-history.ts` (`loadMatchingTrades`), `summarizeScope` in `src/lib/analytics.ts`.
+- **Verification**: Unit `analysis-scope.test.ts`. DB (optional) `analysis-scope.integration.test.ts` (2 users × 2 accounts across a month boundary: for each filter, `getTrades.closedSummary`, `getAnalytics`, `getAdvancedAnalytics` and the calendar month agree on the closed count and net P&L; another user's account returns nothing).
 
 ### Calendar
 

@@ -8,10 +8,7 @@ const SERVER_DIR = "src/server/";
 const AUTH_MIDDLEWARE = "src/server/auth-middleware.ts";
 
 // Narrow, documented exceptions. Each entry needs a reason.
-export const SERVER_MODULE_EXPORTS: Record<string, string> = {
-	"src/server/rangeInput.ts":
-		"A shared Zod schema. It imports only zod, so the client graph stays clean.",
-};
+export const SERVER_MODULE_EXPORTS: Record<string, string> = {};
 export const PUBLIC_SERVER_FUNCTIONS: Record<string, string> = {};
 export const NO_INPUT_POSTS: Record<string, string> = {
 	exportArchive:

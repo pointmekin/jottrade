@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import type { TradeFilter } from "@/db/trade-filter";
+import type { TradeFilter } from "@/lib/analysis-scope";
 import { BULK_EDIT_LIMIT } from "@/lib/trade-tag";
 import { getTradeIds } from "@/server/getTrades";
 

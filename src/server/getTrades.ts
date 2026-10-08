@@ -1,12 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, sum } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { loadAccountHistory } from "@/db/account-history";
 import { trades } from "@/db/schema";
-import { tradeConditions, tradeFilterSchema } from "@/db/trade-filter";
+import { tradeConditions } from "@/db/trade-filter";
 import { loadTagsByTrade, withTags } from "@/db/trade-tags";
+import { tradeFilterSchema } from "@/lib/analysis-scope";
 import { computeAccountReturn } from "@/lib/risk-metrics";
+import { TradeStatus } from "@/lib/trade";
 import { BULK_EDIT_LIMIT } from "@/lib/trade-tag";
 import { authMiddleware } from "./auth-middleware";
 
@@ -21,7 +23,7 @@ export const getTrades = createServerFn({ method: "GET" })
 		const { userId } = context;
 		const where = tradeConditions(userId, data);
 
-		const [rows, [{ total }]] = await Promise.all([
+		const [rows, [{ total }], [closed]] = await Promise.all([
 			db
 				.select()
 				.from(trades)
@@ -30,11 +32,19 @@ export const getTrades = createServerFn({ method: "GET" })
 				.limit(PAGE_SIZE)
 				.offset((data.page - 1) * PAGE_SIZE),
 			db.select({ total: count() }).from(trades).where(where),
+			db
+				.select({ count: count(), netPnl: sum(trades.netPnl) })
+				.from(trades)
+				.where(and(where, eq(trades.status, TradeStatus.Closed))),
 		]);
 
 		return {
 			trades: await withTags(userId, rows),
 			total: Number(total),
+			closedSummary: {
+				count: Number(closed.count),
+				netPnl: Number(closed.netPnl ?? 0),
+			},
 			page: data.page,
 			pageSize: PAGE_SIZE,
 		};

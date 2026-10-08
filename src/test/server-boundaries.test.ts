@@ -127,18 +127,6 @@ export enum Mode { A }`);
 			expect.stringContaining(":5: do not call requireUserId"),
 		]);
 	});
-
-	it("still checks server functions in an export exception file", () => {
-		const file = {
-			path: "src/server/rangeInput.ts",
-			source: `import { createServerFn } from "@tanstack/react-start";
-export const sneaky = createServerFn().handler(async () => 1);`,
-		};
-
-		expect(checkServerModule(file)).toEqual([
-			expect.stringContaining("sneaky: add .middleware([authMiddleware])"),
-		]);
-	});
 });
 
 describe("server functions outside src/server", () => {
