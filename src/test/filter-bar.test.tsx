@@ -13,6 +13,16 @@ vi.mock("@/server/strategyActions", () => ({
 	getStrategies: vi.fn(),
 }));
 
+vi.mock("@/hooks/use-tags", () => ({
+	useTags: () => ({
+		data: [
+			{ id: 3, name: "FOMO", color: "gray" },
+			{ id: 4, name: "News", color: "blue" },
+		],
+	}),
+	useCreateTag: () => ({ mutate: vi.fn(), reset: vi.fn() }),
+}));
+
 vi.mock("@/components/period-picker", () => ({
 	PeriodPicker: ({ onChange }: { onChange: (value: unknown) => void }) => (
 		<button
@@ -113,5 +123,27 @@ describe("FilterBar", () => {
 
 		act(() => vi.advanceTimersByTime(300));
 		expect(onFiltersChange).toHaveBeenCalledWith({ symbol: "NVDA", page: 1 });
+	});
+
+	it("shows the tag filter with its match mode and switches to every tag", () => {
+		const { onFiltersChange } = renderFilterBar({ tags: "3,4" });
+
+		expect(screen.getByText("Tags, any of: FOMO, News")).toBeTruthy();
+		fireEvent.click(screen.getByRole("button", { name: /Filters/ }));
+		expect(screen.getByRole("button", { name: /2 selected/ })).toBeTruthy();
+		fireEvent.click(
+			screen.getByRole("button", { name: "Match every selected tag" }),
+		);
+		expect(onFiltersChange).toHaveBeenCalledWith({
+			tags: "3,4",
+			tagMatch: "all",
+			page: 1,
+		});
+		fireEvent.click(screen.getByRole("button", { name: "Clear tag filter" }));
+		expect(onFiltersChange).toHaveBeenLastCalledWith({
+			tags: undefined,
+			tagMatch: undefined,
+			page: 1,
+		});
 	});
 });

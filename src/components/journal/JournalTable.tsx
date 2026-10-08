@@ -5,6 +5,7 @@ import {
 	useReactTable,
 } from "@tanstack/react-table";
 import { useMemo } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
@@ -67,16 +68,49 @@ export function JournalTableSkeleton() {
 	);
 }
 
+export interface TradeSelection {
+	selectedIds: ReadonlySet<number>;
+	onToggle: (tradeId: number) => void;
+	onTogglePage: (tradeIds: number[], isSelected: boolean) => void;
+}
+
+function SelectCell({
+	trade,
+	selection,
+}: {
+	trade: Trade | null;
+	selection: TradeSelection;
+}) {
+	return (
+		<TableCell
+			className="w-8"
+			onClick={(event) => event.stopPropagation()}
+			onKeyDown={(event) => event.stopPropagation()}
+		>
+			{trade && (
+				<Checkbox
+					checked={selection.selectedIds.has(trade.id)}
+					onCheckedChange={() => selection.onToggle(trade.id)}
+					aria-label={`Select ${trade.symbol} trade`}
+				/>
+			)}
+		</TableCell>
+	);
+}
+
 function JournalTableRow({
 	row,
 	onTradeClick,
+	selection,
 }: {
 	row: Row<JournalRow>;
 	onTradeClick?: (trade: Trade) => void;
+	selection?: TradeSelection;
 }) {
 	const entry = row.original;
 	const trade = entry.kind === JournalEntryKind.Trade ? entry.trade : null;
 	const isClickable = trade !== null && onTradeClick !== undefined;
+	const isSelected = trade !== null && selection?.selectedIds.has(trade.id);
 	const openTrade = () => {
 		if (trade) onTradeClick?.(trade);
 	};
@@ -84,7 +118,8 @@ function JournalTableRow({
 	return (
 		<TableRow
 			className={cn(
-				"border-border",
+				"border-border transition-colors duration-150",
+				isSelected && "bg-accent/40",
 				trade
 					? "cursor-pointer hover:bg-accent/55 focus-visible:bg-accent/55"
 					: "bg-muted/35 hover:bg-muted/35",
@@ -100,6 +135,7 @@ function JournalTableRow({
 				}
 			}}
 		>
+			{selection && <SelectCell trade={trade} selection={selection} />}
 			{row.getVisibleCells().map((cell) => (
 				<TableCell key={cell.id}>
 					{flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -113,12 +149,44 @@ interface JournalTableProps {
 	entries: JournalRow[];
 	emptyMessage?: string;
 	onTradeClick?: (trade: Trade) => void;
+	selection?: TradeSelection;
+}
+
+function SelectPageHead({
+	entries,
+	selection,
+}: {
+	entries: JournalRow[];
+	selection: TradeSelection;
+}) {
+	const pageIds = entries.flatMap((entry) =>
+		entry.kind === JournalEntryKind.Trade ? [entry.trade.id] : [],
+	);
+	const selectedOnPage = pageIds.filter((id) =>
+		selection.selectedIds.has(id),
+	).length;
+	let checked: boolean | "indeterminate" = false;
+	if (selectedOnPage > 0) checked = "indeterminate";
+	if (pageIds.length > 0 && selectedOnPage === pageIds.length) checked = true;
+	return (
+		<TableHead className="w-8">
+			<Checkbox
+				checked={checked}
+				disabled={!pageIds.length}
+				onCheckedChange={() =>
+					selection.onTogglePage(pageIds, checked !== true)
+				}
+				aria-label="Select all trades on this page"
+			/>
+		</TableHead>
+	);
 }
 
 export function JournalTable({
 	entries,
 	emptyMessage = "No entries match this section.",
 	onTradeClick,
+	selection,
 }: JournalTableProps) {
 	const currency = useCurrency();
 	const columns = useMemo(() => journalColumnDefs(currency), [currency]);
@@ -160,6 +228,9 @@ export function JournalTable({
 								key={headerGroup.id}
 								className="border-border bg-background hover:bg-background"
 							>
+								{selection && (
+									<SelectPageHead entries={entries} selection={selection} />
+								)}
 								{headerGroup.headers.map((header) => (
 									<TableHead key={header.id}>
 										{header.isPlaceholder
@@ -182,12 +253,13 @@ export function JournalTable({
 										key={row.id}
 										row={row}
 										onTradeClick={onTradeClick}
+										selection={selection}
 									/>
 								))
 						) : (
 							<TableRow>
 								<TableCell
-									colSpan={columns.length}
+									colSpan={columns.length + (selection ? 1 : 0)}
 									className="h-36 text-center text-muted-foreground"
 								>
 									{emptyMessage}

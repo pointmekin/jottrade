@@ -328,5 +328,8 @@ const EDGE_TRADES: TradeSpec[] = [
 ];
 
 export function seedTrades(): TradeRow[] {
-	return [...generatedTrades(), ...EDGE_TRADES].map(toTrade);
+	return [...generatedTrades(), ...EDGE_TRADES].map((spec, index) => ({
+		id: index + 1,
+		...toTrade(spec),
+	}));
 }

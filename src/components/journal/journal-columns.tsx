@@ -1,6 +1,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 import { MetricLabel } from "@/components/metric-label";
+import { TagList } from "@/components/tags/tag-chip";
 import type { AccountEntryRecord } from "@/lib/account-entry";
 import { type JournalEntry, JournalEntryKind } from "@/lib/journal-entries";
 import { formatEntryDate, toNumber } from "@/lib/journal-format";
@@ -62,6 +63,12 @@ const buildColumns = (currency: string): JournalColumn[] => [
 		header: "Side",
 		trade: (trade) => <SidePill side={trade.side} />,
 		adjustment: () => <AdjustmentPill />,
+	},
+	{
+		id: "tags",
+		header: "Tags",
+		trade: (trade) => <TagList tags={trade.tags} />,
+		adjustment: () => null,
 	},
 	{
 		id: "entryPrice",

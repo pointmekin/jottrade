@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { AccountEntryRecord } from "./account-entry";
 import { PeriodPreset } from "./period";
 import { TradeConfidence, TradeSide, TradeStatus } from "./trade";
+import { parseTagIds, TagMatch } from "./trade-tag";
 
 export const JournalView = {
 	All: "all",
@@ -23,6 +24,8 @@ export const journalSearchSchema = z.object({
 	setupId: z.string().optional(),
 	confidence: z.string().optional(),
 	mistake: z.string().optional(),
+	tags: z.string().optional(),
+	tagMatch: z.enum(TagMatch).optional(),
 	period: z.enum(PeriodPreset).default(PeriodPreset.All),
 	dateFrom: z.string().optional(),
 	dateTo: z.string().optional(),
@@ -56,6 +59,8 @@ export function toTradeQuery(
 		setupId: toSetupFilter(search.setupId),
 		confidence,
 		mistake: splitList(search.mistake),
+		tagIds: parseTagIds(search.tags),
+		tagMatch: search.tagMatch,
 		dateFrom: range.from?.toISOString(),
 		dateTo: range.to?.toISOString(),
 		page: search.page,

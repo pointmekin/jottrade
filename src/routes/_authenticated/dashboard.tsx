@@ -15,12 +15,14 @@ import {
 import { EquityCurveSection } from "@/components/dashboard/equity-curve-section";
 import { FundingNotice } from "@/components/dashboard/funding-notice";
 import { RiskSection } from "@/components/dashboard/risk-section";
+import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist";
 import { PeriodPicker } from "@/components/period-picker";
 import { SetupCalculator } from "@/components/tools/SetupCalculator";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrency } from "@/hooks/use-currency";
 import { useDashboardAnalytics } from "@/hooks/use-dashboard-analytics";
+import { useOnboarding } from "@/hooks/use-onboarding";
 import { formatMoneyWithCode } from "@/lib/currency";
 import { JournalIntent } from "@/lib/journal-search";
 import {
@@ -49,6 +51,7 @@ function Dashboard() {
 		[search.period, search.from, search.to],
 	);
 	const { summary, advanced } = useDashboardAnalytics(selection);
+	const { isChecklistVisible } = useOnboarding();
 
 	const stats = summary.data?.stats;
 	const periodLabel = describePeriod(selection);
@@ -84,7 +87,8 @@ function Dashboard() {
 						</>
 					}
 				/>
-				{!hasFunding && <FundingNotice />}
+				<OnboardingChecklist />
+				{!hasFunding && !isChecklistVisible && <FundingNotice />}
 				{stats ? (
 					<AccountSummary
 						stats={stats}

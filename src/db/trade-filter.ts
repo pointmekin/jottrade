@@ -1,7 +1,9 @@
 import { and, eq, gte, inArray, isNull, like, lte } from "drizzle-orm";
 import { z } from "zod";
 import { trades } from "@/db/schema";
+import { tagCondition } from "@/db/trade-tags";
 import { TradeConfidence, TradeSide, TradeStatus } from "@/lib/trade";
+import { TAG_FILTER_LIMIT, TagMatch } from "@/lib/trade-tag";
 
 export const tradeFilterSchema = z.object({
 	portfolioId: z.number().int().positive(),
@@ -11,6 +13,8 @@ export const tradeFilterSchema = z.object({
 	setupId: z.union([z.number(), z.literal("none")]).optional(),
 	confidence: z.array(z.enum(TradeConfidence)).optional(),
 	mistake: z.array(z.string()).optional(),
+	tagIds: z.array(z.number().int().positive()).max(TAG_FILTER_LIMIT).optional(),
+	tagMatch: z.enum(TagMatch).optional(),
 	dateFrom: z.string().optional(),
 	dateTo: z.string().optional(),
 });
@@ -37,6 +41,7 @@ export function tradeConditions(userId: string, filter: TradeFilter) {
 		filter.mistake?.length
 			? inArray(trades.mistake, filter.mistake)
 			: undefined,
+		tagCondition(filter.tagIds, filter.tagMatch),
 		filter.dateFrom
 			? gte(trades.entryDate, new Date(filter.dateFrom))
 			: undefined,

@@ -1,5 +1,6 @@
-import type { portfolios, strategies } from "@/db/schema";
+import type { portfolios, strategies, tags, tradeTags } from "@/db/schema";
 import { AccountKind } from "@/lib/account";
+import { TagColor } from "@/lib/trade-tag";
 
 type PortfolioRow = typeof portfolios.$inferInsert;
 type StrategyRow = typeof strategies.$inferInsert;
@@ -104,6 +105,38 @@ export const STRATEGIES: StrategyRow[] = [
 	// Same name as Alice's: names are unique per user, not globally.
 	{ id: 4, userId: SeedUser.Bob, name: "Breakout", description: null },
 ];
+
+export const TAGS: (typeof tags.$inferInsert)[] = [
+	{ id: 1, userId: SeedUser.Alice, name: "Late entry", color: TagColor.Amber },
+	{ id: 2, userId: SeedUser.Alice, name: "News", color: TagColor.Blue },
+	{ id: 3, userId: SeedUser.Alice, name: "Tilt", color: TagColor.Pink },
+	{ id: 4, userId: SeedUser.Alice, name: "A+ setup", color: TagColor.Teal },
+	{ id: 5, userId: SeedUser.Alice, name: "Unused", color: TagColor.Gray },
+	// Same name as Alice's: tag names are unique per user, not globally.
+	{ id: 6, userId: SeedUser.Bob, name: "News", color: TagColor.Gray },
+].map((row) => ({ ...row, createdAt: CREATED }));
+
+/** Trade ids are the seed order; ids 1-38 are Alice's Main USD trades, ids 31-38 the newest. */
+export const TRADE_TAGS: (typeof tradeTags.$inferInsert)[] = [
+	[1, 1],
+	[1, 3],
+	[2, 2],
+	[3, 4],
+	[5, 1],
+	[5, 2],
+	[5, 3],
+	[8, 4],
+	[10, 2],
+	[13, 1],
+	[28, 2],
+	[30, 3],
+	[32, 1],
+	[32, 4],
+	[33, 2],
+	[38, 1],
+	[38, 2],
+	[38, 3],
+].map(([tradeId, tagId]) => ({ tradeId, tagId, createdAt: CREATED }));
 
 export const CURRENCY: Record<number, string> = Object.fromEntries(
 	PORTFOLIOS.map((row) => [row.id, row.currency ?? "USD"]),

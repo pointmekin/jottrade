@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2 } from "lucide-react";
+import { Plus, Target, Trash2 } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -22,6 +23,7 @@ interface StrategyListProps {
 	selectedId: number | null;
 	onSelect: (s: Strategy) => void;
 	onDeleted?: (id: number) => void;
+	onCreate: () => void;
 }
 
 export function StrategyList({
@@ -29,6 +31,7 @@ export function StrategyList({
 	selectedId,
 	onSelect,
 	onDeleted,
+	onCreate,
 }: StrategyListProps) {
 	const qc = useQueryClient();
 	const deleteMut = useMutation({
@@ -41,9 +44,16 @@ export function StrategyList({
 
 	if (!strategies.length) {
 		return (
-			<div className="empty-field h-48 border-0 text-sm text-muted-foreground">
-				No strategies yet. Create your first one.
-			</div>
+			<EmptyState
+				icon={Target}
+				title="No strategies yet"
+				description="Name the setups you trade, then tag trades to see which ones pay."
+				action={
+					<Button onClick={onCreate}>
+						<Plus className="size-4" /> Create a strategy
+					</Button>
+				}
+			/>
 		);
 	}
 

@@ -7,6 +7,7 @@ import { TradeImages } from "./trade-images";
 import { TradeOverviewForm } from "./trade-overview-form";
 import { TradeReviewAnnotation } from "./trade-review-annotation";
 import { TradeRiskDetails } from "./trade-risk-details";
+import { TradeTags } from "./trade-tags";
 
 interface TradeDetailContentProps {
 	trade: Trade;
@@ -38,6 +39,8 @@ export function TradeDetailContent({
 			<div className="space-y-6 px-4 py-4 sm:px-5 sm:py-5">
 				<TradeOverviewForm trade={trade} />
 				<TradeRiskDetails key={trade.id} trade={trade} />
+				<Divider />
+				<TradeTags trade={trade} />
 				<Divider />
 				<TradeReviewAnnotation tradeId={trade.id} />
 				<Divider />

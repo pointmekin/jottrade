@@ -7,7 +7,9 @@ import {
 	reviewSourceCashFlows,
 	reviewSourceTrades,
 	strategies,
+	tags,
 	trades,
+	tradeTags,
 } from "@/db/schema";
 
 function withoutUserId<Row extends { userId: string }>(
@@ -28,6 +30,8 @@ export async function loadArchiveTables(userId: string) {
 		reviewRows,
 		sourceTradeRows,
 		sourceCashFlowRows,
+		tagRows,
+		tradeTagRows,
 	] = await Promise.all([
 		db.select().from(portfolios).where(eq(portfolios.userId, userId)),
 		db.select().from(trades).where(eq(trades.userId, userId)),
@@ -50,6 +54,12 @@ export async function loadArchiveTables(userId: string) {
 				eq(reviewSourceCashFlows.reviewId, reviewPeriods.id),
 			)
 			.where(eq(reviewPeriods.userId, userId)),
+		db.select().from(tags).where(eq(tags.userId, userId)),
+		db
+			.select({ link: tradeTags })
+			.from(tradeTags)
+			.innerJoin(tags, eq(tradeTags.tagId, tags.id))
+			.where(eq(tags.userId, userId)),
 	]);
 	return {
 		accounts: accountRows.map(withoutUserId),
@@ -59,5 +69,7 @@ export async function loadArchiveTables(userId: string) {
 		reviews: reviewRows.map(withoutUserId),
 		reviewSourceTrades: sourceTradeRows.map((row) => row.link),
 		reviewSourceCashFlows: sourceCashFlowRows.map((row) => row.link),
+		tags: tagRows.map(withoutUserId),
+		tradeTags: tradeTagRows.map((row) => row.link),
 	};
 }

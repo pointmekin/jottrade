@@ -22,8 +22,8 @@ export function DataExport() {
 			<div className="flex flex-wrap items-center justify-between gap-5">
 				<p className="max-w-prose text-sm text-muted-foreground">
 					One JSON file with all your accounts, trades, funding entries,
-					strategies and reviews. Screenshots are listed by link and are not
-					included. It holds no password or sign-in data.
+					strategies, tags and reviews. Screenshots are listed by link and are
+					not included. It holds no password or sign-in data.
 				</p>
 				<Button
 					variant="outline"

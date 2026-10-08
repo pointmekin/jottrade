@@ -24,6 +24,10 @@ export function useJournalEntries(search: JournalSearch) {
 		to: search.dateTo,
 	});
 	const query = toTradeQuery(search, range);
+	const filter =
+		portfolioId === undefined
+			? undefined
+			: { ...query, page: undefined, portfolioId };
 
 	const trades = useQuery({
 		queryKey: [QueryKey.Trades, portfolioId, query],
@@ -59,6 +63,7 @@ export function useJournalEntries(search: JournalSearch) {
 		page,
 		totalPages,
 		adjustmentCount: adjustments.length,
+		filter,
 		isLoading:
 			trades.isLoading ||
 			(search.view === JournalView.All && accountEntries.isLoading),

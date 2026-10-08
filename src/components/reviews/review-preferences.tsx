@@ -65,7 +65,12 @@ function PreferenceForm({
 				data: { portfolioId, timezone: zone, weekStartsOn: week },
 			}),
 		onSuccess: () =>
-			queryClient.invalidateQueries({ queryKey: [QueryKey.ReviewPreferences] }),
+			Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: [QueryKey.ReviewPreferences],
+				}),
+				queryClient.invalidateQueries({ queryKey: [QueryKey.Onboarding] }),
+			]),
 	});
 	return (
 		<section className="surface space-y-3 p-5">

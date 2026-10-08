@@ -91,7 +91,7 @@ async function setup() {
 async function seed(target: Target) {
 	const data = await seedDatabase(target);
 	console.log(
-		`Seeded ${data.users.length} users, ${data.portfolios.length} accounts, ${data.trades.length} trades, ${data.cashFlows.length} cash flows, ${data.strategies.length} strategies into ${target.database}.`,
+		`Seeded ${data.users.length} users, ${data.portfolios.length} accounts, ${data.trades.length} trades, ${data.cashFlows.length} cash flows, ${data.strategies.length} strategies, ${data.tags.length} tags into ${target.database}.`,
 	);
 }
 

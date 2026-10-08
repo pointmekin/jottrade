@@ -5,6 +5,7 @@ export const QueryKey = {
 	ImportBatch: "import-batch",
 	ImportUndo: "import-undo",
 	Accounts: "accounts",
+	Onboarding: "onboarding",
 	ReviewPeriod: "review-period",
 	ReviewQueue: "review-queue",
 	TradeReviewAnnotation: "trade-review-annotation",
@@ -16,6 +17,7 @@ export const QueryKey = {
 	Analytics: "analytics",
 	AdvancedAnalytics: "advanced-analytics",
 	Strategies: "strategies",
+	Tags: "tags",
 	StrategyPerformance: "strategy-performance",
 	ExnessExportScript: "exness-export-script",
 } as const;
@@ -36,6 +38,7 @@ const TRADE_DEPENDENT_KEYS: QueryKey[] = [
 	QueryKey.AdvancedAnalytics,
 	QueryKey.StrategyPerformance,
 	QueryKey.Accounts,
+	QueryKey.Onboarding,
 ];
 
 const ACCOUNT_ENTRY_DEPENDENT_KEYS: QueryKey[] = [
@@ -48,6 +51,7 @@ const ACCOUNT_ENTRY_DEPENDENT_KEYS: QueryKey[] = [
 	QueryKey.Trade,
 	QueryKey.Analytics,
 	QueryKey.AdvancedAnalytics,
+	QueryKey.Onboarding,
 ];
 
 function invalidate(queryClient: QueryClient, keys: QueryKey[]) {

@@ -56,6 +56,7 @@ export const TRADE_CSV_COLUMNS: readonly Column[] = [
 	}),
 	raw("confidence", (trade) => trade.confidence),
 	text("mistake", (trade) => trade.mistake),
+	text("tags", (trade) => trade.tags?.map((tag) => tag.name).join("; ")),
 	text("notes", (trade) => trade.notes),
 	raw("reviewed_at_utc", (trade) => iso(trade.reviewedAt)),
 	text("broker_source", (trade) => trade.brokerSource),

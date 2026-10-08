@@ -5,6 +5,7 @@ import { loadArchiveTables } from "@/db/journal-archive";
 import { requireOwnedPortfolio } from "@/db/portfolios";
 import { strategies, trades } from "@/db/schema";
 import { tradeConditions, tradeFilterSchema } from "@/db/trade-filter";
+import { withTags } from "@/db/trade-tags";
 import { buildArchive } from "@/lib/archive";
 import { exportFileName, tradesToCsv } from "@/lib/csv-export";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
@@ -30,7 +31,7 @@ export const exportTradesCsv = createServerFn({ method: "POST" })
 		const now = new Date();
 		return {
 			fileName: exportFileName("trades", account.name, now, "csv"),
-			csv: tradesToCsv(rows, {
+			csv: tradesToCsv(await withTags(userId, rows), {
 				accountName: account.name,
 				accountCurrency: account.currency ?? DEFAULT_CURRENCY,
 				strategyNames: new Map(

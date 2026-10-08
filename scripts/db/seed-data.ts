@@ -4,7 +4,9 @@ import type {
 	cashFlows,
 	portfolios,
 	strategies,
+	tags,
 	trades,
+	tradeTags,
 	user,
 } from "@/db/schema";
 import { AccountEntryKind } from "@/lib/account-entry";
@@ -15,6 +17,8 @@ import {
 	PEOPLE,
 	PORTFOLIOS,
 	STRATEGIES,
+	TAGS,
+	TRADE_TAGS,
 } from "./seed-accounts";
 import { seedTrades } from "./seed-trades";
 
@@ -37,6 +41,8 @@ export type SeedData = {
 	strategies: StrategyRow[];
 	trades: TradeRow[];
 	cashFlows: CashFlowRow[];
+	tags: (typeof tags.$inferInsert)[];
+	tradeTags: (typeof tradeTags.$inferInsert)[];
 };
 
 // Better Auth's scrypt format (salt:key, N=16384, r=16, p=1, 64 bytes) with a
@@ -117,5 +123,7 @@ export function buildSeedData(): SeedData {
 		strategies: STRATEGIES,
 		trades: seedTrades(),
 		cashFlows: CASH_FLOWS,
+		tags: TAGS,
+		tradeTags: TRADE_TAGS,
 	};
 }
