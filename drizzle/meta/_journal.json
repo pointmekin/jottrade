@@ -71,6 +71,13 @@
       "when": 1791431937707,
       "tag": "0009_naive_randall_flagg",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791462330649,
+      "tag": "0010_trade_sort_index",
+      "breakpoints": true
     }
   ]
 }

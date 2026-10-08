@@ -23,6 +23,7 @@ export const SeedUser = {
 	Bob: "bob@jottrade.test",
 	Erin: "erin@jottrade.test",
 	Nora: "nora@jottrade.test",
+	Sam: "sam@jottrade.test",
 } as const;
 
 export type SeedUser = (typeof SeedUser)[keyof typeof SeedUser];

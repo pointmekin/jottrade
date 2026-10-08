@@ -1,20 +1,20 @@
 import { createServerFn } from "@tanstack/react-start";
-import { desc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { loadArchiveTables } from "@/db/journal-archive";
 import { requireOwnedPortfolio } from "@/db/portfolios";
 import { strategies, trades } from "@/db/schema";
-import { tradeConditions } from "@/db/trade-filter";
+import { tradeConditions, tradeOrder } from "@/db/trade-filter";
 import { withTags } from "@/db/trade-tags";
-import { tradeFilterSchema } from "@/lib/analysis-scope";
 import { buildArchive } from "@/lib/archive";
 import { exportFileName, tradesToCsv } from "@/lib/csv-export";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
+import { sortedTradeFilterSchema } from "@/lib/trade-sort";
 import { authMiddleware } from "./auth-middleware";
 
 export const exportTradesCsv = createServerFn({ method: "POST" })
 	.middleware([authMiddleware])
-	.validator(tradeFilterSchema)
+	.validator(sortedTradeFilterSchema)
 	.handler(async ({ data, context }) => {
 		const { userId } = context;
 		const account = await requireOwnedPortfolio(userId, data.portfolioId);
@@ -23,7 +23,7 @@ export const exportTradesCsv = createServerFn({ method: "POST" })
 				.select()
 				.from(trades)
 				.where(tradeConditions(userId, data))
-				.orderBy(desc(trades.entryDate), desc(trades.id)),
+				.orderBy(...tradeOrder(data)),
 			db
 				.select({ id: strategies.id, name: strategies.name })
 				.from(strategies)

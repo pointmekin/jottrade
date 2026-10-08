@@ -13,10 +13,11 @@ import {
 import { resolvePeriod } from "@/lib/period";
 import { QueryKey } from "@/lib/query-keys";
 import type { Trade } from "@/lib/trade";
+import { isDefaultTradeSort, tradeSortSchema } from "@/lib/trade-sort";
 import { getTrades } from "@/server/getTrades";
 
 export function useJournalEntries(search: JournalSearch) {
-	const { activeAccount } = useAccounts();
+	const { activeAccount, isLoading: isAccountLoading } = useAccounts();
 	const portfolioId = activeAccount?.id;
 	const range = resolvePeriod({
 		preset: search.period,
@@ -27,7 +28,13 @@ export function useJournalEntries(search: JournalSearch) {
 	const filter =
 		portfolioId === undefined
 			? undefined
-			: { ...query, page: undefined, portfolioId };
+			: {
+					...query,
+					page: undefined,
+					sort: undefined,
+					dir: undefined,
+					portfolioId,
+				};
 
 	const trades = useQuery({
 		queryKey: [QueryKey.Trades, portfolioId, query],
@@ -57,7 +64,10 @@ export function useJournalEntries(search: JournalSearch) {
 	return {
 		entries: mergeJournalEntries(
 			tradeList,
-			search.view === JournalView.All ? pageAdjustments : [],
+			search.view === JournalView.All &&
+				isDefaultTradeSort(tradeSortSchema.parse(search))
+				? pageAdjustments
+				: [],
 		),
 		total,
 		closedSummary: trades.data?.closedSummary ?? { count: 0, netPnl: 0 },
@@ -66,6 +76,7 @@ export function useJournalEntries(search: JournalSearch) {
 		adjustmentCount: adjustments.length,
 		filter,
 		isLoading:
+			isAccountLoading ||
 			trades.isLoading ||
 			(search.view === JournalView.All && accountEntries.isLoading),
 	};

@@ -1,0 +1,1 @@
+CREATE INDEX "idx_trades_portfolio_entry" ON "trades" USING btree ("portfolio_id","entry_date" DESC NULLS LAST,"id" DESC NULLS FIRST);

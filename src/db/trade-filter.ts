@@ -1,8 +1,25 @@
-import { and, eq, gte, inArray, isNull, like, lte, sql } from "drizzle-orm";
+import {
+	and,
+	asc,
+	desc,
+	eq,
+	gte,
+	inArray,
+	isNull,
+	like,
+	lte,
+	type SQLWrapper,
+	sql,
+} from "drizzle-orm";
 import { trades } from "@/db/schema";
 import { tagCondition } from "@/db/trade-tags";
 import type { TradeFilter } from "@/lib/analysis-scope";
 import { TradeStatus } from "@/lib/trade";
+import {
+	SortDirection,
+	type TradeSort,
+	TradeSortField,
+} from "@/lib/trade-sort";
 
 /** The scope date of every screen: closed trades by exit, other trades by entry, as in `groupTradesByDay`. */
 export const tradeScopeDate = sql`case when ${trades.status} = ${TradeStatus.Closed} then coalesce(${trades.exitDate}, ${trades.entryDate}) else ${trades.entryDate} end`;
@@ -39,4 +56,19 @@ export function tradeConditions(userId: string, filter: TradeFilter) {
 			? lte(tradeScopeDate, scopeDateBound(filter.dateTo))
 			: undefined,
 	);
+}
+
+const SORT_COLUMN = {
+	[TradeSortField.EntryDate]: trades.entryDate,
+	[TradeSortField.ScopeDate]: tradeScopeDate,
+	[TradeSortField.Symbol]: trades.symbol,
+	[TradeSortField.NetPnl]: trades.netPnl,
+	[TradeSortField.ReturnPercent]: trades.returnPercent,
+} satisfies Record<TradeSortField, SQLWrapper>;
+
+/** The id breaks ties, so a page boundary never repeats or skips a row. */
+export function tradeOrder({ sort, dir }: TradeSort) {
+	if (dir === SortDirection.Asc)
+		return [sql`${SORT_COLUMN[sort]} asc nulls last`, asc(trades.id)];
+	return [sql`${SORT_COLUMN[sort]} desc nulls last`, desc(trades.id)];
 }

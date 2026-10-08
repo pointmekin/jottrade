@@ -4,7 +4,8 @@ import {
 	type Row,
 	useReactTable,
 } from "@tanstack/react-table";
-import { useMemo } from "react";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { type ReactNode, useMemo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -18,8 +19,17 @@ import {
 import { useCurrency } from "@/hooks/use-currency";
 import { JournalEntryKind } from "@/lib/journal-entries";
 import type { Trade } from "@/lib/trade";
+import {
+	SortDirection,
+	type TradeSort,
+	type TradeSortField,
+} from "@/lib/trade-sort";
 import { cn } from "@/lib/utils";
-import { type JournalRow, journalColumnDefs } from "./journal-columns";
+import {
+	type JournalRow,
+	journalColumnDefs,
+	SORTABLE_COLUMNS,
+} from "./journal-columns";
 import { AdjustmentCard, TradeCard } from "./journal-mobile-cards";
 
 const MOBILE_SKELETON_KEYS = [
@@ -145,11 +155,61 @@ function JournalTableRow({
 	);
 }
 
+export interface JournalSortControl {
+	current: TradeSort;
+	onSortChange: (field: TradeSortField) => void;
+}
+
 interface JournalTableProps {
 	entries: JournalRow[];
 	emptyMessage?: string;
 	onTradeClick?: (trade: Trade) => void;
 	selection?: TradeSelection;
+	sort?: JournalSortControl;
+}
+
+const ARIA_SORT = {
+	[SortDirection.Asc]: "ascending",
+	[SortDirection.Desc]: "descending",
+} as const;
+
+const SORT_ICON = {
+	[SortDirection.Asc]: ArrowUp,
+	[SortDirection.Desc]: ArrowDown,
+};
+
+function SortableHead({
+	columnId,
+	sort,
+	children,
+}: {
+	columnId: string;
+	sort?: JournalSortControl;
+	children: ReactNode;
+}) {
+	const column = SORTABLE_COLUMNS[columnId];
+	if (!sort || !column) return <TableHead>{children}</TableHead>;
+	const direction =
+		sort.current.sort === column.field ? sort.current.dir : undefined;
+	const Icon = direction ? SORT_ICON[direction] : ArrowUpDown;
+	return (
+		<TableHead aria-sort={direction && ARIA_SORT[direction]}>
+			<div className="flex items-center gap-1">
+				{children}
+				<button
+					type="button"
+					aria-label={`Sort by ${column.label}`}
+					onClick={() => sort.onSortChange(column.field)}
+					className={cn(
+						"inline-flex size-6 items-center justify-center rounded-md text-muted-foreground/70 transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/35",
+						direction && "text-foreground",
+					)}
+				>
+					<Icon className="size-3.5" />
+				</button>
+			</div>
+		</TableHead>
+	);
 }
 
 function SelectPageHead({
@@ -187,6 +247,7 @@ export function JournalTable({
 	emptyMessage = "No entries match this section.",
 	onTradeClick,
 	selection,
+	sort,
 }: JournalTableProps) {
 	const currency = useCurrency();
 	const columns = useMemo(() => journalColumnDefs(currency), [currency]);
@@ -232,14 +293,18 @@ export function JournalTable({
 									<SelectPageHead entries={entries} selection={selection} />
 								)}
 								{headerGroup.headers.map((header) => (
-									<TableHead key={header.id}>
+									<SortableHead
+										key={header.id}
+										columnId={header.column.id}
+										sort={sort}
+									>
 										{header.isPlaceholder
 											? null
 											: flexRender(
 													header.column.columnDef.header,
 													header.getContext(),
 												)}
-									</TableHead>
+									</SortableHead>
 								))}
 							</TableRow>
 						))}

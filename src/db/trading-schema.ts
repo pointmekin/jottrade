@@ -236,6 +236,11 @@ export const trades = pgTable(
 		index("idx_trades_user").on(t.userId),
 		index("idx_trades_date").on(t.entryDate),
 		index("idx_trades_portfolio").on(t.portfolioId),
+		index("idx_trades_portfolio_entry").on(
+			t.portfolioId,
+			t.entryDate.desc().nullsLast(),
+			t.id.desc().nullsFirst(),
+		),
 	],
 );
 
