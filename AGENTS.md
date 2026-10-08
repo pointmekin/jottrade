@@ -112,6 +112,7 @@ Use the `@/*` alias for imports from `src/`.
 - Apply authentication at the route-layout level for protected screens.
 - Preserve strong TypeScript types across server functions, query results, forms, and database operations.
 - Keep secrets out of source control.
+- Follow [docs/workflows.md](docs/workflows.md) for an implementation, a debugging task or a migration. Record a repeated correction there.
 
 ## Quality gate
 
