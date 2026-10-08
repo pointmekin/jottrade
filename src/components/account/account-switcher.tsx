@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Check, ChevronsUpDown, Plus, Settings } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, RotateCw, Settings } from "lucide-react";
 import { useState } from "react";
 import { AccountFormDialog } from "@/components/account/account-form-dialog";
 import { AccountKindBadge } from "@/components/account/account-kind-badge";
@@ -23,11 +23,42 @@ import { ACCOUNT_KIND_LABELS } from "@/lib/account";
 import { cn } from "@/lib/utils";
 
 export function AccountSwitcher() {
-	const { accounts, activeAccount, setActiveAccount, isLoading } =
-		useAccounts();
+	const {
+		accounts,
+		activeAccount,
+		setActiveAccount,
+		isLoading,
+		isError,
+		refetch,
+	} = useAccounts();
 	const { state } = useSidebar();
 	const isCollapsed = state === "collapsed";
 	const [createOpen, setCreateOpen] = useState(false);
+
+	if (isError && !activeAccount)
+		return (
+			<SidebarMenu>
+				<SidebarMenuItem>
+					<SidebarMenuButton
+						tooltip="Accounts did not load. Retry"
+						className="h-11"
+						onClick={() => refetch()}
+					>
+						<RotateCw className="size-4 shrink-0 text-destructive" />
+						{!isCollapsed && (
+							<div role="alert" className="min-w-0 flex-1 text-left">
+								<p className="truncate text-xs font-semibold text-destructive">
+									Accounts did not load
+								</p>
+								<p className="truncate text-[11px] text-muted-foreground">
+									Retry
+								</p>
+							</div>
+						)}
+					</SidebarMenuButton>
+				</SidebarMenuItem>
+			</SidebarMenu>
+		);
 
 	const initial = (activeAccount?.name.charAt(0) || "A").toUpperCase();
 

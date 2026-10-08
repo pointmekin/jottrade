@@ -2,7 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DeleteAccountDialog } from "@/components/account/delete-account-dialog";
 import { deleteAccount } from "@/server/portfolioActions";
@@ -147,5 +147,39 @@ describe("DeleteAccountDialog", () => {
 		expect(invalidatedKeys).toContainEqual(["accounts"]);
 		expect(invalidatedKeys).toContainEqual(["trades"]);
 		expect(invalidatedKeys).toContainEqual(["strategy-performance"]);
+	});
+
+	it("returns focus to the opener on close", async () => {
+		function Harness() {
+			const [selected, setSelected] = useState<typeof account | null>(null);
+			return (
+				<>
+					<button type="button" onClick={() => setSelected(account)}>
+						Open
+					</button>
+					<DeleteAccountDialog
+						account={selected}
+						onOpenChange={(next) => {
+							if (!next) setSelected(null);
+						}}
+					/>
+				</>
+			);
+		}
+		render(
+			<QueryClientProvider client={new QueryClient()}>
+				<Harness />
+			</QueryClientProvider>,
+		);
+		const opener = screen.getByRole("button", { name: "Open" });
+		opener.focus();
+		fireEvent.click(opener);
+		await waitFor(() =>
+			expect(document.activeElement).toBe(screen.getByLabelText(/type/i)),
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+		await waitFor(() => expect(document.activeElement).toBe(opener));
 	});
 });

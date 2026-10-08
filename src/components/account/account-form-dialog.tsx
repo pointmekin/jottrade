@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -83,6 +83,8 @@ export function AccountFormDialog({
 	account,
 }: AccountFormDialogProps) {
 	const queryClient = useQueryClient();
+	// The dialog has no DialogTrigger, so Radix cannot return focus on close.
+	const openerRef = useRef<HTMLElement | null>(null);
 	const form = useForm<AccountFormValues>({
 		resolver: zodResolver(accountFormSchema),
 		defaultValues: {
@@ -129,7 +131,16 @@ export function AccountFormDialog({
 				onOpenChange(next);
 			}}
 		>
-			<DialogContent className="bg-card sm:max-w-md">
+			<DialogContent
+				className="bg-card sm:max-w-md"
+				onOpenAutoFocus={() => {
+					openerRef.current = document.activeElement as HTMLElement | null;
+				}}
+				onCloseAutoFocus={(event) => {
+					event.preventDefault();
+					openerRef.current?.focus();
+				}}
+			>
 				<DialogHeader>
 					<DialogTitle>{account ? "Edit account" : "New account"}</DialogTitle>
 					<DialogDescription>

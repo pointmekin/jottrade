@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
 	AlertDialog,
@@ -36,6 +36,9 @@ export function DeleteAccountDialog({
 	const { activeAccount, clearActiveAccount } = useAccounts();
 	const [confirmText, setConfirmText] = useState("");
 	const confirmId = useId();
+	// The dialog has no AlertDialogTrigger, so Radix cannot return focus on close.
+	const openerRef = useRef<HTMLElement | null>(null);
+	const confirmRef = useRef<HTMLInputElement>(null);
 
 	const open = account !== null;
 	const canDelete = account !== null && confirmText.trim() === account.name;
@@ -77,7 +80,18 @@ export function DeleteAccountDialog({
 
 	return (
 		<AlertDialog open={open} onOpenChange={handleOpenChange}>
-			<AlertDialogContent className="border-border bg-popover text-popover-foreground">
+			<AlertDialogContent
+				className="border-border bg-popover text-popover-foreground"
+				onOpenAutoFocus={(event) => {
+					event.preventDefault();
+					openerRef.current = document.activeElement as HTMLElement | null;
+					confirmRef.current?.focus();
+				}}
+				onCloseAutoFocus={(event) => {
+					event.preventDefault();
+					openerRef.current?.focus();
+				}}
+			>
 				<AlertDialogHeader>
 					<AlertDialogTitle>Delete {account?.name}?</AlertDialogTitle>
 					<AlertDialogDescription>
@@ -97,12 +111,12 @@ export function DeleteAccountDialog({
 						to confirm
 					</Label>
 					<Input
+						ref={confirmRef}
 						id={confirmId}
 						value={confirmText}
 						onChange={(event) => setConfirmText(event.target.value)}
 						placeholder={account?.name}
 						autoComplete="off"
-						autoFocus
 					/>
 				</div>
 
