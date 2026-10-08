@@ -16,8 +16,8 @@ Sign in with any seeded user. All of them use the password
 
 | Email                 | Data                                                                 |
 | --------------------- | -------------------------------------------------------------------- |
-| `alice@jottrade.test` | 3 accounts (USD real, USD demo, EUR real), 45 trades, 7 cash flows, 3 strategies |
-| `bob@jottrade.test`   | 2 accounts, 4 trades (stocks and fractional BTC), 1 strategy          |
+| `alice@jottrade.test` | 3 accounts (USD real, USD demo, EUR real), 45 trades, 7 cash flows, 3 strategies, 5 tags (18 trade links) |
+| `bob@jottrade.test`   | 2 accounts, 4 trades (stocks and fractional BTC), 1 strategy, 1 tag   |
 | `erin@jottrade.test`  | 1 account, no trades, no cash flows, no strategies                    |
 | `nora@jottrade.test`  | No trading account                                                   |
 

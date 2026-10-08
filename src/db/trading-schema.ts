@@ -7,6 +7,7 @@ import {
 	jsonb,
 	numeric,
 	pgTable,
+	primaryKey,
 	serial,
 	text,
 	timestamp,
@@ -27,6 +28,7 @@ import type {
 	InitialRiskSnapshot,
 	RiskCorrection,
 } from "@/lib/trade-risk-schema";
+import { TagColor } from "@/lib/trade-tag";
 
 // Better Auth owns user, session, account and verification.
 export const user = pgTable("user", {
@@ -245,6 +247,39 @@ export const strategies = pgTable("strategies", {
 	name: text("name").notNull(),
 	description: text("description"),
 });
+
+export const tags = pgTable(
+	"tags",
+	{
+		id: serial("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		name: text("name").notNull(),
+		color: text("color").$type<TagColor>().default(TagColor.Gray).notNull(),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+	},
+	(t) => [
+		uniqueIndex("tags_user_name_unique").on(t.userId, sql`lower(${t.name})`),
+	],
+);
+
+export const tradeTags = pgTable(
+	"trade_tags",
+	{
+		tradeId: integer("trade_id")
+			.notNull()
+			.references(() => trades.id, { onDelete: "cascade" }),
+		tagId: integer("tag_id")
+			.notNull()
+			.references(() => tags.id, { onDelete: "cascade" }),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+	},
+	(t) => [
+		primaryKey({ columns: [t.tradeId, t.tagId] }),
+		index("idx_trade_tags_tag").on(t.tagId),
+	],
+);
 
 export const userRelations = relations(user, ({ many }) => ({
 	sessions: many(session),

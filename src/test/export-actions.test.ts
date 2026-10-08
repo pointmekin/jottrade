@@ -76,6 +76,27 @@ describe("trade export query", () => {
 		expect(params).toContain("CLOSED");
 	});
 
+	it("filters by any of the tags by default", () => {
+		const { sql, params } = sqlOf(
+			tradeConditions("user-a", { portfolioId: 7, tagIds: [3, 4, 3] }) as never,
+		);
+		expect(sql).toContain('EXISTS (SELECT 1 FROM "trade_tags"');
+		expect(sql).not.toContain("count(*)");
+		expect(params).toEqual(["user-a", 7, 3, 4]);
+	});
+
+	it("filters by every tag when the match is all", () => {
+		const { sql, params } = sqlOf(
+			tradeConditions("user-a", {
+				portfolioId: 7,
+				tagIds: [3, 4],
+				tagMatch: "all",
+			}) as never,
+		);
+		expect(sql).toContain("count(*)");
+		expect(params).toEqual(["user-a", 7, 3, 4, 2]);
+	});
+
 	it("does not query trades when the account belongs to another user", async () => {
 		mocks.requireOwnedPortfolio.mockRejectedValue(
 			new Error("Account not found."),
@@ -116,6 +137,8 @@ describe("buildArchive", () => {
 				reviews: [],
 				reviewSourceTrades: [],
 				reviewSourceCashFlows: [],
+				tags: [{ id: 3, name: "FOMO" }],
+				tradeTags: [{ tradeId: 5, tagId: 3 }],
 			},
 			new Date("2026-10-08T00:00:00Z"),
 		);
@@ -124,8 +147,10 @@ describe("buildArchive", () => {
 		expect(archive.counts).toMatchObject({
 			accounts: 1,
 			trades: 2,
+			tags: 1,
 			attachments: 2,
 		});
+		expect(archive.tradeTags).toEqual([{ tradeId: 5, tagId: 3 }]);
 		expect(archive.attachments[1]).toEqual({
 			tradeId: 5,
 			url: "https://x/b.png",

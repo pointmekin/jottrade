@@ -6,6 +6,7 @@ import {
 import { BookOpen } from "lucide-react";
 import { AppPageHeader } from "@/components/app-page-header";
 import { AccountEntriesPanel } from "@/components/journal/AccountEntriesPanel";
+import { BulkEditBar } from "@/components/journal/bulk-edit-bar";
 import { ExportDialog } from "@/components/journal/export-dialog";
 import { FilterBar, type JournalFilters } from "@/components/journal/FilterBar";
 import { ImportDialog } from "@/components/journal/import-dialog";
@@ -19,8 +20,10 @@ import { FirstTradeEmptyState } from "@/components/onboarding/first-trade-empty-
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useJournalEntries } from "@/hooks/use-journal-entries";
 import { useIsJournalFirstRun } from "@/hooks/use-onboarding";
+import { useTradeSelection } from "@/hooks/use-trade-selection";
 import {
 	JournalIntent,
+	type JournalSearch,
 	JournalView,
 	journalSearchSchema,
 } from "@/lib/journal-search";
@@ -42,7 +45,6 @@ function JournalPage() {
 	const navigate = useNavigate({ from: "/journal" });
 	const search = useSearch({ from: "/_authenticated/journal" });
 	const journal = useJournalEntries(search);
-	const isFirstRun = useIsJournalFirstRun(search.view, journal.adjustmentCount);
 	const isJournalView =
 		search.view === JournalView.All || search.view === JournalView.Trades;
 	const periodLabel = describePeriod({
@@ -100,41 +102,67 @@ function JournalPage() {
 				{search.view === JournalView.Funding && (
 					<AccountEntriesPanel mode="funding" />
 				)}
-				{isJournalView && isFirstRun && (
-					<FirstTradeEmptyState
-						icon={BookOpen}
-						title="Your journal is empty"
-						description="Log a trade by hand, or import an Exness MT4/MT5 CSV from the Import button above."
-					/>
-				)}
-				{isJournalView && !isFirstRun && journal.isLoading && (
-					<JournalTableSkeleton />
-				)}
-				{isJournalView && !isFirstRun && !journal.isLoading && (
-					<>
-						<JournalTable
-							entries={journal.entries}
-							onTradeClick={(trade) =>
-								navigate({
-									to: "/journal/$tradeId",
-									params: { tradeId: String(trade.id) },
-								})
-							}
-							emptyMessage={
-								search.view === JournalView.All
-									? "No entries match this section."
-									: "No trades match this section."
-							}
-						/>
-						<JournalPagination
-							page={journal.page}
-							totalPages={journal.totalPages}
-							total={journal.total}
-							onPageChange={(page) => navigate({ search: { ...search, page } })}
-						/>
-					</>
+				{isJournalView && (
+					<JournalTradesSection search={search} journal={journal} />
 				)}
 			</main>
 		</div>
+	);
+}
+
+function JournalTradesSection({
+	search,
+	journal,
+}: {
+	search: JournalSearch;
+	journal: ReturnType<typeof useJournalEntries>;
+}) {
+	const navigate = useNavigate({ from: "/journal" });
+	const selection = useTradeSelection(journal.filter);
+	const selectedIds = [...selection.selectedIds];
+	const isFirstRun = useIsJournalFirstRun(search.view, journal.adjustmentCount);
+
+	if (isFirstRun)
+		return (
+			<FirstTradeEmptyState
+				icon={BookOpen}
+				title="Your journal is empty"
+				description="Log a trade by hand, or import an Exness MT4/MT5 CSV from the Import button above."
+			/>
+		);
+	if (journal.isLoading) return <JournalTableSkeleton />;
+	return (
+		<>
+			<JournalTable
+				entries={journal.entries}
+				selection={selection}
+				onTradeClick={(trade) =>
+					navigate({
+						to: "/journal/$tradeId",
+						params: { tradeId: String(trade.id) },
+					})
+				}
+				emptyMessage={
+					search.view === JournalView.All
+						? "No entries match this section."
+						: "No trades match this section."
+				}
+			/>
+			<JournalPagination
+				page={journal.page}
+				totalPages={journal.totalPages}
+				total={journal.total}
+				onPageChange={(page) => navigate({ search: { ...search, page } })}
+			/>
+			{selectedIds.length > 0 && (
+				<BulkEditBar
+					selectedIds={selectedIds}
+					matchingTotal={journal.total}
+					isSelectingAll={selection.isSelectingAll}
+					onSelectAllMatching={selection.selectAllMatching}
+					onClear={selection.clear}
+				/>
+			)}
+		</>
 	);
 }

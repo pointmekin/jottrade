@@ -17,6 +17,7 @@ export const QueryKey = {
 	Analytics: "analytics",
 	AdvancedAnalytics: "advanced-analytics",
 	Strategies: "strategies",
+	Tags: "tags",
 	StrategyPerformance: "strategy-performance",
 	ExnessExportScript: "exness-export-script",
 } as const;

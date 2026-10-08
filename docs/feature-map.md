@@ -11,6 +11,7 @@ Update this file in the same pull request when you add, remove or change a route
   - `INTEGRATION_TEST_DATABASE_URL` → `src/test/feature-integration.test.ts` (cross-feature: risk, imports, reviews, account isolation).
   - `IMPORT_TEST_DATABASE_URL` → `src/test/import-sql.integration.test.ts`.
   - `REVIEW_TEST_DATABASE_URL` → `src/test/review-database.test.ts`.
+  - `TAGS_TEST_DATABASE_URL` → `src/test/trade-tags.integration.test.ts`. It accepts any local `jottrade_test_*` database (the `npm run db:check` rules) and drops its schema.
   - Gap: the fixtures accept only `127.0.0.1` with fixed ports, users and database names (for example port `49485`, database `integration_behavior`). They do not accept the `jottrade_test_*` databases that `npm run db:reset` creates ([development-database.md](development-database.md)), so `npm run verify` does not run them.
 - **DB (verify)**: `src/test/user-isolation.integration.test.ts`. `npm run verify` runs it on a fresh, seeded `jottrade_test_*` database through the real `@/db` client. CI runs it in the **E2E** check. Without `VERIFY_DATABASE_URL`, Vitest skips it.
 - **E2E**: a Playwright spec in `e2e/`. `npm run verify` runs the suite against the production build and the seeded database. CI runs it in the **E2E** check. See [quality-gate.md](quality-gate.md), section "Critical-flow verification".
@@ -25,7 +26,7 @@ To run one file: `npx vitest run src/test/<file>`.
 | `/` | `src/routes/index.tsx` | Public | Landing page with links to sign-up and sign-in. No sidebar. |
 | `/sign-in`, `/sign-up` | `src/routes/_unauthenticated/` | Public | Email/password and Google. No sidebar. |
 | `/dashboard` | `src/routes/_authenticated/dashboard.tsx` | Signed in | Search: `period`, `from`, `to`. |
-| `/journal` | `src/routes/_authenticated/journal.tsx` | Signed in | Search: `view`, `page`, filters, `period`, `dateFrom`, `dateTo`, `intent=log` (`src/lib/journal-search.ts`). |
+| `/journal` | `src/routes/_authenticated/journal.tsx` | Signed in | Search: `view`, `page`, filters, `tags` (comma-separated tag ids), `tagMatch` (`any`/`all`), `period`, `dateFrom`, `dateTo`, `intent=log` (`src/lib/journal-search.ts`). |
 | `/journal/$tradeId` | `src/routes/_authenticated/journal_.$tradeId.tsx` | Signed in | Trade detail page. |
 | `/calendar` | `src/routes/_authenticated/calendar.tsx` | Signed in | Search: `year`, `month`. |
 | `/strategies` | `src/routes/_authenticated/strategies.tsx` | Signed in | |
@@ -72,7 +73,7 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 
 - **Entry**: `/journal`; "Log trade" drawer (`log-trade-drawer.tsx`, also `/journal?intent=log`); command palette "Log trade"; row click → `/journal/$tradeId`.
 - **Flows**:
-  - Filter by symbol, side, status, strategy, confidence, mistake and period; page through results. Tabs: All entries, Trades, Adjustments, Funding.
+  - Filter by symbol, side, status, strategy, confidence, mistake, tags and period; page through results. Tabs: All entries, Trades, Adjustments, Funding.
   - Log a trade (`TradeEntryForm.tsx`), edit it and delete it from the detail page (`TradeDetailSheet.tsx`, `DeleteTradeDialog.tsx`).
   - Edit rules: a blank optional price, rate or fee is stored as "no value" (blank fees as 0), so an open trade stays open with no P&L. A closed trade cannot clear its exit price; enter the corrected exit price instead (`src/lib/trade-update.ts`).
   - Add, edit and delete deposits, withdrawals and adjustments (`AccountEntriesPanel.tsx`, `account-entry-form.tsx`).
@@ -96,10 +97,25 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 - **Flows**:
   - Upload → stage → preview. The preview pins the target account, shows insert/duplicate/superseded/adopt decisions, blocks malformed rows until you repair or exclude them, and asks you to choose when a row matches more than one existing trade (`import-preview.tsx`, `import-row-editor.tsx`, `import-risk-effect.tsx`).
   - Commit → receipt with expected and actual account effects (`import-batch-receipt.tsx`).
-  - Import history → batch detail → undo preview → undo (`import-history.tsx`, `import-batch-detail.tsx`). Undo skips records with later notes, risk, screenshots or review references, and says why.
+  - Import history → batch detail → undo preview → undo (`import-history.tsx`, `import-batch-detail.tsx`). Undo skips records with later notes, risk, screenshots, tag or bulk edits, or review references, and says why. A tag or bulk edit increments `trades.edit_revision`, so undo reports "Trade changed after this import."
 - **Server**: `importActions.ts` (`stageImport`, `repairImportRow`, `commitImport`, `getImportHistory`, `getImportBatch`, `getImportUndoPreview`, `undoImportBatch`). SQL in `src/db/import-*.ts`. Logic in `src/lib/import-*.ts`, `trade-import.ts`, `adjustment-import.ts`, `reconciliation.ts`.
 - **Data**: `import_batches`, `import_identities`; import fields on `trades` and `cash_flows`. Migration `drizzle/0007_absent_killraven.sql`.
 - **Verification**: Unit `trade-import.test.ts`, `adjustment-import.test.ts`, `adjustment-export.test.ts`, `import-date.test.ts`, `import-domain.test.ts`, `import-preview.test.tsx`, `reconciliation.test.ts`. DB (optional) `import-sql.integration.test.ts`, `feature-integration.test.ts`. E2E `import.spec.ts` (import a synthetic Exness trade CSV, then import it again: the preview shows duplicates and no trade is added). Gap: native sanitized Exness samples, adjustment CSV, undo in the browser, and the hosted Neon transport (release checks listed in PR #37). Issue #10 tracks known import gaps; the suite does not treat them as correct.
+
+### Trade tags and bulk edits (issue #13)
+
+- **Entry**: "Tags" on the trade detail page (`src/components/journal/trade-tags.tsx`); the Tags column and row checkboxes in the journal table; the Tags filter (`filter-fields.tsx`); "Trade tags" in Settings (`src/components/settings/tag-settings.tsx`).
+- **Flows**:
+  - Add a tag from the picker (`src/components/tags/tag-picker.tsx`): type to find, Enter to select, or Enter on "Create" to make a new tag. Remove a tag with the chip's remove button.
+  - Names are trimmed, inner spaces collapse, and letter case is ignored per user (`normalizeTagName` in `src/lib/trade-tag.ts`). Creating a name that exists returns the existing tag. A rename to an existing name fails with a message.
+  - Rename and recolor in Settings; the trades keep the tag. Delete removes the tag from every trade; the trades stay. There is no archive.
+  - Filter by tags: "Any" (default) keeps trades with at least one selected tag; "All" keeps trades with every selected tag. The CSV export uses the same filter.
+  - Bulk edit: select rows (desktop table) or "Select all N matching" (up to 500, `BULK_EDIT_LIMIT`). The sticky bar adds a tag, removes a tag, sets the strategy or confidence, or marks trades reviewed. The selection is an explicit id list, so it changes exactly the selected trades. A finished edit, a new filter or a new account clears it.
+  - All or nothing: if one selected trade, tag or strategy is not the user's (or was removed after the check), nothing changes and a toast says so. A success toast counts changed trades and trades that already had the value.
+  - `trades.mistake` stays one structured field with its fixed list and filter. Tags add the other factors; no data moves.
+- **Server**: `src/server/tagActions.ts` (`getTags`, `createTag`, `updateTag`, `deleteTag`, `bulkEditTrades`), `getTrades.ts` (`getTradeIds`; `getTrades` and `getTradeById` return `tags`). SQL in `src/db/trade-tags.ts` (reads, the tag filter) and `src/db/trade-bulk-edit.ts` (one guarded statement per bulk edit). Client: `src/hooks/use-tags.ts`, `use-bulk-edit.ts`, `use-trade-selection.ts`.
+- **Data**: `tags` (user-owned, unique `lower(name)` per user, `color` from `TagColor`), `trade_tags` (cascade on trade and tag delete). Migration `drizzle/0009_naive_randall_flagg.sql`.
+- **Verification**: Unit `trade-tag.test.ts` (names, batch limit), `export-actions.test.ts` (any/all filter SQL, archive tags), `csv-export.test.ts` (tags column), `filter-bar.test.tsx` (tag filter), `journal-table.test.tsx` (row selection, tag chips), `dev-database.test.ts` (seed links). DB (optional) `trade-tags.integration.test.ts` (ownership with mixed lists, rollback when a trade disappears after the check, any/all filter, case-insensitive names, tag delete, undo protection). Gap: bulk selection on mobile (the table is desktop only); browser flow.
 
 ### Daily and weekly reviews (PR #36)
 
@@ -113,11 +129,11 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 
 - **Entry**: "Export" button in the Journal header on the All entries and Trades tabs (`export-dialog.tsx`); "Your data" card in Settings (`src/components/settings/data-export.tsx`).
 - **Flows**:
-  - Trade CSV: the dialog shows the trade count, the active account and the period. The file has every trade that matches the current filters, not one page. It has a UTF-8 BOM, CRLF rows, a stable column order, exact decimal strings, UTC ISO times and the account currency. Text cells that start with `=`, `+`, `-`, `@`, tab or CR get a leading `'`. The file name is `jottrade-trades-<account>-<date>.csv`.
-  - Full archive: one JSON file (`schemaVersion` 1) with all accounts, trades, funding entries, strategies, reviews and review source links. Screenshots are listed by URL, not bundled. Import batches, sessions and credentials are not included. The file name is `jottrade-archive-<date>.json`.
+  - Trade CSV: the dialog shows the trade count, the active account and the period. The file has every trade that matches the current filters (tags included), not one page. The `tags` column lists tag names separated by `; `. It has a UTF-8 BOM, CRLF rows, a stable column order, exact decimal strings, UTC ISO times and the account currency. Text cells that start with `=`, `+`, `-`, `@`, tab or CR get a leading `'`. The file name is `jottrade-trades-<account>-<date>.csv`.
+  - Full archive: one JSON file (`schemaVersion` 1) with all accounts, trades, funding entries, strategies, tags, trade-tag links, reviews and review source links. Screenshots are listed by URL, not bundled. Import batches, sessions and credentials are not included. The file name is `jottrade-archive-<date>.json`.
   - A failed export shows an error toast and downloads nothing. The server keeps no export job, so a retry cannot create a duplicate.
 - **Server**: `src/server/exportActions.ts` (`exportTradesCsv`, `exportArchive`). The trade filter is shared with `getTrades` in `src/db/trade-filter.ts`. Archive queries: `src/db/journal-archive.ts`. Formatting: `src/lib/csv-export.ts`, `src/lib/archive.ts`.
-- **Data**: reads `portfolios`, `trades`, `cash_flows`, `strategies`, `review_periods`, `review_source_trades`, `review_source_cash_flows`. No schema change.
+- **Data**: reads `portfolios`, `trades`, `cash_flows`, `strategies`, `tags`, `trade_tags`, `review_periods`, `review_source_trades`, `review_source_cash_flows`. No schema change.
 - **Verification**: Unit `csv-export.test.ts` (escaping, injection guard, decimals, dates, file names), `export-actions.test.ts` (user and account scope of the query, foreign account refusal, archive counts). Gap: archive against a real database; no check that a screenshot URL still resolves.
 
 ### Dashboard
@@ -147,5 +163,5 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 ### Settings and profile
 
 - **Entry**: `/settings`, `/profile`.
-- **Flows**: trading accounts, review preferences, the full archive download (see "Data export"), theme (light/dark/system, kept in local storage `vite-ui-theme`). Profile shows name and email; password change and 2FA are disabled.
+- **Flows**: trading accounts, review preferences, trade tags (see "Trade tags and bulk edits"), the full archive download (see "Data export"), theme (light/dark/system, kept in local storage `vite-ui-theme`). Profile shows name and email; password change and 2FA are disabled.
 - **Verification**: Gap.

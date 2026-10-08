@@ -5,8 +5,10 @@ import { db } from "@/db";
 import { loadAccountHistory } from "@/db/account-history";
 import { trades } from "@/db/schema";
 import { tradeConditions, tradeFilterSchema } from "@/db/trade-filter";
+import { loadTagsByTrade, withTags } from "@/db/trade-tags";
 import { requireUserId } from "@/lib/auth";
 import { computeAccountReturn } from "@/lib/risk-metrics";
+import { BULK_EDIT_LIMIT } from "@/lib/trade-tag";
 
 const PAGE_SIZE = 50;
 
@@ -30,11 +32,25 @@ export const getTrades = createServerFn({ method: "GET" })
 		]);
 
 		return {
-			trades: rows,
+			trades: await withTags(userId, rows),
 			total: Number(total),
 			page: data.page,
 			pageSize: PAGE_SIZE,
 		};
+	});
+
+/** Every trade id that matches the filter, for "select all matching"; capped one above the bulk limit so the client can tell when it is exceeded. */
+export const getTradeIds = createServerFn({ method: "GET" })
+	.validator(tradeFilterSchema)
+	.handler(async ({ data }) => {
+		const userId = await requireUserId();
+		const rows = await db
+			.select({ id: trades.id })
+			.from(trades)
+			.where(tradeConditions(userId, data))
+			.orderBy(desc(trades.entryDate), desc(trades.id))
+			.limit(BULK_EDIT_LIMIT + 1);
+		return rows.map((row) => row.id);
 	});
 
 export const getTradeById = createServerFn({ method: "GET" })
@@ -60,9 +76,11 @@ export const getTradeById = createServerFn({ method: "GET" })
 				),
 		]);
 		if (!trade) return null;
+		const tagsByTrade = await loadTagsByTrade(userId, [trade.id]);
 
 		return {
 			...trade,
+			tags: tagsByTrade.get(trade.id) ?? [],
 			accountReturn: computeAccountReturn(
 				{ ...trade, netPnl: Number(trade.netPnl ?? 0) },
 				history.trades,

@@ -143,6 +143,17 @@ describe("buildSeedData", () => {
 			expect(owner.get(row.portfolioId)).toBe(row.userId);
 	});
 
+	it("links only a user's own tags to that user's trades", () => {
+		const data = buildSeedData();
+		const tradeOwner = new Map(data.trades.map((t) => [t.id, t.userId]));
+		const tagOwner = new Map(data.tags.map((t) => [t.id, t.userId]));
+		expect(data.tradeTags.length).toBeGreaterThan(0);
+		for (const link of data.tradeTags) {
+			expect(tradeOwner.get(link.tradeId)).toBe(SeedUser.Alice);
+			expect(tagOwner.get(link.tagId)).toBe(SeedUser.Alice);
+		}
+	});
+
 	it("stores passwords that Better Auth accepts", async () => {
 		const [credential] = buildSeedData().credentials;
 		const hash = credential.password ?? "";

@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { TagList } from "@/components/tags/tag-chip";
 import type { AccountEntryRecord } from "@/lib/account-entry";
 import { formatMoney } from "@/lib/currency";
 import { formatEntryDate, toNumber } from "@/lib/journal-format";
@@ -55,6 +56,11 @@ export function TradeCard({
 						</span>
 					</div>
 					<p className="mt-1 text-xs text-muted-foreground">{entryDate}</p>
+					{Boolean(trade.tags?.length) && (
+						<div className="mt-1.5">
+							<TagList tags={trade.tags} />
+						</div>
+					)}
 				</div>
 				<div className="shrink-0 text-right">
 					<p className="text-sm">

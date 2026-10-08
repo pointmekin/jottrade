@@ -106,6 +106,25 @@ describe("guardFormula", () => {
 	it.each(["=1+1", "+1", "-1", "@a", "\tx", "\rx"])("guards %j", (value) => {
 		expect(guardFormula(value)).toBe(`'${value}`);
 	});
+	it("lists tag names in one cell and guards them like other text", () => {
+		const [tagged, untagged] = parse(
+			tradesToCsv(
+				[
+					trade({
+						tags: [
+							{ id: 1, name: "=Late entry", color: "gray" },
+							{ id: 2, name: "News, NFP", color: "blue" },
+						],
+					}),
+					trade({ id: 2 }),
+				],
+				context,
+			),
+		);
+		expect(tagged.tags).toBe("'=Late entry; News, NFP");
+		expect(untagged.tags).toBe("");
+	});
+
 	it("leaves safe text alone", () => {
 		expect(guardFormula("EURUSD - long")).toBe("EURUSD - long");
 	});

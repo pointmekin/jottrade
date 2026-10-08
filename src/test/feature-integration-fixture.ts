@@ -14,7 +14,15 @@ export function integrationPool(transport: { query: Mock; transaction: Mock }) {
 		url.pathname !== "/integration_behavior"
 	)
 		throw new Error("Only the disposable integration database is allowed.");
-	const pool = new Pool({ connectionString: integrationUrl });
+	return transportPool(transport, integrationUrl ?? "");
+}
+
+/** Routes the mocked Neon transport to a real PostgreSQL pool. Callers must check that the URL is disposable. */
+export function transportPool(
+	transport: { query: Mock; transaction: Mock },
+	connectionString: string,
+) {
+	const pool = new Pool({ connectionString });
 	const rawTypes = {
 		getTypeParser: (oid: number) =>
 			[1082, 1114, 1184].includes(oid)

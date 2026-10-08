@@ -1,5 +1,6 @@
 import type { PnlCalculationSnapshot } from "./pnl-context";
 import type { InitialRiskSnapshot, RiskCorrection } from "./trade-risk-schema";
+import type { TradeTag } from "./trade-tag";
 
 export const TradeStatus = {
 	Open: "OPEN",
@@ -64,4 +65,5 @@ export type Trade = {
 	reviewedAt?: Date | null;
 	reviewedExecutionFingerprint?: string | null;
 	screenshots?: string[] | null;
+	tags?: TradeTag[];
 };
