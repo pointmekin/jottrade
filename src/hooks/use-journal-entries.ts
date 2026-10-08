@@ -60,6 +60,7 @@ export function useJournalEntries(search: JournalSearch) {
 			search.view === JournalView.All ? pageAdjustments : [],
 		),
 		total,
+		closedSummary: trades.data?.closedSummary ?? { count: 0, netPnl: 0 },
 		page,
 		totalPages,
 		adjustmentCount: adjustments.length,

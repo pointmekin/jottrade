@@ -36,8 +36,16 @@ function drawdownSub({ dollars, percent }: Drawdown): string {
 	return `${percent.toFixed(1)}% from peak`;
 }
 
-export function RiskMetrics({ metrics }: { metrics: RiskMetricsData }) {
+export function RiskMetrics({
+	metrics,
+	isAccountWide,
+}: {
+	metrics: RiskMetricsData;
+	isAccountWide?: boolean;
+}) {
 	const currency = useCurrency();
+	const accountWide = (sub: string) =>
+		isAccountWide ? `Account-wide · ${sub}` : sub;
 	const { sharpe, maxDrawdown, payoff, avgHoldTimeHours, closedTrades } =
 		metrics;
 	const money = (value: number) =>
@@ -48,7 +56,7 @@ export function RiskMetrics({ metrics }: { metrics: RiskMetricsData }) {
 			<MetricCard
 				label="Sharpe (realized)"
 				value={sharpe.value?.toFixed(2) ?? UNAVAILABLE}
-				sub={sharpeSub(sharpe)}
+				sub={accountWide(sharpeSub(sharpe))}
 				definition={
 					<>
 						<p>
@@ -65,7 +73,7 @@ export function RiskMetrics({ metrics }: { metrics: RiskMetricsData }) {
 			<MetricCard
 				label="Max drawdown"
 				value={money(-maxDrawdown.dollars || 0)}
-				sub={drawdownSub(maxDrawdown)}
+				sub={accountWide(drawdownSub(maxDrawdown))}
 				definition={
 					<>
 						<p>

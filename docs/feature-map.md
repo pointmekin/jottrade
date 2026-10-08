@@ -28,10 +28,10 @@ To run one file: `npx vitest run src/test/<file>`.
 |---|---|---|---|
 | `/` | `src/routes/index.tsx` | Public | Landing page with links to sign-up and sign-in. No sidebar. |
 | `/sign-in`, `/sign-up` | `src/routes/_unauthenticated/` | Public | Email/password and Google. No sidebar. |
-| `/dashboard` | `src/routes/_authenticated/dashboard.tsx` | Signed in | Search: `period`, `from`, `to`. |
-| `/journal` | `src/routes/_authenticated/journal.tsx` | Signed in | Search: `view`, `page`, filters, `tags` (comma-separated tag ids), `tagMatch` (`any`/`all`), `period`, `dateFrom`, `dateTo`, `intent=log` (`src/lib/journal-search.ts`). |
+| `/dashboard` | `src/routes/_authenticated/dashboard.tsx` | Signed in | Search: the scope (see "Analysis scope"). The old `from`/`to` map once to `dateFrom`/`dateTo`. |
+| `/journal` | `src/routes/_authenticated/journal.tsx` | Signed in | Search: the scope (see "Analysis scope"; `tags` are comma-separated tag ids, `tagMatch` is `any`/`all`), `view`, `page` (an integer from 1; a bad value reads as 1), `intent=log` (`src/lib/journal-search.ts`). |
 | `/journal/$tradeId` | `src/routes/_authenticated/journal_.$tradeId.tsx` | Signed in | Trade detail page. |
-| `/calendar` | `src/routes/_authenticated/calendar.tsx` | Signed in | Search: `year`, `month`. |
+| `/calendar` | `src/routes/_authenticated/calendar.tsx` | Signed in | Search: the scope (see "Analysis scope"), `year`, `month`. |
 | `/strategies` | `src/routes/_authenticated/strategies.tsx` | Signed in | |
 | `/reviews` | `src/routes/_authenticated/reviews.tsx` | Signed in | Search: `kind` (`daily`/`weekly`), `day`, `start`, `account`. |
 | `/settings` | `src/routes/_authenticated/settings.tsx` | Signed in | `ssr: false`. |
@@ -141,18 +141,20 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 
 ### Dashboard
 
-- **Entry**: `/dashboard` (the post-sign-in page); period picker.
+- **Entry**: `/dashboard` (the post-sign-in page); the scope filter bar (period and trade filters).
 - **Flows**: onboarding checklist (see "First-run onboarding"); account summary and funding notice; balance and trading P&L curves; risk metrics (Sharpe, drawdown, payoff ratio); performance and strategy charts; setup calculator (`src/components/tools/SetupCalculator.tsx`). Metric definitions: [metrics.md](metrics.md).
 - **Server**: `getAnalytics.ts`, `getAdvancedAnalytics.ts`. Logic in `src/lib/analytics.ts`, `risk-metrics.ts`, `group-summary.ts`, `equity-series.ts`.
 - **Data**: reads `trades`, `cash_flows`, `strategies`; writes nothing.
 - **Verification**: Unit `analytics.test.ts`, `risk-metrics.test.ts`, `risk-metrics.test.tsx`, `group-summary.test.ts`. E2E `totals.spec.ts` (net P&L and trade count for one seeded account agree with the calendar and the strategy page). Gap: charts and risk metrics in the browser.
 
-### Analysis scope (issue #12, slice A1)
+### Analysis scope (issue #12, slices A1 and A2)
 
-- **Entry**: no new UI. The journal, the trade CSV, the dashboard and the calendar send the scope to the server.
+- **Entry**: the same `FilterBar` on the journal, the dashboard and the calendar. The URL uses one set of names: `period`, `dateFrom`, `dateTo`, `symbol`, `side`, `status`, `setupId`, `confidence`, `mistake`, `tags`, `tagMatch` (`scopeSearchSchema` in `src/lib/journal-search.ts`). `retainSearchParams` on the three routes keeps the scope when the user goes from one of them to another. The calendar keeps `year`/`month` as its own params.
+- **UX**: every active filter has a chip, and "Clear all" clears the trade filters. The period chip says "Closed in" or "Closed or opened in". Under a trade attribute filter, the dashboard shows "Filtered: trading performance only" with the number of excluded adjustments, and the balance, equity curve, Sharpe and drawdown show "Account-wide". A scope with no closed trades shows "No closed trades match this scope" with "Clear filters". The journal header shows the closed count and net P&L from `closedSummary`.
+- **Pagination**: a change of filter, tab or account sets page 1. A page above the last page is replaced with the last page.
 - **Rules**: one period rule for every screen: closed trades by exit time, open trades by entry time ([metrics.md](metrics.md), "Scope"). The journal and the trade CSV used the entry time before. Under a trade attribute filter (symbol, side, status, strategy, confidence, mistake, tags), the dashboard trade metrics read only the matching trades and leave out adjustments; the balance metrics and the equity curve stay account-wide. `getAnalytics` returns `scope: { isFiltered, excludedAdjustments }`. `getTrades` returns `closedSummary: { count, netPnl }`.
 - **Code**: `src/lib/analysis-scope.ts` (client-safe `tradeFilterSchema`, `analysisScopeSchema`), `src/db/trade-filter.ts` (`tradeConditions`, `tradeScopeDate`), `src/db/account-history.ts` (`loadMatchingTrades`), `summarizeScope` in `src/lib/analytics.ts`.
-- **Verification**: Unit `analysis-scope.test.ts`. DB (optional) `analysis-scope.integration.test.ts` (2 users × 2 accounts across a month boundary: for each filter, `getTrades.closedSummary`, `getAnalytics`, `getAdvancedAnalytics` and the calendar month agree on the closed count and net P&L; another user's account returns nothing).
+- **Verification**: Unit `analysis-scope.test.ts`. DB (optional) `analysis-scope.integration.test.ts` (2 users × 2 accounts across a month boundary: for each filter, `getTrades.closedSummary`, `getAnalytics`, `getAdvancedAnalytics` and the calendar month agree on the closed count and net P&L; another user's account returns nothing). Unit `journal-search.test.ts` (bad page, old `from`/`to`), `filter-bar.test.tsx` (chips, "Clear all"), `journal-page.test.tsx` (page reset, page recovery, closed summary). E2E `scope.spec.ts` (a symbol and period scope from the journal gives the same closed count and net P&L on the dashboard and the calendar, survives a reload, and `page=99` recovers).
 
 ### Calendar
 

@@ -1,12 +1,16 @@
+import { useQuery } from "@tanstack/react-query";
 import { Filter, X } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useId, useState } from "react";
 import { PeriodPicker } from "@/components/period-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useTags } from "@/hooks/use-tags";
+import { CLEARED_TRADE_FILTERS, NO_STRATEGY } from "@/lib/journal-search";
 import { describePeriod, PeriodPreset } from "@/lib/period";
-import type { TradeSide, TradeStatus } from "@/lib/trade";
+import { QueryKey } from "@/lib/query-keys";
+import { type TradeSide, TradeStatus } from "@/lib/trade";
 import { parseTagIds, TagMatch } from "@/lib/trade-tag";
+import { getStrategies } from "@/server/strategyActions";
 import { FilterFields } from "./filter-fields";
 
 const SYMBOL_DEBOUNCE_MS = 300;
@@ -27,7 +31,6 @@ export type JournalFilters = {
 	period?: PeriodPreset;
 	dateFrom?: string;
 	dateTo?: string;
-	page?: number;
 };
 
 interface FilterBarProps {
@@ -67,6 +70,11 @@ function useDebouncedSymbol(
 	onCommit: (symbol: string | undefined) => void,
 ) {
 	const [symbolInput, setSymbolInput] = useState(symbol ?? "");
+	const [syncedSymbol, setSyncedSymbol] = useState(symbol);
+	if (symbol !== syncedSymbol) {
+		setSyncedSymbol(symbol);
+		setSymbolInput(symbol ?? "");
+	}
 	useEffect(() => {
 		const timer = setTimeout(() => {
 			if (symbolInput !== (symbol ?? "")) onCommit(symbolInput || undefined);
@@ -94,12 +102,123 @@ function TagFilterChip({
 	);
 }
 
+function StrategyFilterChip({
+	setupId,
+	onClear,
+}: {
+	setupId: string;
+	onClear: () => void;
+}) {
+	const { data: strategies = [] } = useQuery({
+		queryKey: [QueryKey.Strategies],
+		queryFn: () => getStrategies(),
+	});
+	const name =
+		setupId === NO_STRATEGY
+			? "None"
+			: strategies.find((strategy) => String(strategy.id) === setupId)?.name;
+	return (
+		<FilterChip clearLabel="Clear strategy filter" onClear={onClear}>
+			Strategy: {name ?? setupId}
+		</FilterChip>
+	);
+}
+
+/** The scope date is the exit time for closed trades and the entry time for the others. */
+const periodPrefix = (status?: TradeStatus) =>
+	status === TradeStatus.Closed ? "Closed in" : "Closed or opened in";
+
+function FilterChips({
+	filters,
+	update,
+}: {
+	filters: JournalFilters;
+	update: (patch: Partial<JournalFilters>) => void;
+}) {
+	const period = filters.period ?? PeriodPreset.All;
+	return (
+		<div className="flex flex-wrap gap-2 border-t border-border py-2">
+			{period !== PeriodPreset.All && (
+				<FilterChip
+					clearLabel="Clear period filter"
+					onClear={() =>
+						update({
+							period: PeriodPreset.All,
+							dateFrom: undefined,
+							dateTo: undefined,
+						})
+					}
+				>
+					{periodPrefix(filters.status)}:{" "}
+					{describePeriod({
+						preset: period,
+						from: filters.dateFrom,
+						to: filters.dateTo,
+					})}
+				</FilterChip>
+			)}
+			{filters.symbol && (
+				<FilterChip
+					clearLabel="Clear symbol filter"
+					onClear={() => update({ symbol: undefined })}
+				>
+					Symbol: {filters.symbol}
+				</FilterChip>
+			)}
+			{filters.side && (
+				<FilterChip
+					clearLabel="Clear side filter"
+					onClear={() => update({ side: undefined })}
+				>
+					{filters.side}
+				</FilterChip>
+			)}
+			{filters.status && (
+				<FilterChip
+					clearLabel="Clear status filter"
+					onClear={() => update({ status: undefined })}
+				>
+					{filters.status}
+				</FilterChip>
+			)}
+			{filters.setupId && (
+				<StrategyFilterChip
+					setupId={filters.setupId}
+					onClear={() => update({ setupId: undefined })}
+				/>
+			)}
+			{filters.confidence && (
+				<FilterChip
+					clearLabel="Clear confidence filter"
+					onClear={() => update({ confidence: undefined })}
+				>
+					Confidence: {filters.confidence.replaceAll(",", ", ")}
+				</FilterChip>
+			)}
+			{filters.mistake && (
+				<FilterChip
+					clearLabel="Clear mistake filter"
+					onClear={() => update({ mistake: undefined })}
+				>
+					Mistake: {filters.mistake.replaceAll(",", ", ")}
+				</FilterChip>
+			)}
+			{filters.tags && (
+				<TagFilterChip
+					filters={filters}
+					onClear={() => update({ tags: undefined, tagMatch: undefined })}
+				/>
+			)}
+		</div>
+	);
+}
+
 export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 	const [isExpanded, setIsExpanded] = useState(false);
 	const fieldsId = useId();
 	const update = useCallback(
 		(patch: Partial<JournalFilters>) =>
-			onFiltersChange({ ...filters, ...patch, page: 1 }),
+			onFiltersChange({ ...filters, ...patch }),
 		[filters, onFiltersChange],
 	);
 	const commitSymbol = useCallback(
@@ -123,11 +242,11 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 	].filter(Boolean).length;
 	const clearAll = () => {
 		setSymbolInput("");
-		onFiltersChange({ page: 1, period });
+		update(CLEARED_TRADE_FILTERS);
 	};
 
 	return (
-		<section aria-label="Journal filters" className="border-y border-border">
+		<section aria-label="Filters" className="border-y border-border">
 			<div className="flex min-w-0 flex-wrap items-center gap-2 py-2.5">
 				<PeriodPicker
 					value={{ preset: period, from: filters.dateFrom, to: filters.dateTo }}
@@ -176,56 +295,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 				/>
 			)}
 			{(activeCount > 0 || period !== PeriodPreset.All) && (
-				<div className="flex flex-wrap gap-2 border-t border-border py-2">
-					{period !== PeriodPreset.All && (
-						<FilterChip
-							clearLabel="Clear period filter"
-							onClear={() =>
-								update({
-									period: PeriodPreset.All,
-									dateFrom: undefined,
-									dateTo: undefined,
-								})
-							}
-						>
-							{describePeriod({
-								preset: period,
-								from: filters.dateFrom,
-								to: filters.dateTo,
-							})}
-						</FilterChip>
-					)}
-					{filters.symbol && (
-						<FilterChip
-							clearLabel="Clear symbol filter"
-							onClear={() => update({ symbol: undefined })}
-						>
-							Symbol: {filters.symbol}
-						</FilterChip>
-					)}
-					{filters.side && (
-						<FilterChip
-							clearLabel="Clear side filter"
-							onClear={() => update({ side: undefined })}
-						>
-							{filters.side}
-						</FilterChip>
-					)}
-					{filters.status && (
-						<FilterChip
-							clearLabel="Clear status filter"
-							onClear={() => update({ status: undefined })}
-						>
-							{filters.status}
-						</FilterChip>
-					)}
-					{filters.tags && (
-						<TagFilterChip
-							filters={filters}
-							onClear={() => update({ tags: undefined, tagMatch: undefined })}
-						/>
-					)}
-				</div>
+				<FilterChips filters={filters} update={update} />
 			)}
 		</section>
 	);

@@ -3,6 +3,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FilterBar, type JournalFilters } from "@/components/journal/FilterBar";
+import { CLEARED_TRADE_FILTERS } from "@/lib/journal-search";
 import { PeriodPreset } from "@/lib/period";
 
 vi.mock("@tanstack/react-query", () => ({
@@ -51,7 +52,7 @@ describe("FilterBar", () => {
 	it("renders a compact, purpose-built toolbar instead of a card surface", () => {
 		renderFilterBar();
 
-		const toolbar = screen.getByRole("region", { name: "Journal filters" });
+		const toolbar = screen.getByRole("region", { name: "Filters" });
 		expect(toolbar.className).toContain("border-y");
 		expect(toolbar.className).not.toContain("surface");
 		expect(
@@ -74,15 +75,11 @@ describe("FilterBar", () => {
 		).toBe("true");
 		expect(screen.getByRole("textbox", { name: "Symbol" })).toBeTruthy();
 		fireEvent.click(screen.getByRole("button", { name: "SHORT" }));
-		expect(onFiltersChange).toHaveBeenCalledWith({
-			side: "SHORT",
-			page: 1,
-		});
+		expect(onFiltersChange).toHaveBeenCalledWith({ side: "SHORT" });
 		fireEvent.click(screen.getByRole("button", { name: "High confidence" }));
 		expect(onFiltersChange).toHaveBeenLastCalledWith({
 			side: "LONG",
 			confidence: "HIGH",
-			page: 1,
 		});
 	});
 
@@ -101,12 +98,11 @@ describe("FilterBar", () => {
 			period: PeriodPreset.Last7Days,
 			dateFrom: undefined,
 			dateTo: undefined,
-			page: 1,
 		});
 
 		fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
 		expect(onFiltersChange).toHaveBeenLastCalledWith({
-			page: 1,
+			...CLEARED_TRADE_FILTERS,
 			period: PeriodPreset.ThisMonth,
 		});
 	});
@@ -122,7 +118,25 @@ describe("FilterBar", () => {
 		expect(onFiltersChange).not.toHaveBeenCalled();
 
 		act(() => vi.advanceTimersByTime(300));
-		expect(onFiltersChange).toHaveBeenCalledWith({ symbol: "NVDA", page: 1 });
+		expect(onFiltersChange).toHaveBeenCalledWith({ symbol: "NVDA" });
+	});
+
+	it("drops a pending symbol when the user clears all filters", () => {
+		vi.useFakeTimers();
+		const { onFiltersChange } = renderFilterBar({ side: "LONG" });
+		fireEvent.click(screen.getByRole("button", { name: /Filters/ }));
+		const input = screen.getByRole("textbox", { name: "Symbol" });
+
+		fireEvent.change(input, { target: { value: "NVDA" } });
+		fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
+		act(() => vi.advanceTimersByTime(300));
+
+		expect((input as HTMLInputElement).value).toBe("");
+		expect(onFiltersChange).toHaveBeenCalledTimes(1);
+		expect(onFiltersChange).toHaveBeenCalledWith({
+			...CLEARED_TRADE_FILTERS,
+			side: undefined,
+		});
 	});
 
 	it("shows the tag filter with its match mode and switches to every tag", () => {
@@ -137,13 +151,62 @@ describe("FilterBar", () => {
 		expect(onFiltersChange).toHaveBeenCalledWith({
 			tags: "3,4",
 			tagMatch: "all",
-			page: 1,
 		});
 		fireEvent.click(screen.getByRole("button", { name: "Clear tag filter" }));
 		expect(onFiltersChange).toHaveBeenLastCalledWith({
 			tags: undefined,
 			tagMatch: undefined,
-			page: 1,
 		});
+	});
+
+	it("shows a chip for every active filter", () => {
+		renderFilterBar({
+			period: PeriodPreset.ThisMonth,
+			symbol: "SPY",
+			side: "LONG",
+			status: "CLOSED",
+			setupId: "7",
+			confidence: "HIGH,LOW",
+			mistake: "FOMO",
+			tags: "3",
+		});
+
+		for (const chip of [
+			"Closed in: This month",
+			"Symbol: SPY",
+			"LONG",
+			"CLOSED",
+			"Strategy: Breakout",
+			"Confidence: HIGH, LOW",
+			"Mistake: FOMO",
+			"Tags, any of: FOMO",
+		])
+			expect(screen.getByText(chip)).toBeTruthy();
+		for (const field of ["strategy", "confidence", "mistake"])
+			expect(
+				screen.getByRole("button", { name: `Clear ${field} filter` }),
+			).toBeTruthy();
+	});
+
+	it("says closed or opened when the status is not closed", () => {
+		renderFilterBar({ period: PeriodPreset.ThisMonth, setupId: "none" });
+
+		expect(screen.getByText("Closed or opened in: This month")).toBeTruthy();
+		expect(screen.getByText("Strategy: None")).toBeTruthy();
+	});
+
+	it("clears the symbol input when the URL symbol is cleared", () => {
+		vi.useFakeTimers();
+		const { onFiltersChange, rerender } = renderFilterBar({ symbol: "SPY" });
+		fireEvent.click(screen.getByRole("button", { name: /Filters/ }));
+
+		rerender(<FilterBar filters={{}} onFiltersChange={onFiltersChange} />);
+		act(() => vi.advanceTimersByTime(300));
+
+		expect(
+			(screen.getByRole("textbox", { name: "Symbol" }) as HTMLInputElement)
+				.value,
+		).toBe("");
+		expect(onFiltersChange).not.toHaveBeenCalled();
 	});
 });
