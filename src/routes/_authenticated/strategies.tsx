@@ -72,6 +72,7 @@ function StrategiesPage() {
 								selectedId={selected?.id ?? null}
 								onSelect={handleSelect}
 								onDeleted={handleDeleted}
+								onCreate={handleNew}
 							/>
 						)}
 					</div>
