@@ -7,6 +7,7 @@ import { type JournalEntry, JournalEntryKind } from "@/lib/journal-entries";
 import { formatEntryDate, toNumber } from "@/lib/journal-format";
 import { UNAVAILABLE } from "@/lib/metric";
 import type { Trade } from "@/lib/trade";
+import { TradeSortField } from "@/lib/trade-sort";
 import { AdjustmentPill, Dash, Money, SidePill } from "./journal-cells";
 
 export type JournalRow = JournalEntry<Trade>;
@@ -129,6 +130,17 @@ const buildColumns = (currency: string): JournalColumn[] => [
 		trade: (trade) => <PriceReturn value={trade.returnPercent} />,
 	},
 ];
+
+/** The exit date column sorts by the scope date: closed trades by exit, other trades by entry. */
+export const SORTABLE_COLUMNS: Partial<
+	Record<string, { field: TradeSortField; label: string }>
+> = {
+	date: { field: TradeSortField.EntryDate, label: "date" },
+	symbol: { field: TradeSortField.Symbol, label: "symbol" },
+	exitDate: { field: TradeSortField.ScopeDate, label: "exit date" },
+	pnl: { field: TradeSortField.NetPnl, label: "net P&L" },
+	roi: { field: TradeSortField.ReturnPercent, label: "price return" },
+};
 
 export const journalColumnDefs = (currency: string): ColumnDef<JournalRow>[] =>
 	buildColumns(currency).map((column) => ({

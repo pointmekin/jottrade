@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { AccountEntryRecord } from "./account-entry";
 import { PeriodPreset } from "./period";
 import { TradeConfidence, TradeSide, TradeStatus } from "./trade";
+import { SortDirection, TradeSortField } from "./trade-sort";
 import { parseTagIds, TagMatch } from "./trade-tag";
 
 export const JournalView = {
@@ -52,6 +53,8 @@ export const journalSearchSchema = scopeSearchSchema.extend({
 	intent: z.enum(JournalIntent).optional(),
 	view: z.enum(JournalView).default(JournalView.All),
 	page: z.number().int().min(1).default(1).catch(1),
+	sort: z.enum(TradeSortField).optional().catch(undefined),
+	dir: z.enum(SortDirection).optional().catch(undefined),
 });
 
 export type JournalSearch = z.infer<typeof journalSearchSchema>;
@@ -75,7 +78,7 @@ function toSetupFilter(setupId?: string) {
 }
 
 export function toTradeQuery(
-	search: ScopeSearch & { page?: number },
+	search: ScopeSearch & Pick<Partial<JournalSearch>, "page" | "sort" | "dir">,
 	range: { from: Date | null; to: Date | null },
 ) {
 	const confidence = splitList(search.confidence)?.filter(
@@ -93,6 +96,8 @@ export function toTradeQuery(
 		dateFrom: range.from?.toISOString(),
 		dateTo: range.to?.toISOString(),
 		page: search.page,
+		sort: search.sort,
+		dir: search.dir,
 	};
 }
 

@@ -327,9 +327,28 @@ const EDGE_TRADES: TradeSpec[] = [
 	},
 ];
 
+/** Sam Main has 55 trades, one journal page and a bit; the largest win is the oldest, so it is on page 2 by date. */
+function pagedTrades(): TradeSpec[] {
+	return Array.from({ length: 55 }, (_, n) => {
+		const ymd = new Date(Date.UTC(2025, 5, 1 + n)).toISOString().slice(0, 10);
+		return {
+			portfolioId: 7,
+			symbol: n === 0 ? "NFLX" : "QQQ",
+			side: TradeSide.Long,
+			entry: `${ymd}T14:00:00`,
+			exit: `${ymd}T15:00:00`,
+			entryPrice: 100,
+			exitPrice: n === 0 ? 150 : 97 + (n % 7),
+			quantity: 10,
+		};
+	});
+}
+
 export function seedTrades(): TradeRow[] {
-	return [...generatedTrades(), ...EDGE_TRADES].map((spec, index) => ({
-		id: index + 1,
-		...toTrade(spec),
-	}));
+	return [...generatedTrades(), ...EDGE_TRADES, ...pagedTrades()].map(
+		(spec, index) => ({
+			id: index + 1,
+			...toTrade(spec),
+		}),
+	);
 }

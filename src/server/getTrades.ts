@@ -1,20 +1,22 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, count, desc, eq, sum } from "drizzle-orm";
+import { and, count, eq, sum } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { loadAccountHistory } from "@/db/account-history";
 import { trades } from "@/db/schema";
-import { tradeConditions } from "@/db/trade-filter";
+import { tradeConditions, tradeOrder } from "@/db/trade-filter";
 import { loadTagsByTrade, withTags } from "@/db/trade-tags";
-import { tradeFilterSchema } from "@/lib/analysis-scope";
 import { computeAccountReturn } from "@/lib/risk-metrics";
 import { TradeStatus } from "@/lib/trade";
+import { sortedTradeFilterSchema } from "@/lib/trade-sort";
 import { BULK_EDIT_LIMIT } from "@/lib/trade-tag";
 import { authMiddleware } from "./auth-middleware";
 
 const PAGE_SIZE = 50;
 
-const filterSchema = tradeFilterSchema.extend({ page: z.number().default(1) });
+const filterSchema = sortedTradeFilterSchema.extend({
+	page: z.number().default(1),
+});
 
 export const getTrades = createServerFn({ method: "GET" })
 	.middleware([authMiddleware])
@@ -28,7 +30,7 @@ export const getTrades = createServerFn({ method: "GET" })
 				.select()
 				.from(trades)
 				.where(where)
-				.orderBy(desc(trades.entryDate))
+				.orderBy(...tradeOrder(data))
 				.limit(PAGE_SIZE)
 				.offset((data.page - 1) * PAGE_SIZE),
 			db.select({ total: count() }).from(trades).where(where),
@@ -53,14 +55,14 @@ export const getTrades = createServerFn({ method: "GET" })
 /** Every trade id that matches the filter, for "select all matching"; capped one above the bulk limit so the client can tell when it is exceeded. */
 export const getTradeIds = createServerFn({ method: "GET" })
 	.middleware([authMiddleware])
-	.validator(tradeFilterSchema)
+	.validator(sortedTradeFilterSchema)
 	.handler(async ({ data, context }) => {
 		const { userId } = context;
 		const rows = await db
 			.select({ id: trades.id })
 			.from(trades)
 			.where(tradeConditions(userId, data))
-			.orderBy(desc(trades.entryDate), desc(trades.id))
+			.orderBy(...tradeOrder(data))
 			.limit(BULK_EDIT_LIMIT + 1);
 		return rows.map((row) => row.id);
 	});

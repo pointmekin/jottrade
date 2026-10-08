@@ -13,6 +13,7 @@ export const SeedUser = {
 	Bob: "seed-bob",
 	Erin: "seed-erin",
 	Nora: "seed-nora",
+	Sam: "seed-sam",
 } as const;
 
 export const PEOPLE = [
@@ -21,6 +22,8 @@ export const PEOPLE = [
 	{ id: SeedUser.Erin, name: "Erin Empty", email: "erin@jottrade.test" },
 	// No trading account: exercises first-run and account-creation paths.
 	{ id: SeedUser.Nora, name: "Nora No-Account", email: "nora@jottrade.test" },
+	// More trades than one journal page: exercises server-side sorting.
+	{ id: SeedUser.Sam, name: "Sam Sorting", email: "sam@jottrade.test" },
 ];
 
 export const PORTFOLIOS: PortfolioRow[] = [
@@ -77,6 +80,14 @@ export const PORTFOLIOS: PortfolioRow[] = [
 		id: 6,
 		userId: SeedUser.Erin,
 		name: "Empty Account",
+		kind: AccountKind.Real,
+		currency: "USD",
+		isDefault: true,
+	},
+	{
+		id: 7,
+		userId: SeedUser.Sam,
+		name: "Sam Main",
 		kind: AccountKind.Real,
 		currency: "USD",
 		isDefault: true,

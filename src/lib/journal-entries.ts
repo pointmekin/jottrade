@@ -22,7 +22,7 @@ export type JournalEntry<TTrade> =
 export function mergeJournalEntries<
 	TTrade extends { id: number; entryDate: Date | string },
 >(trades: TTrade[], adjustments: AccountEntryRecord[]): JournalEntry<TTrade>[] {
-	return [
+	const entries = [
 		...trades.map(
 			(trade): JournalEntry<TTrade> => ({
 				key: `trade-${trade.id}`,
@@ -39,5 +39,10 @@ export function mergeJournalEntries<
 				adjustment,
 			}),
 		),
-	].sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
+	];
+	// Without adjustments, keep the server sort order.
+	if (adjustments.length === 0) return entries;
+	return entries.sort(
+		(a, b) => b.occurredAt.getTime() - a.occurredAt.getTime(),
+	);
 }

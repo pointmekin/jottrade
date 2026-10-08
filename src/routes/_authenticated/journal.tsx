@@ -35,6 +35,11 @@ import {
 	SCOPE_SEARCH_KEYS,
 } from "@/lib/journal-search";
 import { describePeriod } from "@/lib/period";
+import {
+	isDefaultTradeSort,
+	nextTradeSort,
+	tradeSortSchema,
+} from "@/lib/trade-sort";
 
 export const Route = createFileRoute("/_authenticated/journal")({
 	validateSearch: journalSearchSchema,
@@ -137,6 +142,11 @@ function JournalTradesSection({
 	const selection = useTradeSelection(journal.filter);
 	const selectedIds = [...selection.selectedIds];
 	const isFirstRun = useIsJournalFirstRun(search.view, journal.adjustmentCount);
+	const sort = tradeSortSchema.parse(search);
+	const hidesAdjustments =
+		search.view === JournalView.All &&
+		journal.adjustmentCount > 0 &&
+		!isDefaultTradeSort(sort);
 
 	if (isFirstRun)
 		return (
@@ -154,9 +164,21 @@ function JournalTradesSection({
 		);
 	return (
 		<>
+			{hidesAdjustments && (
+				<p className="text-sm text-muted-foreground">
+					Adjustments show only when you sort by date, newest first.
+				</p>
+			)}
 			<JournalTable
 				entries={journal.entries}
 				selection={selection}
+				sort={{
+					current: sort,
+					onSortChange: (field) =>
+						navigate({
+							search: { ...search, ...nextTradeSort(sort, field), page: 1 },
+						}),
+				}}
 				onTradeClick={(trade) =>
 					navigate({
 						to: "/journal/$tradeId",

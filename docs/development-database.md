@@ -20,6 +20,7 @@ Sign in with any seeded user. All of them use the password
 | `bob@jottrade.test`   | 2 accounts, 4 trades (stocks and fractional BTC), 1 strategy, 1 tag   |
 | `erin@jottrade.test`  | 1 account, no trades, no cash flows, no strategies                    |
 | `nora@jottrade.test`  | No trading account                                                   |
+| `sam@jottrade.test`   | One account with 55 closed trades (more than one journal page)       |
 
 `npm run db:setup` does these steps:
 
