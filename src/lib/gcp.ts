@@ -11,6 +11,8 @@ function requireEnv(name: string): string {
 
 const bucketName = () => requireEnv("GCP_BUCKET_NAME");
 
+export const userObjectPrefix = (userId: string) => `trades/${userId}/`;
+
 export const publicObjectUrl = (objectName: string) =>
 	`https://${STORAGE_HOST}/${bucketName()}/${objectName}`;
 
@@ -118,17 +120,47 @@ export async function createSignedUploadUrl(
 	);
 }
 
-export async function deleteGcpObject(objectName: string): Promise<void> {
-	const bucket = bucketName();
-	const token = await getAccessToken();
-	const encodedName = encodeURIComponent(objectName);
+const objectsUrl = (bucket: string) =>
+	`https://storage.googleapis.com/storage/v1/b/${bucket}/o`;
+
+async function deleteObject(bucket: string, objectName: string, token: string) {
 	const res = await fetch(
-		`https://storage.googleapis.com/storage/v1/b/${bucket}/o/${encodedName}`,
+		`${objectsUrl(bucket)}/${encodeURIComponent(objectName)}`,
 		{ method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
 	);
 	if (!res.ok && res.status !== 404) {
 		throw new Error(`GCP delete failed: ${res.status}`);
 	}
+}
+
+export async function deleteGcpObject(objectName: string): Promise<void> {
+	await deleteObject(bucketName(), objectName, await getAccessToken());
+}
+
+export async function deleteGcpPrefix(prefix: string): Promise<void> {
+	const bucket = bucketName();
+	const token = await getAccessToken();
+	let pageToken = "";
+	do {
+		const query = new URLSearchParams({
+			prefix,
+			maxResults: "100",
+			fields: "items(name),nextPageToken",
+		});
+		if (pageToken) query.set("pageToken", pageToken);
+		const res = await fetch(`${objectsUrl(bucket)}?${query}`, {
+			headers: { Authorization: `Bearer ${token}` },
+		});
+		if (!res.ok) throw new Error(`GCP list failed: ${res.status}`);
+		const page = (await res.json()) as {
+			items?: { name: string }[];
+			nextPageToken?: string;
+		};
+		await Promise.all(
+			(page.items ?? []).map(({ name }) => deleteObject(bucket, name, token)),
+		);
+		pageToken = page.nextPageToken ?? "";
+	} while (pageToken);
 }
 
 async function getAccessToken(): Promise<string> {

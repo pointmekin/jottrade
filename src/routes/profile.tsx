@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Mail } from "lucide-react";
 import { AppPageHeader, SectionHeading } from "@/components/app-page-header";
+import { AccountDeletion } from "@/components/profile/account-deletion";
 import { PasswordSettings } from "@/components/profile/password-settings";
 import { SessionSettings } from "@/components/profile/session-settings";
 import { Spinner } from "@/components/ui/spinner";
@@ -141,6 +142,13 @@ function Profile() {
 							<section className="grid gap-4">
 								<SectionHeading title="Sessions" detail="Signed-in devices" />
 								<SessionSettings />
+							</section>
+
+							<div className="border-t border-border" />
+
+							<section className="grid gap-4">
+								<SectionHeading title="Delete account" detail="Danger zone" />
+								<AccountDeletion />
 							</section>
 						</div>
 					</div>
