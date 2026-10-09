@@ -18,6 +18,8 @@ import { Route as AuthenticatedJournalRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedReviewsRouteImport } from './routes/_authenticated/reviews'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedStrategiesRouteImport } from './routes/_authenticated/strategies'
+import { Route as UnauthenticatedForgotPasswordRouteImport } from './routes/_unauthenticated/forgot-password'
+import { Route as UnauthenticatedResetPasswordRouteImport } from './routes/_unauthenticated/reset-password'
 import { Route as UnauthenticatedSignInRouteImport } from './routes/_unauthenticated/sign-in'
 import { Route as UnauthenticatedSignUpRouteImport } from './routes/_unauthenticated/sign-up'
 import { Route as AuthenticatedJournalTradeIdRouteImport } from './routes/_authenticated/journal_.$tradeId'
@@ -67,6 +69,18 @@ const AuthenticatedStrategiesRoute = AuthenticatedStrategiesRouteImport.update({
   path: '/strategies',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const UnauthenticatedForgotPasswordRoute =
+  UnauthenticatedForgotPasswordRouteImport.update({
+    id: '/_unauthenticated/forgot-password',
+    path: '/forgot-password',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const UnauthenticatedResetPasswordRoute =
+  UnauthenticatedResetPasswordRouteImport.update({
+    id: '/_unauthenticated/reset-password',
+    path: '/reset-password',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const UnauthenticatedSignInRoute = UnauthenticatedSignInRouteImport.update({
   id: '/_unauthenticated/sign-in',
   path: '/sign-in',
@@ -98,6 +112,8 @@ export interface FileRoutesByFullPath {
   '/reviews': typeof AuthenticatedReviewsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/strategies': typeof AuthenticatedStrategiesRoute
+  '/forgot-password': typeof UnauthenticatedForgotPasswordRoute
+  '/reset-password': typeof UnauthenticatedResetPasswordRoute
   '/sign-in': typeof UnauthenticatedSignInRoute
   '/sign-up': typeof UnauthenticatedSignUpRoute
   '/journal/$tradeId': typeof AuthenticatedJournalTradeIdRoute
@@ -112,6 +128,8 @@ export interface FileRoutesByTo {
   '/reviews': typeof AuthenticatedReviewsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/strategies': typeof AuthenticatedStrategiesRoute
+  '/forgot-password': typeof UnauthenticatedForgotPasswordRoute
+  '/reset-password': typeof UnauthenticatedResetPasswordRoute
   '/sign-in': typeof UnauthenticatedSignInRoute
   '/sign-up': typeof UnauthenticatedSignUpRoute
   '/journal/$tradeId': typeof AuthenticatedJournalTradeIdRoute
@@ -128,6 +146,8 @@ export interface FileRoutesById {
   '/_authenticated/reviews': typeof AuthenticatedReviewsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/strategies': typeof AuthenticatedStrategiesRoute
+  '/_unauthenticated/forgot-password': typeof UnauthenticatedForgotPasswordRoute
+  '/_unauthenticated/reset-password': typeof UnauthenticatedResetPasswordRoute
   '/_unauthenticated/sign-in': typeof UnauthenticatedSignInRoute
   '/_unauthenticated/sign-up': typeof UnauthenticatedSignUpRoute
   '/_authenticated/journal_/$tradeId': typeof AuthenticatedJournalTradeIdRoute
@@ -144,6 +164,8 @@ export interface FileRouteTypes {
     | '/reviews'
     | '/settings'
     | '/strategies'
+    | '/forgot-password'
+    | '/reset-password'
     | '/sign-in'
     | '/sign-up'
     | '/journal/$tradeId'
@@ -158,6 +180,8 @@ export interface FileRouteTypes {
     | '/reviews'
     | '/settings'
     | '/strategies'
+    | '/forgot-password'
+    | '/reset-password'
     | '/sign-in'
     | '/sign-up'
     | '/journal/$tradeId'
@@ -173,6 +197,8 @@ export interface FileRouteTypes {
     | '/_authenticated/reviews'
     | '/_authenticated/settings'
     | '/_authenticated/strategies'
+    | '/_unauthenticated/forgot-password'
+    | '/_unauthenticated/reset-password'
     | '/_unauthenticated/sign-in'
     | '/_unauthenticated/sign-up'
     | '/_authenticated/journal_/$tradeId'
@@ -183,6 +209,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   ProfileRoute: typeof ProfileRoute
+  UnauthenticatedForgotPasswordRoute: typeof UnauthenticatedForgotPasswordRoute
+  UnauthenticatedResetPasswordRoute: typeof UnauthenticatedResetPasswordRoute
   UnauthenticatedSignInRoute: typeof UnauthenticatedSignInRoute
   UnauthenticatedSignUpRoute: typeof UnauthenticatedSignUpRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -253,6 +281,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedStrategiesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_unauthenticated/forgot-password': {
+      id: '/_unauthenticated/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof UnauthenticatedForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_unauthenticated/reset-password': {
+      id: '/_unauthenticated/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof UnauthenticatedResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_unauthenticated/sign-in': {
       id: '/_unauthenticated/sign-in'
       path: '/sign-in'
@@ -311,6 +353,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   ProfileRoute: ProfileRoute,
+  UnauthenticatedForgotPasswordRoute: UnauthenticatedForgotPasswordRoute,
+  UnauthenticatedResetPasswordRoute: UnauthenticatedResetPasswordRoute,
   UnauthenticatedSignInRoute: UnauthenticatedSignInRoute,
   UnauthenticatedSignUpRoute: UnauthenticatedSignUpRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

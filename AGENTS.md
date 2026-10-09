@@ -146,6 +146,7 @@ Fix the cause of a finding. Do not suppress a rule or change a threshold to pass
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: optional, Google sign-in.
 - `GCP_BUCKET_NAME`, `GCP_SERVICE_ACCOUNT_KEY`: trade screenshots.
 - `GEMINI_API_KEY`: optional command palette fallback.
+- `RESEND_API_KEY`, `EMAIL_FROM`: required in production for password reset emails (Resend). Without them, production logs an error and sends nothing; development writes the reset link to the server log.
 - `DATABASE_URL_POOLER`: not read today.
 
 In a deployment, set them in the Vercel project environment, not in source control.

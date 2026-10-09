@@ -146,7 +146,7 @@ In CI the **E2E** job uploads both folders as the `playwright-evidence` artifact
 
 `scripts/verify/check-client-bundle.ts <client dir> <server dir>` fails when a client file:
 
-- names a server-only variable (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_SECRET`, `GCP_SERVICE_ACCOUNT_KEY`, `GEMINI_API_KEY`);
+- names a server-only variable (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_SECRET`, `GCP_SERVICE_ACCOUNT_KEY`, `GEMINI_API_KEY`, `RESEND_API_KEY`);
 - contains the value of one of these variables, as set in the environment of the check;
 - contains a marker string from a server-only module (`pg`, `@neondatabase/serverless`, the Better Auth server adapter, the Google Cloud Storage client);
 - contains a PostgreSQL connection string with credentials.

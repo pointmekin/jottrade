@@ -28,6 +28,7 @@ To run one file: `npx vitest run src/test/<file>`.
 |---|---|---|---|
 | `/` | `src/routes/index.tsx` | Public | Landing page with links to sign-up and sign-in. No sidebar. |
 | `/sign-in`, `/sign-up` | `src/routes/_unauthenticated/` | Public | Email/password and Google. No sidebar. |
+| `/forgot-password`, `/reset-password` | `src/routes/_unauthenticated/` | Public | Password reset request and new password. `/reset-password` search: `token` or `error` (from the Better Auth email link). No sidebar. |
 | `/dashboard` | `src/routes/_authenticated/dashboard.tsx` | Signed in | Search: the scope (see "Analysis scope"). The old `from`/`to` map once to `dateFrom`/`dateTo`. |
 | `/journal` | `src/routes/_authenticated/journal.tsx` | Signed in | Search: the scope (see "Analysis scope"; `tags` are comma-separated tag ids, `tagMatch` is `any`/`all`), `view`, `page` (an integer from 1; a bad value reads as 1), `sort` (`entryDate`, `scopeDate`, `symbol`, `netPnl`, `returnPercent`) and `dir` (`asc`/`desc`), `intent=log` (`src/lib/journal-search.ts`). |
 | `/journal/$tradeId` | `src/routes/_authenticated/journal_.$tradeId.tsx` | Signed in | Trade detail page. |
@@ -50,11 +51,11 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 
 ### Authentication
 
-- **Entry**: `/sign-in`, `/sign-up`; protected routes redirect to `/sign-in`.
-- **Flows**: email/password sign-up and sign-in; Google sign-in (`authClient.signIn.social`).
-- **Code**: `src/lib/auth.ts` (server, Drizzle adapter), `src/lib/auth-client.ts`, `src/routes/api/auth/$.ts`. Server functions use `authMiddleware` (`src/server/auth-middleware.ts`), which calls `requireUserId()` and puts `userId` in the handler context. A Better Auth `user.create.after` hook gives each new user a default account (`ensureDefaultPortfolio` in `src/db/portfolios.ts`).
+- **Entry**: `/sign-in`, `/sign-up`, `/forgot-password` ("Forgot password?" on `/sign-in`), `/reset-password` (the email link); protected routes redirect to `/sign-in`.
+- **Flows**: email/password sign-up and sign-in; Google sign-in (`authClient.signIn.social`). Password reset: the request page always shows the same message; the email link expires after 1 hour and works one time; a reset signs out all sessions. The reset request has a limit of 3 per 60 s for each client IP. A reset for a Google-only user adds a password to the account.
+- **Code**: `src/lib/auth.ts` (server, Drizzle adapter), `src/lib/auth-client.ts`, `src/routes/api/auth/$.ts`. Server functions use `authMiddleware` (`src/server/auth-middleware.ts`), which calls `requireUserId()` and puts `userId` in the handler context. A Better Auth `user.create.after` hook gives each new user a default account (`ensureDefaultPortfolio` in `src/db/portfolios.ts`). Reset emails: `src/lib/email.ts` (server-only, Resend HTTP API; `RESEND_API_KEY`, `EMAIL_FROM`). Password rules: `src/lib/password.ts`.
 - **Data**: `user`, `session`, `account` (OAuth link, not a trading account), `verification` in `src/db/trading-schema.ts`. Better Auth owns them.
-- **Verification**: E2E `auth.spec.ts` (redirect of a signed-out visitor, sign-in that survives a reload, wrong password, another user's trade URL shows "Journal entry not found"). E2E `server-auth.spec.ts` (a captured server-function read and write, replayed over HTTP with no session and with another user's session, fail). DB (verify) `user-isolation.integration.test.ts` (no session: reads and writes fail with "Unauthorized" before the handler). Unit `server-boundaries.test.ts` (every server function uses `authMiddleware`). Gap: sign-up in the browser and Google sign-in. DB (optional) `feature-integration.test.ts` and `review-database.test.ts` reject foreign users and unauthenticated calls.
+- **Verification**: E2E `auth.spec.ts` (redirect of a signed-out visitor, sign-in that survives a reload, wrong password, another user's trade URL shows "Journal entry not found"). E2E `server-auth.spec.ts` (a captured server-function read and write, replayed over HTTP with no session and with another user's session, fail). DB (verify) `user-isolation.integration.test.ts` (no session: reads and writes fail with "Unauthorized" before the handler). Unit `server-boundaries.test.ts` (every server function uses `authMiddleware`). Unit `email.test.ts` (production without a key or sender fails and logs no link), `password-forms.test.tsx` (the same message for each email, password rules, an expired or used link). DB (verify) `password-recovery.integration.test.ts` (the same response for an unknown and a known email, a 1-hour token, a token works one time, an expired token fails, a password change needs the current password, a Google-only user gets no credential change). E2E `password.spec.ts` (reset with the emailed link, then sign in; a used link; the rate limit; a change on the profile page signs out another device). Gap: sign-up in the browser and Google sign-in. DB (optional) `feature-integration.test.ts` and `review-database.test.ts` reject foreign users and unauthenticated calls.
 
 ### Trading accounts
 
@@ -176,5 +177,5 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 ### Settings and profile
 
 - **Entry**: `/settings`, `/profile`.
-- **Flows**: trading accounts, review preferences, trade tags (see "Trade tags and bulk edits"), the full archive download (see "Data export"), theme (light/dark/system, kept in local storage `vite-ui-theme`). Profile shows name and email; password change and 2FA are disabled.
-- **Verification**: Gap.
+- **Flows**: trading accounts, review preferences, trade tags (see "Trade tags and bulk edits"), the full archive download (see "Data export"), theme (light/dark/system, kept in local storage `vite-ui-theme`). Profile shows name and email, and a password change form (the current password is required; an option signs out other devices). A Google-only user sees how to add a password through "Forgot password?". 2FA shows "Not available yet".
+- **Verification**: Unit `password-forms.test.tsx` (profile password form and Google-only guidance). E2E `password.spec.ts` (change the password on the profile page). Gap: the other settings.

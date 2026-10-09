@@ -9,6 +9,7 @@ export const SERVER_ONLY_ENV = [
 	"GOOGLE_CLIENT_SECRET",
 	"GCP_SERVICE_ACCOUNT_KEY",
 	"GEMINI_API_KEY",
+	"RESEND_API_KEY",
 ];
 
 // Strings that only server-only dependencies contain. The server output must
