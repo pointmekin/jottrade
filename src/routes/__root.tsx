@@ -43,8 +43,25 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 			{ charSet: "utf-8" },
 			{ name: "viewport", content: "width=device-width, initial-scale=1" },
 			{ title: "JotTrade" },
+			{ name: "application-name", content: "JotTrade" },
+			{ name: "apple-mobile-web-app-title", content: "JotTrade" },
+			{
+				name: "theme-color",
+				content: "#ffffff",
+				media: "(prefers-color-scheme: light)",
+			},
+			{
+				name: "theme-color",
+				content: "#111316",
+				media: "(prefers-color-scheme: dark)",
+			},
 		],
-		links: [{ rel: "stylesheet", href: appCss }],
+		links: [
+			{ rel: "stylesheet", href: appCss },
+			{ rel: "manifest", href: "/manifest.webmanifest" },
+			{ rel: "icon", href: "/favicon.ico", sizes: "48x48" },
+			{ rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
+		],
 	}),
 
 	shellComponent: RootDocument,
