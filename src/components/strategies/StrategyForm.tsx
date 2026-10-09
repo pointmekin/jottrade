@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useId } from "react";
+import { useEffect, useId, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { SectionHeading } from "@/components/app-page-header";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,7 @@ export function StrategyForm({ strategy, onSaved }: StrategyFormProps) {
 		handleSubmit,
 		formState: { errors, isDirty },
 		reset,
+		setFocus,
 	} = useForm<PlaybookFields>({
 		resolver: zodResolver(playbookFieldsSchema),
 		values: {
@@ -58,6 +59,14 @@ export function StrategyForm({ strategy, onSaved }: StrategyFormProps) {
 		},
 	});
 	const submitLabel = strategy ? "Save Changes" : "Create Strategy";
+
+	// A create selects the new strategy; its "Saved." must stay.
+	const shownId = useRef(strategy?.id);
+	useEffect(() => {
+		if (shownId.current === strategy?.id) return;
+		shownId.current = strategy?.id;
+		if (saveMut.data?.id !== strategy?.id) saveMut.reset();
+	});
 
 	return (
 		<form
@@ -92,6 +101,7 @@ export function StrategyForm({ strategy, onSaved }: StrategyFormProps) {
 				<PlaybookCriteriaFields
 					control={control}
 					register={register}
+					setFocus={setFocus}
 					errors={errors}
 				/>
 				<div className="space-y-1">

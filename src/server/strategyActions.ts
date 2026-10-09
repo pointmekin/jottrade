@@ -113,9 +113,5 @@ export const deleteStrategy = createServerFn({ method: "POST" })
 			used: number;
 		}[];
 		if (!owned) throw new Error("Strategy not found");
-		if (used) {
-			const uses = used === 1 ? "1 trade uses" : `${used} trades use`;
-			throw new Error(`${uses} this strategy. Archive it instead.`);
-		}
-		return { success: true };
+		return { deleted: !used, usedBy: used };
 	});

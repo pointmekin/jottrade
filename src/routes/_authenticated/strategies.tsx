@@ -89,6 +89,7 @@ function StrategiesPage() {
 									</h2>
 									{selected && (
 										<StrategyStatusActions
+											key={selected?.id ?? "new"}
 											strategy={selected}
 											onChanged={setSelected}
 											onDeleted={handleDeleted}

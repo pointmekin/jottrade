@@ -42,12 +42,14 @@ export function StrategyStatusActions({
 	});
 	const deleteMut = useMutation({
 		mutationFn: () => deleteStrategy({ data: { id: strategy.id } }),
-		onSuccess: () => {
+		onSuccess: ({ deleted }) => {
+			if (!deleted) return;
 			qc.invalidateQueries({ queryKey: [QueryKey.Strategies] });
 			setConfirmOpen(false);
 			onDeleted(strategy.id);
 		},
 	});
+	const usedBy = deleteMut.data?.usedBy ?? 0;
 
 	return (
 		<div className="flex flex-wrap gap-2">
@@ -90,11 +92,14 @@ export function StrategyStatusActions({
 					<AlertDialogHeader>
 						<AlertDialogTitle>Delete strategy?</AlertDialogTitle>
 						<AlertDialogDescription className="text-muted-foreground">
-							{deleteMut.isError
-								? deleteMut.error.message
-								: `This deletes "${strategy.name}". You cannot undo this. If trades use it, archive it to keep their history.`}
+							{deleteMessage(strategy.name, usedBy, isArchived)}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
+					{deleteMut.isError && (
+						<p role="alert" className="text-sm text-destructive">
+							{deleteMut.error.message}
+						</p>
+					)}
 					{archiveMut.isError && (
 						<p role="alert" className="text-sm text-destructive">
 							{archiveMut.error.message}
@@ -104,17 +109,18 @@ export function StrategyStatusActions({
 						<AlertDialogCancel className="border-border">
 							Cancel
 						</AlertDialogCancel>
-						{deleteMut.isError && !isArchived ? (
+						{usedBy > 0 && !isArchived && (
 							<Button
 								disabled={archiveMut.isPending}
 								onClick={() => archiveMut.mutate(true)}
 							>
 								Archive
 							</Button>
-						) : (
+						)}
+						{usedBy === 0 && (
 							<Button
 								variant="destructive"
-								disabled={deleteMut.isPending || deleteMut.isError}
+								disabled={deleteMut.isPending}
 								onClick={() => deleteMut.mutate()}
 							>
 								Delete
@@ -130,4 +136,12 @@ export function StrategyStatusActions({
 			)}
 		</div>
 	);
+}
+
+function deleteMessage(name: string, usedBy: number, isArchived: boolean) {
+	if (!usedBy)
+		return `This deletes "${name}". You cannot undo this. If trades use it, archive it to keep their history.`;
+	const uses = usedBy === 1 ? "1 trade uses" : `${usedBy} trades use`;
+	if (isArchived) return `${uses} this strategy.`;
+	return `${uses} this strategy. Archive it instead.`;
 }

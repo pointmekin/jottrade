@@ -532,11 +532,11 @@ describe.skipIf(!verifyUrl)("user isolation on the seeded database", () => {
 			expect(before.length).toBeGreaterThan(0);
 			session.userId = ALICE;
 
-			await expect(
-				server.strategies.deleteStrategy({ data: { id: ALICE_STRATEGY } }),
-			).rejects.toThrow(
-				/^\d+ trades? uses? this strategy\. Archive it instead\.$/,
-			);
+			expect(
+				await server.strategies.deleteStrategy({
+					data: { id: ALICE_STRATEGY },
+				}),
+			).toEqual({ deleted: false, usedBy: before.length });
 
 			expect(await linked()).toEqual(before);
 		});

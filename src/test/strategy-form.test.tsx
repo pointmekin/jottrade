@@ -8,12 +8,12 @@ import {
 	waitFor,
 	within,
 } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { StrategyForm } from "@/components/strategies/StrategyForm";
 import { StrategyList } from "@/components/strategies/StrategyList";
 import { PlaybookCriterionKind, type Strategy } from "@/lib/playbook";
-import { createStrategy } from "@/server/strategyActions";
+import { createStrategy, updateStrategy } from "@/server/strategyActions";
 
 vi.mock("@/hooks/use-accounts", () => ({
 	useAccounts: () => ({ activeAccount: undefined }),
@@ -56,6 +56,27 @@ const strategyOf = (fields: Partial<Strategy>): Strategy => ({
 	archivedAt: null,
 	...fields,
 });
+
+// One QueryClient for the whole render, so the save mutation keeps its state.
+function SelectionHarness({ initial }: { initial: Strategy | null }) {
+	const [client] = useState(() => new QueryClient());
+	const [strategy, setStrategy] = useState(initial);
+	return (
+		<QueryClientProvider client={client}>
+			<button
+				type="button"
+				onClick={() =>
+					setStrategy((current) =>
+						strategyOf(current?.id === 9 ? {} : { id: 9, name: "Reversal" }),
+					)
+				}
+			>
+				Select other
+			</button>
+			<StrategyForm strategy={strategy} onSaved={setStrategy} />
+		</QueryClientProvider>
+	);
+}
 
 const nameInput = () =>
 	screen.getByPlaceholderText("e.g. Breakout") as HTMLInputElement;
@@ -141,6 +162,74 @@ describe("StrategyForm", () => {
 				],
 			},
 		});
+	});
+
+	it("clears the save result when another strategy is selected", async () => {
+		vi.mocked(updateStrategy)
+			.mockResolvedValueOnce(strategyOf({}))
+			.mockRejectedValueOnce(new Error("Network down"));
+		render(<SelectionHarness initial={strategyOf({})} />);
+		const save = () =>
+			fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+		const selectOther = () =>
+			fireEvent.click(screen.getByRole("button", { name: "Select other" }));
+
+		save();
+		expect(await screen.findByText("Saved.")).toBeTruthy();
+		selectOther();
+		await waitFor(() => expect(screen.queryByText("Saved.")).toBeNull());
+
+		save();
+		expect((await screen.findByRole("alert")).textContent).toBe("Network down");
+		selectOther();
+		await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+	});
+
+	it("keeps the save result after a create selects the new strategy", async () => {
+		vi.mocked(createStrategy).mockResolvedValue(strategyOf({ id: 5 }));
+		render(<SelectionHarness initial={null} />);
+
+		fireEvent.change(nameInput(), { target: { value: "Breakout" } });
+		fireEvent.click(screen.getByRole("button", { name: "Create Strategy" }));
+
+		expect(await screen.findByText("Saved.")).toBeTruthy();
+		expect(screen.getByRole("button", { name: "Save Changes" })).toBeTruthy();
+	});
+
+	it("moves focus to the previous row, the next row, then the add button after a remove", async () => {
+		const entry = (id: string) => ({
+			id,
+			kind: PlaybookCriterionKind.Entry,
+			text: id,
+			required: true,
+		});
+		render(
+			<Wrapper>
+				<StrategyForm
+					strategy={strategyOf({
+						criteria: [entry("A"), entry("B"), entry("C")],
+					})}
+					onSaved={vi.fn()}
+				/>
+			</Wrapper>,
+		);
+		const remove = (text: string) =>
+			fireEvent.click(
+				screen.getByRole("button", { name: `Remove criterion: ${text}` }),
+			);
+		const focused = () => (document.activeElement as HTMLInputElement).value;
+
+		remove("C");
+		await waitFor(() => expect(focused()).toBe("B"));
+		remove("A");
+		await waitFor(() => expect(focused()).toBe("B"));
+		remove("B");
+
+		await waitFor(() =>
+			expect(document.activeElement).toBe(
+				within(entryGroup()).getByRole("button", { name: "Add criterion" }),
+			),
+		);
 	});
 
 	it("blocks a save with a blank criterion", async () => {
