@@ -81,6 +81,7 @@ export function BulkEditBar({
 	const { data: strategies = [], isSuccess: hasStrategies } = useQuery({
 		queryKey: [QueryKey.Strategies],
 		queryFn: () => getStrategies(),
+		select: (rows) => rows.filter((strategy) => !strategy.archivedAt),
 	});
 	const count = selectedIds.length;
 	// A finished edit can move trades out of the filtered view, so the selection

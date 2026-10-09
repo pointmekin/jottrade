@@ -40,6 +40,7 @@ export const tradeCaptureSchema = riskInputSchema.extend({
 		.optional(),
 	notes: z.string().optional(),
 	status: z.enum(TradeStatus).optional(),
+	setupId: z.number().int().positive().nullable().optional(),
 });
 export type TradeCaptureValues = z.infer<typeof tradeCaptureSchema>;
 export type TradeCaptureDraft = Partial<TradeCaptureValues> & {

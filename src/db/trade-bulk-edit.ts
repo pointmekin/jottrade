@@ -1,6 +1,8 @@
 import { and, eq, inArray, type SQL, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { strategies, tags, trades } from "@/db/schema";
+import { lockPortfolio } from "@/db/portfolios";
+import { tags, trades } from "@/db/schema";
+import { activeStrategySql, requireOwnedStrategy } from "@/db/strategies";
 import { currentExecutionFingerprint } from "@/lib/review-execution-fingerprint";
 import {
 	type BulkEditInput,
@@ -43,16 +45,6 @@ async function requireOwnedTags(userId: string, tagIds: number[]) {
 		.where(and(eq(tags.userId, userId), inArray(tags.id, tagIds)));
 	if (rows.length !== tagIds.length)
 		throw new Error("A chosen tag no longer exists. Nothing was changed.");
-}
-
-async function requireOwnedStrategy(userId: string, setupId: number | null) {
-	if (setupId === null) return;
-	const [strategy] = await db
-		.select({ id: strategies.id })
-		.from(strategies)
-		.where(and(eq(strategies.userId, userId), eq(strategies.id, setupId)));
-	if (!strategy)
-		throw new Error("This strategy no longer exists. Nothing was changed.");
 }
 
 /**
@@ -103,7 +95,7 @@ function changeSql(scope: Scope, change: RowChange) {
 				scope,
 				change.setupId === null
 					? sql`true`
-					: sql`EXISTS(SELECT 1 FROM strategies WHERE id=${change.setupId} AND user_id=${userId})`,
+					: activeStrategySql(userId, change.setupId),
 				sql`changed AS (UPDATE trades SET setup_id=${change.setupId}, edit_revision=edit_revision+1 WHERE id IN (SELECT id FROM owned) AND (SELECT ok FROM allowed) AND setup_id IS DISTINCT FROM ${change.setupId}::int RETURNING id)`,
 			);
 		case BulkTradeAction.SetConfidence:
@@ -157,9 +149,7 @@ export async function bulkEditTrades(
 	// The account lock is its own statement, so the guarded statement takes its
 	// snapshot after it waits; deleteStrategy takes the same lock first.
 	const [, result] = await db.batch([
-		db.execute(
-			sql`SELECT id FROM portfolios WHERE id=${input.portfolioId} AND user_id=${userId} FOR UPDATE`,
-		),
+		lockPortfolio(userId, input.portfolioId),
 		db.execute<{ ok: boolean; changed: number }>(statement),
 	]);
 	const [outcome] = result.rows;

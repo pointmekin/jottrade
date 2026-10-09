@@ -1,5 +1,8 @@
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useId } from "react";
 import { type UseFormReturn, useWatch } from "react-hook-form";
+import { PlaybookSummary } from "@/components/strategies/playbook-summary";
 import {
 	FormControl,
 	FormField,
@@ -10,8 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { resolveInstrumentSpec } from "@/lib/instruments";
+import { QueryKey } from "@/lib/query-keys";
 import { TradeSide } from "@/lib/trade";
 import type { TradeCaptureValues } from "@/lib/trade-capture";
+import { getStrategies } from "@/server/strategyActions";
 
 type CaptureForm = UseFormReturn<TradeCaptureValues>;
 const CORE_FIELDS = [
@@ -111,6 +116,48 @@ export function TradeEntryFields({ form }: { form: CaptureForm }) {
 				label="Planned target price"
 			/>
 		</>
+	);
+}
+
+export function TradeStrategyField({ form }: { form: CaptureForm }) {
+	const id = useId();
+	const { data: strategies = [], isSuccess } = useQuery({
+		queryKey: [QueryKey.Strategies],
+		queryFn: () => getStrategies(),
+	});
+	const active = strategies.filter((strategy) => !strategy.archivedAt);
+	const setupId = useWatch({ control: form.control, name: "setupId" });
+	const selected = active.find((strategy) => strategy.id === setupId);
+	const hasNone = isSuccess && !active.length;
+	return (
+		<div className="space-y-2">
+			<Label htmlFor={id}>Strategy</Label>
+			<select
+				id={id}
+				value={setupId ?? ""}
+				onChange={(event) =>
+					form.setValue(
+						"setupId",
+						event.target.value ? Number(event.target.value) : null,
+					)
+				}
+				disabled={hasNone}
+				className="h-9 w-full rounded-md border border-input bg-background px-3"
+			>
+				<option value="">{hasNone ? "No strategies yet" : "None"}</option>
+				{active.map((strategy) => (
+					<option key={strategy.id} value={strategy.id}>
+						{strategy.name}
+					</option>
+				))}
+			</select>
+			{hasNone && (
+				<Link to="/strategies" className="text-sm underline">
+					Create a strategy
+				</Link>
+			)}
+			{selected && <PlaybookSummary key={selected.id} strategy={selected} />}
+		</div>
 	);
 }
 

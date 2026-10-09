@@ -9,6 +9,7 @@ import { useTags } from "@/hooks/use-tags";
 import { SymbolMatch } from "@/lib/analysis-scope";
 import { CLEARED_TRADE_FILTERS, NO_STRATEGY } from "@/lib/journal-search";
 import { describePeriod, PeriodPreset } from "@/lib/period";
+import { strategyLabel } from "@/lib/playbook";
 import { QueryKey } from "@/lib/query-keys";
 import { type TradeSide, TradeStatus } from "@/lib/trade";
 import { parseTagIds, TagMatch } from "@/lib/trade-tag";
@@ -118,10 +119,9 @@ function StrategyFilterChip({
 		queryKey: [QueryKey.Strategies],
 		queryFn: () => getStrategies(),
 	});
+	const strategy = strategies.find(({ id }) => String(id) === setupId);
 	const name =
-		setupId === NO_STRATEGY
-			? "None"
-			: strategies.find((strategy) => String(strategy.id) === setupId)?.name;
+		setupId === NO_STRATEGY ? "None" : strategy && strategyLabel(strategy);
 	return (
 		<FilterChip clearLabel="Clear strategy filter" onClear={onClear}>
 			Strategy: {name ?? setupId}

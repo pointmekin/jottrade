@@ -19,6 +19,12 @@ export async function requireOwnedPortfolio(
 	return portfolio;
 }
 
+/** Serializes a trade write with deleteStrategy, which locks the same rows first. */
+export const lockPortfolio = (userId: string, portfolioId: number) =>
+	db.execute(
+		sql`SELECT id FROM portfolios WHERE id=${portfolioId} AND user_id=${userId} FOR UPDATE`,
+	);
+
 /**
  * Gives the user exactly one default account. Sign-up calls it (Better Auth
  * hook in src/lib/auth.ts), and `ensureDefaultAccount` calls it for users who

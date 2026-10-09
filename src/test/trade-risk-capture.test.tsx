@@ -7,6 +7,7 @@ import {
 	screen,
 	waitFor,
 } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CommandPreview } from "@/components/command-palette/command-preview";
 import { TradeEntryForm } from "@/components/journal/TradeEntryForm";
@@ -35,6 +36,11 @@ vi.mock("@/server/tradeActions", () => ({
 	updateTrade: vi.fn(),
 }));
 vi.mock("@/server/strategyActions", () => ({ getStrategies: async () => [] }));
+vi.mock("@tanstack/react-router", () => ({
+	Link: ({ to, children }: { to: string; children: ReactNode }) => (
+		<a href={to}>{children}</a>
+	),
+}));
 vi.mock("@/server/tradeRiskActions", () => ({
 	correctTradeInitialRisk: vi.fn(),
 }));
