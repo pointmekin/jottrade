@@ -1,9 +1,11 @@
 import {
+	IMPORT_DATE_ISSUE,
 	importDecimal,
 	importUtcDate,
 	normalizeImportHeader,
 	type ParsedImportRow,
 	positiveImportDecimal,
+	quoteImportColumns,
 	subtractImportMoney,
 	sumImportMoney,
 } from "./import-values";
@@ -44,6 +46,8 @@ const COLUMN_ALIASES = {
 	closeReason: ["close_reason"],
 } as const;
 export const TRADE_IMPORT_HEADERS = Object.values(COLUMN_ALIASES).flat();
+const DOWNLOAD_AGAIN =
+	"Download the trade CSV again from Exness History of orders.";
 
 type ColumnKey = keyof typeof COLUMN_ALIASES;
 type ColumnMap = Partial<Record<ColumnKey, string>>;
@@ -56,6 +60,9 @@ const REQUIRED_COLUMNS: ColumnKey[] = [
 	"openingPrice",
 	"profit",
 ];
+export const TRADE_REQUIRED_HEADERS = REQUIRED_COLUMNS.map((key) =>
+	COLUMN_ALIASES[key].join(" or "),
+);
 function resolveColumns(fields: string[]): ColumnMap {
 	const resolved: ColumnMap = {};
 	for (const key of Object.keys(COLUMN_ALIASES) as ColumnKey[]) {
@@ -92,7 +99,7 @@ function readTrade(
 			issues.push({
 				column: columns[key] ?? key,
 				message: positive
-					? "Enter a positive decimal value."
+					? "Enter a number above 0, for example 0.10."
 					: "Enter a decimal amount, including 0 for breakeven.",
 			});
 		return parsed ?? "0";
@@ -102,17 +109,17 @@ function readTrade(
 		if (!parsed)
 			issues.push({
 				column: columns[key] ?? key,
-				message: "Enter a valid UTC date and time.",
+				message: IMPORT_DATE_ISSUE,
 			});
 		return parsed ?? "";
 	};
 	const ticket = requiredText("ticket");
 	const symbol = requiredText("symbol").toUpperCase();
 	const side = requiredText("type").toLowerCase();
-	if (!["buy", "sell"].includes(side))
+	if (side && !["buy", "sell"].includes(side))
 		issues.push({
 			column: columns.type ?? "type",
-			message: "Only buy and sell executions are supported.",
+			message: `"${side}" is not a supported type. Only buy and sell trades import. Exclude this row.`,
 		});
 	const entryDate = date("openingTime");
 	const entryPrice = number("openingPrice", true);
@@ -179,23 +186,29 @@ export function parseTradeRows(
 	rows: CsvRow[],
 	fields: string[],
 ): TradeCsvResult {
-	const duplicate = (Object.keys(COLUMN_ALIASES) as ColumnKey[]).find(
-		(key) =>
+	const duplicate = (Object.keys(COLUMN_ALIASES) as ColumnKey[])
+		.map((key) =>
 			fields.filter((field) =>
 				COLUMN_ALIASES[key].some(
 					(alias) => alias === normalizeImportHeader(field),
 				),
-			).length > 1,
-	);
+			),
+		)
+		.find((matches) => matches.length > 1);
 	if (duplicate)
 		return {
-			error: `More than one column describes ${duplicate}. Choose one consistent broker export variant.`,
+			error: `Only one of these columns can be in the file: ${quoteImportColumns(duplicate)}. Remove one of them, then upload the file again.`,
 		};
 	const columns = resolveColumns(fields);
 	const missing = REQUIRED_COLUMNS.filter((key) => !columns[key]);
+	if (!columns.ticket && !columns.openingTime && !columns.openingPrice)
+		return {
+			error:
+				"This file is not an Exness trade history CSV. Download the trade CSV from Exness History of orders. For an adjustment file, use the Adjustment CSV tab.",
+		};
 	if (missing.length)
 		return {
-			error: `CSV is missing required columns: ${missing.map((key) => COLUMN_ALIASES[key].join(" or ")).join(", ")}.`,
+			error: `Missing columns: ${missing.map((key) => quoteImportColumns(COLUMN_ALIASES[key], " or ")).join(", ")}. ${DOWNLOAD_AGAIN}`,
 		};
 	const parsed = rows.map((row, index) => readTrade(row, columns, index + 2));
 	const trades = parsed.flatMap((row) => (row.value ? [row.value] : []));

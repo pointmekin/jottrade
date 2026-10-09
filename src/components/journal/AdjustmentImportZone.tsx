@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ADJUSTMENT_REQUIRED_HEADERS } from "@/lib/adjustment-import";
 import { ImportKind } from "@/lib/import-batch";
 import { QueryKey } from "@/lib/query-keys";
 import { ImportBatchZone } from "./import-batch-zone";
@@ -53,6 +54,10 @@ export function AdjustmentImportZone({
 					</p>
 				)}
 			</details>
+			<p className="text-xs leading-5 text-muted-foreground">
+				Required columns: {ADJUSTMENT_REQUIRED_HEADERS.join(", ")}. The export
+				script above creates them.
+			</p>
 			<ImportBatchZone kind={ImportKind.Adjustments} onSuccess={onSuccess} />
 		</div>
 	);

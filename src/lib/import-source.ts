@@ -19,22 +19,34 @@ import { parseTradeRows, TRADE_IMPORT_HEADERS } from "./trade-import";
 
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 export const MAX_IMPORT_ROWS = 5000;
+export const IMPORT_TOO_LARGE =
+	"This file is larger than 5 MB. Download a shorter date range, then import each file.";
+const UPLOAD_UNCHANGED = "Upload the CSV file from Exness without changes.";
 export function readImportCsv(csv: string): {
 	rows: CsvRow[];
 	fields: string[];
 } {
 	if (new TextEncoder().encode(csv).byteLength > MAX_IMPORT_BYTES)
-		throw Error("Choose a CSV smaller than 5 MB.");
+		throw Error(IMPORT_TOO_LARGE);
 	const parsed = Papa.parse<CsvRow>(csv, {
 		header: true,
 		skipEmptyLines: "greedy",
 	});
-	if (parsed.errors.length)
+	const [parseError] = parsed.errors;
+	if (parseError?.code === "UndetectableDelimiter")
+		throw Error(`This file has only one column. ${UPLOAD_UNCHANGED}`);
+	if (parseError)
 		throw Error(
-			`CSV record ${(parsed.errors[0].row ?? 0) + 2}: ${parsed.errors[0].message}`,
+			`CSV record ${(parseError.row ?? 0) + 2} could not be read (${parseError.message}). ${UPLOAD_UNCHANGED}`,
 		);
-	if (!parsed.data.length || parsed.data.length > MAX_IMPORT_ROWS)
-		throw Error("Choose a CSV with 1–5000 records.");
+	if (!parsed.data.length)
+		throw Error(
+			"This CSV has no records. Check the account and the date range in Exness, then download the file again.",
+		);
+	if (parsed.data.length > MAX_IMPORT_ROWS)
+		throw Error(
+			`This CSV has ${parsed.data.length} records. The limit is ${MAX_IMPORT_ROWS}. Download a shorter date range, then import each file.`,
+		);
 	const fields = parsed.meta.fields ?? [];
 	if (
 		parsed.meta.renamedHeaders ||

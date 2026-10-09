@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseTradeRows } from "@/lib/trade-import";
+import { ADJUSTMENT_IMPORT_HEADERS } from "@/lib/adjustment-import";
+import { parseTradeRows, TRADE_REQUIRED_HEADERS } from "@/lib/trade-import";
 
 const FIELDS = [
 	"ticket",
@@ -55,7 +56,69 @@ describe("parseTradeRows", () => {
 				FIELDS.filter((field) => field !== "profit"),
 			),
 		).toEqual({
-			error: "CSV is missing required columns: profit or profit_usd.",
+			error:
+				'Missing columns: "profit" or "profit_usd". Download the trade CSV again from Exness History of orders.',
+		});
+	});
+	it.each([
+		["another broker", ["Date", "Instrument", "Side"]],
+		[
+			"another broker with shared names",
+			["Symbol", "Type", "Volume", "Open Time", "Open Price", "Profit"],
+		],
+		["the adjustment export", ADJUSTMENT_IMPORT_HEADERS],
+	])("explains a CSV from %s", (_, fields) => {
+		expect(parseTradeRows([], fields)).toEqual({
+			error:
+				"This file is not an Exness trade history CSV. Download the trade CSV from Exness History of orders. For an adjustment file, use the Adjustment CSV tab.",
+		});
+	});
+	it("lists every accepted name of a required column", () => {
+		expect(TRADE_REQUIRED_HEADERS.at(-1)).toBe("profit or profit_usd");
+	});
+	it("names the columns that give the same value", () => {
+		expect(parseTradeRows([row()], [...FIELDS, "profit_usd"])).toEqual({
+			error:
+				'Only one of these columns can be in the file: "profit", "profit_usd". Remove one of them, then upload the file again.',
+		});
+	});
+	it("names an unsupported trade type and the next action", () => {
+		expect(parseTradeRows([row({ type: "balance" })], FIELDS)).toMatchObject({
+			rows: [
+				{
+					issues: [
+						{
+							column: "type",
+							message:
+								'"balance" is not a supported type. Only buy and sell trades import. Exclude this row.',
+						},
+					],
+				},
+			],
+		});
+	});
+	it("shows the expected date and number formats", () => {
+		expect(
+			parseTradeRows(
+				[row({ opening_time_utc: "01/09/2026", lots: "abc" })],
+				FIELDS,
+			),
+		).toMatchObject({
+			rows: [
+				{
+					issues: [
+						{
+							column: "opening_time_utc",
+							message:
+								"Enter a UTC date and time, for example 2026-09-01 08:00:00.",
+						},
+						{
+							column: "lots",
+							message: "Enter a number above 0, for example 0.10.",
+						},
+					],
+				},
+			],
 		});
 	});
 	it("reports record and column errors instead of silent skipping", () => {
