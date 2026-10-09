@@ -2,8 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { requireOwnedPortfolio } from "@/db/portfolios";
+import { lockPortfolio, requireOwnedPortfolio } from "@/db/portfolios";
 import { trades } from "@/db/schema";
+import {
+	activeStrategySql,
+	assertActiveStrategySql,
+	requireOwnedStrategy,
+} from "@/db/strategies";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { calculateManualPnl } from "@/lib/pnl-context";
 import { TradeConfidence, TradeStatus } from "@/lib/trade";
@@ -36,7 +41,6 @@ const updateTradeSchema = tradeSchema
 		managementStopPrice: optionalPositiveDecimal.nullable(),
 		confidence: z.enum(TradeConfidence).optional(),
 		mistake: z.string().optional(),
-		setupId: z.number().nullable().optional(),
 	})
 	.strict();
 
@@ -46,6 +50,7 @@ export const createTrade = createServerFn({ method: "POST" })
 	.handler(async ({ data, context }) => {
 		const { userId } = context;
 		const portfolio = await requireOwnedPortfolio(userId, data.portfolioId);
+		await requireOwnedStrategy(userId, data.setupId);
 		const accountCurrency = portfolio.currency ?? DEFAULT_CURRENCY;
 		const execution = blankDecimalsToNull({ ...data });
 		delete execution.entryQuoteToAccountRate;
@@ -61,7 +66,7 @@ export const createTrade = createServerFn({ method: "POST" })
 					accountCurrency,
 				})
 			: undefined;
-		await db.insert(trades).values({
+		const insert = db.insert(trades).values({
 			...execution,
 			userId,
 			...plan,
@@ -76,6 +81,19 @@ export const createTrade = createServerFn({ method: "POST" })
 			status:
 				data.status ?? (isClosing ? TradeStatus.Closed : TradeStatus.Open),
 		});
+		const { setupId } = data;
+		try {
+			await db.batch([
+				lockPortfolio(userId, portfolio.id),
+				...(setupId
+					? [db.execute(assertActiveStrategySql(userId, setupId))]
+					: []),
+				insert,
+			]);
+		} catch (error) {
+			await requireOwnedStrategy(userId, setupId);
+			throw error;
+		}
 		return { success: true };
 	});
 
@@ -146,6 +164,9 @@ export const updateTrade = createServerFn({ method: "POST" })
 				userId,
 				changes.portfolioId ?? existing.portfolioId,
 			);
+			const newSetupId =
+				changes.setupId !== existing.setupId ? changes.setupId : undefined;
+			await requireOwnedStrategy(userId, newSetupId);
 			const execution = blankDecimalsToNull({ ...changes });
 			delete execution.confirmedUnitQuoteCurrency;
 			const { isRecalculated, ...pnl } = manualPnlForUpdate(
@@ -158,7 +179,7 @@ export const updateTrade = createServerFn({ method: "POST" })
 				? TradeStatus.Closed
 				: (changes.status ?? existing.status);
 			const revision = expectedRevision ?? existing.editRevision;
-			const updated = await db
+			const update = db
 				.update(trades)
 				.set({
 					...execution,
@@ -183,9 +204,14 @@ export const updateTrade = createServerFn({ method: "POST" })
 							expectedAnnotationRevision !== undefined
 							? eq(trades.annotationRevision, expectedAnnotationRevision)
 							: undefined,
+						newSetupId ? activeStrategySql(userId, newSetupId) : undefined,
 					),
 				)
 				.returning({ id: trades.id });
+			const [, updated] = await db.batch([
+				lockPortfolio(userId, portfolio.id),
+				update,
+			]);
 			if (!updated.length)
 				throw new Error(
 					"Trade changed. Reload and review your changes before retrying.",

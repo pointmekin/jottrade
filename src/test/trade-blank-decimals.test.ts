@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
 	set: vi.fn(),
 	condition: vi.fn(),
 	returning: vi.fn(),
+	batch: vi.fn(),
 }));
 vi.mock("@tanstack/react-start", () => import("./server-fn-mock"));
 vi.mock("@/lib/auth", () => ({ requireUserId: async () => "user1" }));
@@ -18,6 +19,8 @@ vi.mock("@/db", () => ({
 		select: () => ({ from: () => ({ where: mocks.where }) }),
 		insert: () => ({ values: mocks.values }),
 		update: () => ({ set: mocks.set }),
+		execute: vi.fn(),
+		batch: mocks.batch,
 	},
 }));
 
@@ -81,6 +84,9 @@ beforeEach(() => {
 	mocks.condition.mockReturnValue({ returning: mocks.returning });
 	mocks.set.mockReturnValue({ where: mocks.condition });
 	mocks.where.mockResolvedValue([{ currency: "USD", id: 7 }]);
+	mocks.batch.mockImplementation((statements: unknown[]) =>
+		Promise.all(statements),
+	);
 });
 
 describe("blank decimal normalisation", () => {
@@ -185,5 +191,49 @@ describe("create with blank optional decimals", () => {
 			fees: "0",
 			status: TradeStatus.Open,
 		});
+	});
+});
+
+describe("strategy on a trade save", () => {
+	const UNAVAILABLE = "strategy no longer exists or is archived";
+
+	it("refuses to create a trade with another user's or an archived strategy", async () => {
+		mocks.where.mockResolvedValueOnce([{ currency: "USD", id: 7 }]);
+		mocks.where.mockResolvedValueOnce([]);
+		await expect(
+			createTrade({ data: { ...capture, setupId: 3 } }),
+		).rejects.toThrow(UNAVAILABLE);
+		expect(mocks.batch).not.toHaveBeenCalled();
+	});
+	it("creates a trade with an active strategy of the user", async () => {
+		await createTrade({ data: { ...capture, setupId: 3 } });
+		expect(mocks.values.mock.calls[0][0]).toMatchObject({ setupId: 3 });
+		expect(mocks.batch).toHaveBeenCalled();
+	});
+	it("reports a strategy that a concurrent delete removed before the insert", async () => {
+		mocks.where.mockResolvedValueOnce([{ currency: "USD", id: 7 }]);
+		mocks.where.mockResolvedValueOnce([{ id: 3 }]);
+		mocks.where.mockResolvedValueOnce([]);
+		mocks.batch.mockRejectedValueOnce(new Error("division by zero"));
+		await expect(
+			createTrade({ data: { ...capture, setupId: 3 } }),
+		).rejects.toThrow(UNAVAILABLE);
+	});
+	it("refuses to change a trade to an unavailable strategy", async () => {
+		mocks.where.mockResolvedValueOnce([openTrade()]);
+		mocks.where.mockResolvedValueOnce([{ currency: "USD", id: 7 }]);
+		mocks.where.mockResolvedValueOnce([]);
+		await expect(
+			updateTrade({ data: { ...overviewSave, setupId: 3 } }),
+		).rejects.toThrow(UNAVAILABLE);
+		expect(mocks.set).not.toHaveBeenCalled();
+	});
+	it("saves a trade that keeps its archived strategy", async () => {
+		mocks.where.mockResolvedValueOnce([{ ...openTrade(), setupId: 3 }]);
+		mocks.where.mockResolvedValueOnce([{ currency: "USD", id: 7 }]);
+		mocks.where.mockResolvedValueOnce([]);
+		await updateTrade({ data: { ...overviewSave, setupId: 3 } });
+		expect(mocks.where).toHaveBeenCalledTimes(2);
+		expect(mocks.set.mock.calls[0][0]).toMatchObject({ setupId: 3 });
 	});
 });

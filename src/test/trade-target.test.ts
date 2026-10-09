@@ -21,6 +21,8 @@ vi.mock("@/db", () => ({
 		select: () => ({ from: () => ({ where: mocks.where }) }),
 		insert: () => ({ values: mocks.values }),
 		update: () => ({ set: mocks.set }),
+		execute: vi.fn(),
+		batch: (statements: unknown[]) => Promise.all(statements),
 	},
 }));
 const data = {

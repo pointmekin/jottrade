@@ -12,6 +12,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { NO_STRATEGY } from "@/lib/journal-search";
+import { strategyLabel } from "@/lib/playbook";
 import { QueryKey } from "@/lib/query-keys";
 import { TradeConfidence, TradeSide, TradeStatus } from "@/lib/trade";
 import { parseTagIds, TagMatch, type TradeTag } from "@/lib/trade-tag";
@@ -235,7 +236,10 @@ export function FilterFields({
 				options={[
 					{ value: "", label: "All" },
 					{ value: NO_STRATEGY, label: "No Strategy" },
-					...strategies.map((s) => ({ value: String(s.id), label: s.name })),
+					...strategies.map((s) => ({
+						value: String(s.id),
+						label: strategyLabel(s),
+					})),
 				]}
 			/>
 			<fieldset className="min-w-0">

@@ -40,3 +40,7 @@ export const playbookFieldsSchema = z.object({
 export type PlaybookFields = z.infer<typeof playbookFieldsSchema>;
 
 export type Strategy = typeof strategies.$inferSelect;
+
+export const strategyLabel = (
+	strategy: Pick<Strategy, "name" | "archivedAt">,
+) => (strategy.archivedAt ? `${strategy.name} (archived)` : strategy.name);

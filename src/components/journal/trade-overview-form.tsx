@@ -14,6 +14,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { NO_STRATEGY } from "@/lib/journal-search";
+import { strategyLabel } from "@/lib/playbook";
 import { invalidateTradeQueries, QueryKey } from "@/lib/query-keys";
 import { type Trade, TradeConfidence } from "@/lib/trade";
 import { getStrategies } from "@/server/strategyActions";
@@ -221,7 +222,9 @@ export function TradeOverviewForm({ trade }: { trade: Trade }) {
 					placeholder="Select strategy"
 					options={[
 						{ value: NO_STRATEGY, label: "None" },
-						...strategies.map((s) => ({ value: String(s.id), label: s.name })),
+						...strategies
+							.filter((s) => !s.archivedAt || s.id === trade.setupId)
+							.map((s) => ({ value: String(s.id), label: strategyLabel(s) })),
 					]}
 				/>
 			</FieldGroup>

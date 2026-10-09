@@ -14,7 +14,11 @@ import {
 	tradeCaptureSchema,
 } from "@/lib/trade-capture";
 import { createTrade } from "@/server/tradeActions";
-import { TradeCloseFields, TradeEntryFields } from "./trade-entry-fields";
+import {
+	TradeCloseFields,
+	TradeEntryFields,
+	TradeStrategyField,
+} from "./trade-entry-fields";
 import { RiskFields } from "./trade-risk-fields";
 
 export function TradeEntryForm(props: {
@@ -96,6 +100,7 @@ function TradeEntryCapture({
 				</p>
 				<fieldset disabled={save.isPending} className="space-y-4">
 					<TradeEntryFields form={form} />
+					<TradeStrategyField form={form} />
 					<RiskFields
 						values={values}
 						currency={account?.currency ?? "USD"}

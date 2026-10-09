@@ -18,6 +18,7 @@ const DEFAULT_PORT = 3101;
 const SERVER_ENTRY = ".output/server/index.mjs";
 const DATABASE_TESTS = [
 	"src/test/user-isolation.integration.test.ts",
+	"src/test/strategy-isolation.integration.test.ts",
 	"src/test/sign-up-provisioning.integration.test.ts",
 	"src/test/password-recovery.integration.test.ts",
 	"src/test/session-revocation.integration.test.ts",
@@ -152,7 +153,13 @@ async function main(argv: string[]) {
 			),
 			env,
 		);
-		await run("Database tests", bin("vitest"), ["run", ...DATABASE_TESTS], env);
+		// One file at a time: the files share the seeded database and compare snapshots.
+		await run(
+			"Database tests",
+			bin("vitest"),
+			["run", "--no-file-parallelism", ...DATABASE_TESTS],
+			env,
+		);
 		await run("Browser suite", bin("playwright"), ["test", ...playwrightArgs], {
 			...env,
 			NODE_ENV: "production",
