@@ -20,9 +20,9 @@ describe("readImportCsv messages", () => {
 			"This file is larger than 5 MB. Download a shorter date range, then import each file.",
 		);
 	});
-	it("explains a file that is not comma-separated", () => {
+	it("explains a file with only one column", () => {
 		expect(() => readImportCsv("Trade report\nNo data")).toThrow(
-			"This file is not a comma-separated CSV. Upload the CSV file from Exness without changes.",
+			"This file has only one column. Upload the CSV file from Exness without changes.",
 		);
 	});
 	it("names a record that cannot be read", () => {

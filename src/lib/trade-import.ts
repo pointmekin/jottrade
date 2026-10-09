@@ -60,8 +60,8 @@ const REQUIRED_COLUMNS: ColumnKey[] = [
 	"openingPrice",
 	"profit",
 ];
-export const TRADE_REQUIRED_HEADERS = REQUIRED_COLUMNS.map(
-	(key) => COLUMN_ALIASES[key][0],
+export const TRADE_REQUIRED_HEADERS = REQUIRED_COLUMNS.map((key) =>
+	COLUMN_ALIASES[key].join(" or "),
 );
 function resolveColumns(fields: string[]): ColumnMap {
 	const resolved: ColumnMap = {};
@@ -201,7 +201,7 @@ export function parseTradeRows(
 		};
 	const columns = resolveColumns(fields);
 	const missing = REQUIRED_COLUMNS.filter((key) => !columns[key]);
-	if (missing.length === REQUIRED_COLUMNS.length)
+	if (!columns.ticket && !columns.openingTime && !columns.openingPrice)
 		return {
 			error:
 				"This file is not an Exness trade history CSV. Download the trade CSV from Exness History of orders. For an adjustment file, use the Adjustment CSV tab.",

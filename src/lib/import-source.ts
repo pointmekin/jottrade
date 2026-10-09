@@ -34,7 +34,7 @@ export function readImportCsv(csv: string): {
 	});
 	const [parseError] = parsed.errors;
 	if (parseError?.code === "UndetectableDelimiter")
-		throw Error(`This file is not a comma-separated CSV. ${UPLOAD_UNCHANGED}`);
+		throw Error(`This file has only one column. ${UPLOAD_UNCHANGED}`);
 	if (parseError)
 		throw Error(
 			`CSV record ${(parseError.row ?? 0) + 2} could not be read (${parseError.message}). ${UPLOAD_UNCHANGED}`,
