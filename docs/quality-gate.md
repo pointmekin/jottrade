@@ -109,6 +109,7 @@ The command needs PostgreSQL on `127.0.0.1:54329`. `scripts/db` starts the local
 4. It runs the database tests:
    - `src/test/user-isolation.integration.test.ts`: as Bob, the real server handlers cannot read, create, edit, move or delete Alice's trades, accounts, cash flows or strategies, and Alice's rows stay the same. Without a session, reads and writes fail. Account provisioning is checked under concurrent calls.
    - `src/test/sign-up-provisioning.integration.test.ts`: a sign-up through the real Better Auth instance creates one default account.
+   - `src/test/password-recovery.integration.test.ts`: through the real Better Auth instance, an unknown and a known email get the same reset response; a reset token expires after 1 hour, works one time, and fails when expired; a password change needs the current password; a Google-only user gets no credential change.
 5. It starts the production server on port 3101, or on a free port if 3101 is in use, and runs the Playwright suite in `e2e/`.
 6. It always drops the database at the end, also after a failure or `Ctrl+C`.
 
@@ -146,7 +147,7 @@ In CI the **E2E** job uploads both folders as the `playwright-evidence` artifact
 
 `scripts/verify/check-client-bundle.ts <client dir> <server dir>` fails when a client file:
 
-- names a server-only variable (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_SECRET`, `GCP_SERVICE_ACCOUNT_KEY`, `GEMINI_API_KEY`);
+- names a server-only variable (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_SECRET`, `GCP_SERVICE_ACCOUNT_KEY`, `GEMINI_API_KEY`, `RESEND_API_KEY`);
 - contains the value of one of these variables, as set in the environment of the check;
 - contains a marker string from a server-only module (`pg`, `@neondatabase/serverless`, the Better Auth server adapter, the Google Cloud Storage client);
 - contains a PostgreSQL connection string with credentials.

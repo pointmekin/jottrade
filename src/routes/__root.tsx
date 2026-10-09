@@ -54,7 +54,12 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 	const location = useLocation();
 	const [commandsOpen, setCommandsOpen] = useState(false);
 
-	const hideSidebarRoutes = ["/sign-in", "/sign-up"];
+	const hideSidebarRoutes = [
+		"/sign-in",
+		"/sign-up",
+		"/forgot-password",
+		"/reset-password",
+	];
 	const shouldHideSidebar =
 		location.pathname === "/" ||
 		hideSidebarRoutes.some((route) => location.pathname.startsWith(route));

@@ -4,11 +4,22 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { db } from "@/db";
 import { ensureDefaultPortfolio } from "@/db/portfolios";
+import { sendPasswordResetEmail } from "@/lib/email";
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/lib/password";
 
 export const auth = betterAuth({
 	database: drizzleAdapter(db, { provider: "pg" }),
 	emailAndPassword: {
 		enabled: true,
+		minPasswordLength: PASSWORD_MIN_LENGTH,
+		maxPasswordLength: PASSWORD_MAX_LENGTH,
+		resetPasswordTokenExpiresIn: 60 * 60,
+		revokeSessionsOnPasswordReset: true,
+		// Better Auth logs a failed send and still gives the generic response,
+		// so the response does not disclose whether the account exists.
+		sendResetPassword: async ({ user, url }) => {
+			await sendPasswordResetEmail(user.email, url);
+		},
 	},
 	socialProviders: {
 		google: {
@@ -32,6 +43,11 @@ export const auth = betterAuth({
 					}
 				},
 			},
+		},
+	},
+	rateLimit: {
+		customRules: {
+			"/request-password-reset": { window: 60, max: 3 },
 		},
 	},
 	advanced: {

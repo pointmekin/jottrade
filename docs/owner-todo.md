@@ -95,7 +95,27 @@ After an Instant Rollback, Vercel does not move the production domain to new dep
 
 Migrations have no down step. Roll back the code only. Keep the database schema as it is. Thus, each migration must work with the code that was live before it. If a migration is wrong, write a new migration that corrects it, and deploy it.
 
-## 9. Other open items
+## 9. Resend: password reset email
+
+Password reset sends its email through Resend. Without the 2 variables below, production does not send the email. The server log then shows `Password reset email not sent`.
+
+- [ ] Create a Resend account at <https://resend.com>.
+- [ ] In Resend, go to **Domains** and add the domain of the sender address. Add the DNS records that Resend shows. Wait until the domain status is **Verified**.
+- [ ] Go to **API Keys** and create a key with **Sending access** for that domain only. Copy the key.
+- [ ] In Vercel, open the jottrade project, go to **Settings → Environment Variables**, and add these 2 variables for **Production**:
+
+  | Variable | Value |
+  | --- | --- |
+  | `RESEND_API_KEY` | `<key from Resend>` |
+  | `EMAIL_FROM` | `<sender on the verified domain, for example JotTrade <no-reply@your-domain>>` |
+
+- [ ] Make sure that `BETTER_AUTH_URL` is set to the production URL, for example `https://<your-domain>`. The reset link in the email starts with this URL.
+- [ ] Deploy again, so that the new variables apply.
+- [ ] Test: open `/sign-in`, click **Forgot password?**, and enter the email of a test account. Make sure that the email arrives and that the link opens the reset page.
+
+Preview deployments do not need these variables. A preview without them runs in production mode, so it logs the error and sends nothing.
+
+## 10. Other open items
 
 These items are not about deploys. They come from the audit of the merged work for #9, #10 and #11.
 

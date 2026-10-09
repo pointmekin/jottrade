@@ -7,6 +7,7 @@
 export const SERVER_ONLY_FILES = [
 	"src/db/**",
 	"src/lib/auth.ts",
+	"src/lib/email.ts",
 	"src/lib/gcp.ts",
 ];
 

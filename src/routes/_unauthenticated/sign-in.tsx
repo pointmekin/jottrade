@@ -120,6 +120,12 @@ function SignIn() {
 									>
 										Password
 									</label>
+									<Link
+										to="/forgot-password"
+										className="ml-auto text-xs font-medium text-primary transition-colors hover:text-primary/80"
+									>
+										Forgot password?
+									</Link>
 								</div>
 								<div className="relative group">
 									<div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-primary transition-colors">

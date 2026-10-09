@@ -19,6 +19,7 @@ const SERVER_ENTRY = ".output/server/index.mjs";
 const DATABASE_TESTS = [
 	"src/test/user-isolation.integration.test.ts",
 	"src/test/sign-up-provisioning.integration.test.ts",
+	"src/test/password-recovery.integration.test.ts",
 ];
 // Blank optional integrations, so a developer's .env never reaches the run.
 const BLANK_KEYS = [
@@ -27,6 +28,8 @@ const BLANK_KEYS = [
 	"GCP_BUCKET_NAME",
 	"GCP_SERVICE_ACCOUNT_KEY",
 	"GEMINI_API_KEY",
+	"RESEND_API_KEY",
+	"EMAIL_FROM",
 ];
 
 let interrupted = false;

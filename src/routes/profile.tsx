@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Mail } from "lucide-react";
 import { AppPageHeader, SectionHeading } from "@/components/app-page-header";
-import { Button } from "@/components/ui/button";
+import { PasswordSettings } from "@/components/profile/password-settings";
 import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "../lib/auth-client";
 
@@ -113,26 +113,13 @@ function Profile() {
 							<section>
 								<SectionHeading title="Account security" detail="Credentials" />
 								<div className="space-y-3">
-									<div className="flex items-center justify-between border-b border-border py-4">
-										<div>
-											<h3 className="text-sm font-medium text-foreground">
-												Password
-											</h3>
-											<p className="mt-0.5 text-xs text-muted-foreground">
-												Manage your password through your sign-in provider.
-											</p>
-										</div>
-										<Button
-											type="button"
-											variant="outline"
-											size="sm"
-											disabled
-											title="Password management is not available in JotTrade yet"
-										>
-											Change Password
-										</Button>
+									<div className="grid gap-3 border-b border-border py-4">
+										<h3 className="text-sm font-medium text-foreground">
+											Password
+										</h3>
+										<PasswordSettings />
 									</div>
-									<div className="flex items-center justify-between py-4">
+									<div className="flex items-center justify-between gap-4 py-4">
 										<div>
 											<h3 className="text-sm font-medium text-foreground">
 												Two-Factor Authentication
@@ -141,15 +128,9 @@ function Profile() {
 												Add an extra layer of security to your account
 											</p>
 										</div>
-										<Button
-											type="button"
-											variant="outline"
-											size="sm"
-											disabled
-											title="Two-factor authentication is not available in JotTrade yet"
-										>
-											Enable 2FA
-										</Button>
+										<p className="shrink-0 text-xs text-muted-foreground">
+											Not available yet
+										</p>
 									</div>
 								</div>
 							</section>
