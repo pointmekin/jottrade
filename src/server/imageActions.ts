@@ -13,6 +13,13 @@ import { authMiddleware } from "./auth-middleware";
 
 const MAX_IMAGES = 10;
 
+const IMAGE_EXTENSIONS = {
+	"image/jpeg": "jpg",
+	"image/png": "png",
+	"image/webp": "webp",
+	"image/gif": "gif",
+} as const;
+
 const imageSchema = z.object({ tradeId: z.number(), url: z.url() });
 
 const objectPrefix = (userId: string, tradeId: number) =>
@@ -48,18 +55,19 @@ export const getSignedUploadUrl = createServerFn({ method: "POST" })
 	.validator(
 		z.object({
 			tradeId: z.number(),
-			fileName: z.string().min(1).max(255),
-			contentType: z.enum([
-				"image/jpeg",
-				"image/png",
-				"image/webp",
-				"image/gif",
-			]),
+			uploadId: z.uuid(),
+			contentType: z.enum(
+				Object.keys(IMAGE_EXTENSIONS) as [keyof typeof IMAGE_EXTENSIONS],
+			),
 		}),
 	)
 	.handler(async ({ data, context }) => {
 		const { userId } = context;
-		requireRoomForImage(await requireOwnedScreenshots(userId, data.tradeId));
+		// iOS names each camera photo "image.jpg", so a client file name overwrites the last object.
+		const objectName = `${objectPrefix(userId, data.tradeId)}${data.uploadId}.${IMAGE_EXTENSIONS[data.contentType]}`;
+		const publicUrl = publicObjectUrl(objectName);
+		const screenshots = await requireOwnedScreenshots(userId, data.tradeId);
+		if (!screenshots.includes(publicUrl)) requireRoomForImage(screenshots);
 		const reserved = await db
 			.update(trades)
 			.set({ editRevision: sql`${trades.editRevision}+1` })
@@ -67,10 +75,9 @@ export const getSignedUploadUrl = createServerFn({ method: "POST" })
 			.returning({ id: trades.id });
 		if (!reserved.length)
 			throw new Error("Trade was removed before the upload started.");
-		const objectName = `${objectPrefix(userId, data.tradeId)}${data.fileName}`;
 		return {
 			signedUrl: await createSignedUploadUrl(objectName, data.contentType),
-			publicUrl: publicObjectUrl(objectName),
+			publicUrl,
 		};
 	});
 
@@ -81,6 +88,9 @@ export const saveTradeImage = createServerFn({ method: "POST" })
 		const { userId } = context;
 		requireOwnObjectName(data.url, userId, data.tradeId);
 		const screenshots = await requireOwnedScreenshots(userId, data.tradeId);
+		if (screenshots.includes(data.url)) {
+			return { success: true, alreadyAttached: true };
+		}
 		requireRoomForImage(screenshots);
 		const saved = await db
 			.update(trades)
@@ -101,7 +111,7 @@ export const saveTradeImage = createServerFn({ method: "POST" })
 			throw new Error(
 				"Trade was removed, image already attached, or image limit reached.",
 			);
-		return { success: true };
+		return { success: true, alreadyAttached: false };
 	});
 
 export const deleteTradeImage = createServerFn({ method: "POST" })
