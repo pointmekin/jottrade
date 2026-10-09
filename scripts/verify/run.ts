@@ -21,6 +21,7 @@ const DATABASE_TESTS = [
 	"src/test/sign-up-provisioning.integration.test.ts",
 	"src/test/password-recovery.integration.test.ts",
 	"src/test/session-revocation.integration.test.ts",
+	"src/test/account-deletion.integration.test.ts",
 ];
 // Blank optional integrations, so a developer's .env never reaches the run.
 const BLANK_KEYS = [

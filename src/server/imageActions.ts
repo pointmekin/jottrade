@@ -7,6 +7,7 @@ import {
 	createSignedUploadUrl,
 	deleteGcpObject,
 	publicObjectUrl,
+	userObjectPrefix,
 } from "@/lib/gcp";
 import { authMiddleware } from "./auth-middleware";
 
@@ -15,7 +16,7 @@ const MAX_IMAGES = 10;
 const imageSchema = z.object({ tradeId: z.number(), url: z.url() });
 
 const objectPrefix = (userId: string, tradeId: number) =>
-	`trades/${userId}/${tradeId}/`;
+	`${userObjectPrefix(userId)}${tradeId}/`;
 
 async function requireOwnedScreenshots(userId: string, tradeId: number) {
 	const [trade] = await db
