@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { DeleteTradeDialog } from "./DeleteTradeDialog";
 import { TradeImages } from "./trade-images";
 import { TradeOverviewForm } from "./trade-overview-form";
+import { TradePlaybookCheck } from "./trade-playbook-check";
 import { TradeReviewAnnotation } from "./trade-review-annotation";
 import { TradeRiskDetails } from "./trade-risk-details";
 import { TradeTags } from "./trade-tags";
@@ -43,6 +44,8 @@ export function TradeDetailContent({
 				<TradeTags trade={trade} />
 				<Divider />
 				<TradeReviewAnnotation tradeId={trade.id} />
+				<Divider />
+				<TradePlaybookCheck tradeId={trade.id} />
 				<Divider />
 				<TradeImages trade={trade} onChange={refreshTrade} />
 				<Divider />

@@ -95,6 +95,7 @@ describe("DeleteTradeDialog", () => {
 				["analytics"],
 				["advanced-analytics"],
 				["strategy-performance"],
+				["playbook-check"],
 				["accounts"],
 				["onboarding"],
 			],

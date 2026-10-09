@@ -23,6 +23,7 @@ import type {
 	ImportSummary,
 } from "@/lib/import-batch";
 import type { PlaybookCriterion } from "@/lib/playbook";
+import type { PlaybookCheck } from "@/lib/playbook-check";
 import type { PnlCalculationSnapshot } from "@/lib/pnl-context";
 import { type TradeConfidence, type TradeSide, TradeStatus } from "@/lib/trade";
 import type {
@@ -30,9 +31,6 @@ import type {
 	RiskCorrection,
 } from "@/lib/trade-risk-schema";
 import { TagColor } from "@/lib/trade-tag";
-
-type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
-type JsonObject = { [key: string]: Json };
 
 // Better Auth owns user, session, account and verification.
 export const user = pgTable("user", {
@@ -235,7 +233,7 @@ export const trades = pgTable(
 		brokerCommission: numeric("broker_commission"),
 		brokerSwap: numeric("broker_swap"),
 		brokerCloseReason: text("broker_close_reason"),
-		playbookCheck: jsonb("playbook_check").$type<JsonObject>(),
+		playbookCheck: jsonb("playbook_check").$type<PlaybookCheck>(),
 	},
 	(t) => [
 		index("idx_trades_user").on(t.userId),
