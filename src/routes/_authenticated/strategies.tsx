@@ -5,15 +5,16 @@ import { useState } from "react";
 import { AppPageHeader } from "@/components/app-page-header";
 import { StrategyForm } from "@/components/strategies/StrategyForm";
 import { StrategyList } from "@/components/strategies/StrategyList";
+import { StrategyStatusActions } from "@/components/strategies/strategy-status-actions";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import type { Strategy } from "@/lib/playbook";
 import { QueryKey } from "@/lib/query-keys";
 import { getStrategies } from "@/server/strategyActions";
 
 export const Route = createFileRoute("/_authenticated/strategies")({
 	component: StrategiesPage,
 });
-
-type Strategy = { id: number; name: string; description: string | null };
 
 function StrategiesPage() {
 	const [selected, setSelected] = useState<Strategy | null>(null);
@@ -68,10 +69,9 @@ function StrategiesPage() {
 							</div>
 						) : (
 							<StrategyList
-								strategies={strategyList as Strategy[]}
+								strategies={strategyList}
 								selectedId={selected?.id ?? null}
 								onSelect={handleSelect}
-								onDeleted={handleDeleted}
 								onCreate={handleNew}
 							/>
 						)}
@@ -80,9 +80,22 @@ function StrategiesPage() {
 					<div className="surface min-h-72 p-4">
 						{showForm ? (
 							<>
-								<h2 className="text-lg font-semibold text-foreground mb-6">
-									{creating ? "New strategy" : "Edit strategy"}
-								</h2>
+								<div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+									<h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+										{creating ? "New strategy" : "Edit strategy"}
+										{selected?.archivedAt && (
+											<Badge variant="secondary">Archived</Badge>
+										)}
+									</h2>
+									{selected && (
+										<StrategyStatusActions
+											key={selected?.id ?? "new"}
+											strategy={selected}
+											onChanged={setSelected}
+											onDeleted={handleDeleted}
+										/>
+									)}
+								</div>
 								<StrategyForm strategy={selected} onSaved={handleSaved} />
 							</>
 						) : (

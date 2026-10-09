@@ -4,13 +4,9 @@ import { z } from "zod";
 import { db } from "@/db";
 import { strategies, trades } from "@/db/schema";
 import { summarizeGroup } from "@/lib/group-summary";
+import { playbookFieldsSchema } from "@/lib/playbook";
 import { TradeStatus } from "@/lib/trade";
 import { authMiddleware } from "./auth-middleware";
-
-const strategyFieldsSchema = z.object({
-	name: z.string().min(1).max(100),
-	description: z.string().max(1000).optional(),
-});
 
 const strategyIdSchema = z.object({ id: z.number() });
 
@@ -48,30 +44,54 @@ export const getStrategyPerformance = createServerFn({ method: "GET" })
 
 export const createStrategy = createServerFn({ method: "POST" })
 	.middleware([authMiddleware])
-	.validator(strategyFieldsSchema)
+	.validator(playbookFieldsSchema)
 	.handler(async ({ data, context }) => {
 		const { userId } = context;
 		const [strategy] = await db
 			.insert(strategies)
-			.values({ ...data, userId })
+			.values({ ...data, riskGuidance: data.riskGuidance || null, userId })
 			.returning();
 		return strategy;
 	});
 
 export const updateStrategy = createServerFn({ method: "POST" })
 	.middleware([authMiddleware])
-	.validator(strategyFieldsSchema.extend(strategyIdSchema.shape))
+	.validator(playbookFieldsSchema.extend(strategyIdSchema.shape))
 	.handler(async ({ data: { id, ...fields }, context }) => {
 		const { userId } = context;
+		const riskGuidance = fields.riskGuidance || null;
 		const [strategy] = await db
 			.update(strategies)
-			.set(fields)
+			.set({
+				...fields,
+				riskGuidance,
+				criteriaVersion: sql`CASE WHEN ${strategies.criteria} IS DISTINCT FROM ${JSON.stringify(fields.criteria)}::jsonb OR ${strategies.riskGuidance} IS DISTINCT FROM ${riskGuidance} THEN ${strategies.criteriaVersion} + 1 ELSE ${strategies.criteriaVersion} END`,
+			})
 			.where(and(eq(strategies.id, id), eq(strategies.userId, userId)))
 			.returning();
 		if (!strategy) throw new Error("Strategy not found");
 		return strategy;
 	});
 
+export const archiveStrategy = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
+	.validator(strategyIdSchema.extend({ archived: z.boolean() }))
+	.handler(async ({ data: { id, archived }, context }) => {
+		const { userId } = context;
+		const [strategy] = await db
+			.update(strategies)
+			.set({
+				archivedAt: archived
+					? sql`COALESCE(${strategies.archivedAt}, now())`
+					: null,
+			})
+			.where(and(eq(strategies.id, id), eq(strategies.userId, userId)))
+			.returning();
+		if (!strategy) throw new Error("Strategy not found");
+		return strategy;
+	});
+
+/** A used strategy is archived, not deleted, so its trades keep their history. */
 export const deleteStrategy = createServerFn({ method: "POST" })
 	.middleware([authMiddleware])
 	.validator(strategyIdSchema)
@@ -85,9 +105,13 @@ export const deleteStrategy = createServerFn({ method: "POST" })
 				sql`SELECT id FROM trades WHERE user_id=${userId} AND setup_id=${id} ORDER BY id FOR UPDATE`,
 			),
 			db.execute(
-				sql`WITH owned AS (SELECT id FROM strategies WHERE id=${id} AND user_id=${userId}), updated AS (UPDATE trades SET setup_id=NULL, edit_revision=edit_revision+1 WHERE setup_id=${id} AND user_id=${userId} AND EXISTS(SELECT 1 FROM owned) RETURNING id) DELETE FROM strategies WHERE id=${id} AND user_id=${userId} RETURNING id`,
+				sql`WITH owned AS (SELECT id FROM strategies WHERE id=${id} AND user_id=${userId}), used AS (SELECT count(*)::int AS n FROM trades WHERE setup_id=${id} AND user_id=${userId}), deleted AS (DELETE FROM strategies WHERE id IN (SELECT id FROM owned) AND (SELECT n FROM used)=0 RETURNING id) SELECT (SELECT count(*) FROM owned)::int AS owned, (SELECT n FROM used) AS used`,
 			),
 		]);
-		if (!results[2].rows.length) throw new Error("Strategy not found");
-		return { success: true };
+		const [{ owned, used }] = results[2].rows as {
+			owned: number;
+			used: number;
+		}[];
+		if (!owned) throw new Error("Strategy not found");
+		return { deleted: !used, usedBy: used };
 	});
