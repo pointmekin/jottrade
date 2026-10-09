@@ -25,6 +25,21 @@ vi.mock("@/hooks/use-tags", () => ({
 	useCreateTag: () => ({ mutate: vi.fn(), reset: vi.fn() }),
 }));
 
+vi.mock("@/components/journal/saved-views-menu", () => ({
+	SavedViewsMenu: () => null,
+}));
+
+const appliedView = vi.hoisted(() => ({
+	current: {
+		view: undefined as { name: string } | undefined,
+		isModified: false,
+	},
+}));
+
+vi.mock("@/hooks/use-saved-views", () => ({
+	useAppliedView: () => appliedView.current,
+}));
+
 vi.mock("@/components/period-picker", () => ({
 	PeriodPicker: ({ onChange }: { onChange: (value: unknown) => void }) => (
 		<button
@@ -45,6 +60,7 @@ function renderFilterBar(filters: JournalFilters = {}) {
 }
 
 afterEach(() => {
+	appliedView.current = { view: undefined, isModified: false };
 	vi.clearAllMocks();
 	vi.useRealTimers();
 });
@@ -227,5 +243,29 @@ describe("FilterBar", () => {
 				.value,
 		).toBe("");
 		expect(onFiltersChange).not.toHaveBeenCalled();
+	});
+
+	it("shows the applied view, marks a changed scope and closes the view only", () => {
+		appliedView.current = { view: { name: "Feb SPY" }, isModified: true };
+		const { onFiltersChange } = renderFilterBar({
+			symbol: "SPY",
+			savedView: 2,
+		});
+
+		expect(screen.getByText("View: Feb SPY")).toBeTruthy();
+		expect(screen.getByText("· Modified")).toBeTruthy();
+		fireEvent.click(screen.getByRole("button", { name: "Close saved view" }));
+		expect(onFiltersChange).toHaveBeenCalledWith({
+			symbol: "SPY",
+			savedView: undefined,
+		});
+	});
+
+	it("shows no chip row for a saved view id that does not resolve", () => {
+		renderFilterBar({ savedView: 99 });
+
+		expect(
+			screen.getByRole("region", { name: "Filters" }).children,
+		).toHaveLength(1);
 	});
 });

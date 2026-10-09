@@ -64,6 +64,7 @@ Key server modules include:
 - `calendarActions.ts`, `imageActions.ts`, and `commandIntentActions.ts` for the calendar, trade screenshots, and the command palette fallback.
 - `strategyActions.ts` for strategy queries and mutations.
 - `portfolioActions.ts` for trading accounts, and `cashFlowActions.ts` for deposits, withdrawals and adjustments.
+- `savedViewActions.ts` for saved analysis views.
 
 Every server function starts with `createServerFn(...).middleware([authMiddleware])` (`src/server/auth-middleware.ts`) and reads the user from `context.userId`. A POST validates its input with `.validator()`. A test in `src/test/server-boundaries.test.ts` enforces these rules; see "Server boundaries" in [docs/quality-gate.md](docs/quality-gate.md). Pure logic (metrics, CSV parsing, search params) lives in `src/lib/` with tests in `src/test/`.
 
@@ -78,6 +79,7 @@ The core tables are:
 - `strategies`, which represent trading setups and patterns.
 - `import_batches` and `import_identities`, which record reconciled import batches.
 - `review_periods`, `review_source_trades`, and `review_source_cash_flows`, which store reviews and their frozen sources.
+- `saved_views`, which store named analysis scopes.
 
 Migrations live in `drizzle/`.
 

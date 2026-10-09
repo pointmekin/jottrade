@@ -124,6 +124,7 @@ describe("buildArchive", () => {
 				reviewSourceCashFlows: [],
 				tags: [{ id: 3, name: "FOMO" }],
 				tradeTags: [{ tradeId: 5, tagId: 3 }],
+				savedViews: [{ id: 2, name: "Feb SPY" }],
 			},
 			new Date("2026-10-08T00:00:00Z"),
 		);
@@ -133,6 +134,7 @@ describe("buildArchive", () => {
 			accounts: 1,
 			trades: 2,
 			tags: 1,
+			savedViews: 1,
 			attachments: 2,
 		});
 		expect(archive.tradeTags).toEqual([{ tradeId: 5, tagId: 3 }]);
