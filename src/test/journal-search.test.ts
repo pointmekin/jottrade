@@ -35,6 +35,7 @@ describe("journal search", () => {
 			"period",
 			"dateFrom",
 			"dateTo",
+			"savedView",
 		]);
 	});
 });

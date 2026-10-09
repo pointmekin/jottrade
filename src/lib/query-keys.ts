@@ -18,6 +18,7 @@ export const QueryKey = {
 	AdvancedAnalytics: "advanced-analytics",
 	Strategies: "strategies",
 	Tags: "tags",
+	SavedViews: "saved-views",
 	StrategyPerformance: "strategy-performance",
 	ExnessExportScript: "exness-export-script",
 	AuthAccounts: "auth-accounts",

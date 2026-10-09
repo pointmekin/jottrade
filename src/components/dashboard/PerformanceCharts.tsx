@@ -123,6 +123,8 @@ function AvgPnlBar({
 					<Bar
 						dataKey="avgPnl"
 						radius={[4, 4, 0, 0]}
+						// The bar animation remounts the bar links, which drops keyboard focus.
+						isAnimationActive={!drillDown}
 						shape={
 							drillDown &&
 							((props: BarShapeProps) => (

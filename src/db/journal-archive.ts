@@ -6,6 +6,7 @@ import {
 	reviewPeriods,
 	reviewSourceCashFlows,
 	reviewSourceTrades,
+	savedViews,
 	strategies,
 	tags,
 	trades,
@@ -32,6 +33,7 @@ export async function loadArchiveTables(userId: string) {
 		sourceCashFlowRows,
 		tagRows,
 		tradeTagRows,
+		savedViewRows,
 	] = await Promise.all([
 		db.select().from(portfolios).where(eq(portfolios.userId, userId)),
 		db.select().from(trades).where(eq(trades.userId, userId)),
@@ -60,6 +62,7 @@ export async function loadArchiveTables(userId: string) {
 			.from(tradeTags)
 			.innerJoin(tags, eq(tradeTags.tagId, tags.id))
 			.where(eq(tags.userId, userId)),
+		db.select().from(savedViews).where(eq(savedViews.userId, userId)),
 	]);
 	return {
 		accounts: accountRows.map(withoutUserId),
@@ -71,5 +74,6 @@ export async function loadArchiveTables(userId: string) {
 		reviewSourceCashFlows: sourceCashFlowRows.map((row) => row.link),
 		tags: tagRows.map(withoutUserId),
 		tradeTags: tradeTagRows.map((row) => row.link),
+		savedViews: savedViewRows.map(withoutUserId),
 	};
 }

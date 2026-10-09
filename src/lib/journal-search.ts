@@ -33,6 +33,7 @@ export const scopeSearchSchema = z.object({
 	period: z.enum(PeriodPreset).default(PeriodPreset.All),
 	dateFrom: z.string().optional(),
 	dateTo: z.string().optional(),
+	savedView: z.number().int().positive().optional().catch(undefined),
 });
 
 export type ScopeSearch = z.infer<typeof scopeSearchSchema>;
