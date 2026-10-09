@@ -6,24 +6,13 @@ import { requireOwnedPortfolio } from "@/db/portfolios";
 import { tags } from "@/db/schema";
 import { bulkEditTrades as applyBulkEdit } from "@/db/trade-bulk-edit";
 import { listTags } from "@/db/trade-tags";
+import { isUniqueViolation } from "@/db/unique-violation";
 import { bulkEditSchema, TagColor, tagNameSchema } from "@/lib/trade-tag";
 import { authMiddleware } from "./auth-middleware";
 
 const tagIdSchema = z.object({ id: z.number().int().positive() });
 const tagColumns = { id: tags.id, name: tags.name, color: tags.color };
 const DUPLICATE_NAME = "A tag with this name already exists.";
-const UNIQUE_VIOLATION = "23505";
-
-function isUniqueViolation(error: unknown) {
-	const codeOf = (value: unknown) =>
-		typeof value === "object" && value !== null && "code" in value
-			? value.code
-			: undefined;
-	const cause = error instanceof Error ? error.cause : undefined;
-	return (
-		codeOf(error) === UNIQUE_VIOLATION || codeOf(cause) === UNIQUE_VIOLATION
-	);
-}
 
 export const getTags = createServerFn({ method: "GET" })
 	.middleware([authMiddleware])

@@ -4,6 +4,7 @@ import { type ReactNode, useCallback, useEffect, useId, useState } from "react";
 import { PeriodPicker } from "@/components/period-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useAppliedView } from "@/hooks/use-saved-views";
 import { useTags } from "@/hooks/use-tags";
 import { SymbolMatch } from "@/lib/analysis-scope";
 import { CLEARED_TRADE_FILTERS, NO_STRATEGY } from "@/lib/journal-search";
@@ -13,6 +14,7 @@ import { type TradeSide, TradeStatus } from "@/lib/trade";
 import { parseTagIds, TagMatch } from "@/lib/trade-tag";
 import { getStrategies } from "@/server/strategyActions";
 import { FilterFields } from "./filter-fields";
+import { SavedViewsMenu } from "./saved-views-menu";
 
 const SYMBOL_DEBOUNCE_MS = 300;
 
@@ -33,6 +35,7 @@ export type JournalFilters = {
 	period?: PeriodPreset;
 	dateFrom?: string;
 	dateTo?: string;
+	savedView?: number;
 };
 
 interface FilterBarProps {
@@ -126,6 +129,27 @@ function StrategyFilterChip({
 	);
 }
 
+function SavedViewChip({
+	filters,
+	onClear,
+}: {
+	filters: JournalFilters;
+	onClear: () => void;
+}) {
+	const { view, isModified } = useAppliedView(filters);
+	if (!view) return null;
+	return (
+		<FilterChip clearLabel="Close saved view" onClear={onClear}>
+			View: {view.name}
+			{isModified && (
+				<span className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200">
+					· Modified
+				</span>
+			)}
+		</FilterChip>
+	);
+}
+
 /** The scope date is the exit time for closed trades and the entry time for the others. */
 const periodPrefix = (status?: TradeStatus) =>
 	status === TradeStatus.Closed ? "Closed in" : "Closed or opened in";
@@ -140,6 +164,10 @@ function FilterChips({
 	const period = filters.period ?? PeriodPreset.All;
 	return (
 		<div className="flex flex-wrap gap-2 border-t border-border py-2">
+			<SavedViewChip
+				filters={filters}
+				onClear={() => update({ savedView: undefined })}
+			/>
 			{period !== PeriodPreset.All && (
 				<FilterChip
 					clearLabel="Clear period filter"
@@ -243,6 +271,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 		filters.mistake,
 		filters.tags,
 	].filter(Boolean).length;
+	const { view: appliedView } = useAppliedView(filters);
 	const clearAll = () => {
 		setSymbolInput("");
 		update(CLEARED_TRADE_FILTERS);
@@ -261,6 +290,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 						})
 					}
 				/>
+				<SavedViewsMenu filters={filters} update={update} />
 				<Button
 					variant="outline"
 					size="sm"
@@ -297,7 +327,9 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 					update={update}
 				/>
 			)}
-			{(activeCount > 0 || period !== PeriodPreset.All) && (
+			{(activeCount > 0 ||
+				period !== PeriodPreset.All ||
+				appliedView !== undefined) && (
 				<FilterChips filters={filters} update={update} />
 			)}
 		</section>
