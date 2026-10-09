@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { AccountKind } from "@/lib/account";
 import { AccountEntryKind } from "@/lib/account-entry";
+import { PeriodPreset } from "@/lib/period";
 import { TradeSide } from "@/lib/trade";
 import { checkTarget } from "../../scripts/db/target";
 
@@ -26,6 +27,8 @@ const ALICE_ACCOUNT = 1;
 const BOB_ACCOUNT = 4;
 const ALICE_STRATEGY = 1;
 const NORA = "seed-nora";
+const NOT_FOUND = "Saved view not found.";
+const DUPLICATE = "A view with this name already exists.";
 
 describe.skipIf(!verifyUrl)("user isolation on the seeded database", () => {
 	let server: {
@@ -34,6 +37,7 @@ describe.skipIf(!verifyUrl)("user isolation on the seeded database", () => {
 		accounts: typeof import("@/server/portfolioActions");
 		cashFlows: typeof import("@/server/cashFlowActions");
 		strategies: typeof import("@/server/strategyActions");
+		views: typeof import("@/server/savedViewActions");
 	};
 	let db: typeof import("@/db").db;
 	let schema: typeof import("@/db/schema");
@@ -59,6 +63,7 @@ describe.skipIf(!verifyUrl)("user isolation on the seeded database", () => {
 			accounts: await import("@/server/portfolioActions"),
 			cashFlows: await import("@/server/cashFlowActions"),
 			strategies: await import("@/server/strategyActions"),
+			views: await import("@/server/savedViewActions"),
 		};
 		const { eq, or } = await import("drizzle-orm");
 		const [trade] = await db
@@ -320,5 +325,126 @@ describe.skipIf(!verifyUrl)("user isolation on the seeded database", () => {
 			["Main account", true],
 			["Second", false],
 		]);
+	});
+
+	describe("saved views", () => {
+		const SCOPE = { period: PeriodPreset.All, symbol: "SPY" };
+		const savedRows = async () => {
+			const { eq } = await import("drizzle-orm");
+			return db
+				.select()
+				.from(schema.savedViews)
+				.where(eq(schema.savedViews.userId, ALICE));
+		};
+		const clearViews = async (userId: string) => {
+			session.userId = userId;
+			const views = await server.views.getSavedViews();
+			for (const view of views)
+				await server.views.deleteSavedView({ data: { id: view.id } });
+		};
+
+		afterAll(async () => {
+			await clearViews(ALICE);
+			await clearViews(BOB);
+		});
+
+		it("keeps a view private to its owner", async () => {
+			session.userId = ALICE;
+			const { id } = await server.views.createSavedView({
+				data: { name: "Alice SPY", scope: SCOPE, portfolioId: ALICE_ACCOUNT },
+			});
+			const before = await savedRows();
+			session.userId = BOB;
+			const bobView = await server.views.createSavedView({
+				data: { name: "Bob SPY", scope: SCOPE, portfolioId: null },
+			});
+			const { views } = server;
+			const writes: [Promise<unknown>, string][] = [
+				[views.renameSavedView({ data: { id, name: "Taken" } }), NOT_FOUND],
+				[
+					views.updateSavedViewScope({
+						data: { id, scope: SCOPE, portfolioId: null },
+					}),
+					NOT_FOUND,
+				],
+				[views.deleteSavedView({ data: { id } }), NOT_FOUND],
+				[
+					views.createSavedView({
+						data: { name: "Foreign", scope: SCOPE, portfolioId: ALICE_ACCOUNT },
+					}),
+					"Account not found.",
+				],
+				[
+					views.updateSavedViewScope({
+						data: { id: bobView.id, scope: SCOPE, portfolioId: ALICE_ACCOUNT },
+					}),
+					"Account not found.",
+				],
+			];
+
+			const results = await Promise.allSettled(writes.map(([write]) => write));
+
+			expect((await views.getSavedViews()).map((view) => view.id)).toEqual([
+				bobView.id,
+			]);
+			expect(
+				results.map((result) =>
+					result.status === "rejected" ? result.reason.message : "fulfilled",
+				),
+			).toEqual(writes.map(([, message]) => message));
+			expect(await savedRows()).toEqual(before);
+			session.userId = "";
+			await expect(views.getSavedViews()).rejects.toThrow("Unauthorized");
+		});
+
+		it("keeps a view after its account is deleted, with the active account", async () => {
+			session.userId = ALICE;
+			const account = await server.accounts.createAccount({
+				data: {
+					name: "View account",
+					description: "",
+					kind: AccountKind.Real,
+					currency: "USD",
+				},
+			});
+			const { id } = await server.views.createSavedView({
+				data: { name: "Pinned", scope: SCOPE, portfolioId: account.id },
+			});
+			await server.accounts.deleteAccount({
+				data: { id: account.id, confirmName: "View account" },
+			});
+
+			const view = (await server.views.getSavedViews()).find(
+				(item) => item.id === id,
+			);
+			expect(view).toMatchObject({ portfolioId: null, accountRemoved: true });
+		});
+
+		it("rejects a duplicate name in any case, a long name and a 51st view", async () => {
+			await clearViews(ALICE);
+			const create = (name: string) =>
+				server.views.createSavedView({
+					data: { name, scope: SCOPE, portfolioId: null },
+				});
+			await create(" Feb SPY ");
+			const second = await create("Second");
+
+			await expect(create("feb spy")).rejects.toThrow(DUPLICATE);
+			await expect(
+				server.views.renameSavedView({
+					data: { id: second.id, name: "FEB SPY" },
+				}),
+			).rejects.toThrow(DUPLICATE);
+			await expect(create("x".repeat(61))).rejects.toThrow(
+				"Use 60 characters or fewer.",
+			);
+			for (let index = 2; index < 50; index += 1) await create(`View ${index}`);
+			await expect(create("One too many")).rejects.toThrow(
+				"You can save up to 50 views. Delete one first.",
+			);
+			const names = (await savedRows()).map((row) => row.name);
+			expect(names).toHaveLength(50);
+			expect(names).toContain("Feb SPY");
+		});
 	});
 });

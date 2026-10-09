@@ -78,6 +78,13 @@
       "when": 1791462330649,
       "tag": "0010_trade_sort_index",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791464432078,
+      "tag": "0011_saved_views",
+      "breakpoints": true
     }
   ]
 }
