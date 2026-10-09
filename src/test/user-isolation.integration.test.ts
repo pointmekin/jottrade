@@ -45,6 +45,7 @@ describe.skipIf(!verifyUrl)("user isolation on the seeded database", () => {
 		cashFlows: typeof import("@/server/cashFlowActions");
 		strategies: typeof import("@/server/strategyActions");
 		views: typeof import("@/server/savedViewActions");
+		checks: typeof import("@/server/playbookCheckActions");
 	};
 	let db: typeof import("@/db").db;
 	let schema: typeof import("@/db/schema");
@@ -71,6 +72,7 @@ describe.skipIf(!verifyUrl)("user isolation on the seeded database", () => {
 			cashFlows: await import("@/server/cashFlowActions"),
 			strategies: await import("@/server/strategyActions"),
 			views: await import("@/server/savedViewActions"),
+			checks: await import("@/server/playbookCheckActions"),
 		};
 		const { eq, or } = await import("drizzle-orm");
 		const [trade] = await db
@@ -152,7 +154,8 @@ describe.skipIf(!verifyUrl)("user isolation on the seeded database", () => {
 	it("rejects every write to another user's data and leaves it unchanged", async () => {
 		const before = await snapshot();
 		session.userId = BOB;
-		const { trades, accounts, cashFlows, strategies } = server;
+		const { trades, accounts, cashFlows, strategies, checks } = server;
+		const check = { expectedRevision: 0, criteriaVersion: 1, results: {} };
 		// Each handler reports its own ownership check, not an unrelated error.
 		const writes: [Promise<unknown>, string][] = [
 			[
@@ -219,6 +222,18 @@ describe.skipIf(!verifyUrl)("user isolation on the seeded database", () => {
 				strategies.deleteStrategy({ data: { id: ALICE_STRATEGY } }),
 				"Strategy not found",
 			],
+			[
+				checks.savePlaybookCheck({
+					data: { portfolioId: ALICE_ACCOUNT, id: aliceTradeId, ...check },
+				}),
+				"Account not found.",
+			],
+			[
+				checks.savePlaybookCheck({
+					data: { portfolioId: BOB_ACCOUNT, id: aliceTradeId, ...check },
+				}),
+				"Trade not found.",
+			],
 		];
 
 		const results = await Promise.allSettled(writes.map(([write]) => write));
@@ -229,6 +244,42 @@ describe.skipIf(!verifyUrl)("user isolation on the seeded database", () => {
 			),
 		).toEqual(writes.map(([, message]) => message));
 		expect(await snapshot()).toEqual(before);
+	});
+
+	it("hides another user's playbook check and criteria", async () => {
+		session.userId = BOB;
+		const { eq } = await import("drizzle-orm");
+		const { getPlaybookCheck } = server.checks;
+		await expect(
+			getPlaybookCheck({
+				data: { portfolioId: ALICE_ACCOUNT, id: aliceTradeId },
+			}),
+		).rejects.toThrow("Account not found.");
+		await expect(
+			getPlaybookCheck({
+				data: { portfolioId: BOB_ACCOUNT, id: aliceTradeId },
+			}),
+		).rejects.toThrow("Trade not found.");
+		// Old data can hold a foreign setup_id; the read joins on the owner.
+		const [bobTrade] = await db
+			.select()
+			.from(schema.trades)
+			.where(eq(schema.trades.portfolioId, BOB_ACCOUNT))
+			.limit(1);
+		const setSetup = (setupId: number | null) =>
+			db
+				.update(schema.trades)
+				.set({ setupId })
+				.where(eq(schema.trades.id, bobTrade.id));
+		await setSetup(ALICE_STRATEGY);
+		try {
+			const read = await getPlaybookCheck({
+				data: { portfolioId: BOB_ACCOUNT, id: bobTrade.id },
+			});
+			expect(read.strategy).toBeNull();
+		} finally {
+			await setSetup(bobTrade.setupId);
+		}
 	});
 
 	it("rejects a move of the user's own trade into another user's account", async () => {

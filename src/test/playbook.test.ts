@@ -64,3 +64,18 @@ describe("playbookFieldsSchema", () => {
 		).toBe(false);
 	});
 });
+
+describe("criterion ids", () => {
+	it("rejects two criteria with the same id, in one list or across lists", () => {
+		const twin = {
+			...criterion(1),
+			kind: PlaybookCriterionKind.Invalidation,
+		};
+
+		const result = playbookFieldsSchema.safeParse(fields([criterion(1), twin]));
+
+		expect(result.error?.issues[0].message).toBe(
+			"Each criterion needs its own id.",
+		);
+	});
+});

@@ -54,6 +54,7 @@ export function StrategyForm({ strategy, onSaved }: StrategyFormProps) {
 				: createStrategy({ data: values }),
 		onSuccess: (saved) => {
 			qc.invalidateQueries({ queryKey: [QueryKey.Strategies] });
+			qc.invalidateQueries({ queryKey: [QueryKey.PlaybookCheck] });
 			onSaved(saved);
 			if (!strategy) reset();
 		},

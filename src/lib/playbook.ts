@@ -33,6 +33,12 @@ export const playbookFieldsSchema = z.object({
 						MAX_CRITERIA_PER_KIND,
 				),
 			`Use ${MAX_CRITERIA_PER_KIND} criteria or fewer in each list.`,
+		)
+		.refine(
+			(criteria) =>
+				new Set(criteria.map((criterion) => criterion.id)).size ===
+				criteria.length,
+			"Each criterion needs its own id.",
 		),
 	riskGuidance: z.string().trim().max(1000).optional(),
 });
