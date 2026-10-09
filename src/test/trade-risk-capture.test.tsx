@@ -72,7 +72,11 @@ function fill(label: string, value: string) {
 	fireEvent.change(screen.getByLabelText(label), { target: { value } });
 }
 beforeEach(() => {
-	vi.mocked(createTrade).mockResolvedValue({ success: true });
+	vi.mocked(createTrade).mockResolvedValue({
+		success: true,
+		id: 1,
+		duplicate: false,
+	});
 	vi.mocked(updateTrade).mockResolvedValue({ success: true });
 	state.activeAccount = state.accounts[0];
 	window.matchMedia = vi.fn().mockReturnValue({

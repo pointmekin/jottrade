@@ -66,7 +66,9 @@ export async function loadArchiveTables(userId: string) {
 	]);
 	return {
 		accounts: accountRows.map(withoutUserId),
-		trades: tradeRows.map(withoutUserId),
+		trades: tradeRows.map(({ clientDraftId: _, ...trade }) =>
+			withoutUserId(trade),
+		),
 		cashFlows: cashFlowRows.map(withoutUserId),
 		strategies: strategyRows.map(withoutUserId),
 		reviews: reviewRows.map(withoutUserId),

@@ -23,7 +23,14 @@ vi.mock("@/lib/auth", () => ({ requireUserId: () => mocks.user() }));
 vi.mock("@/db", () => ({
 	db: {
 		select: () => ({ from: () => ({ where: mocks.where }) }),
-		insert: () => ({ values: mocks.values }),
+		insert: () => ({
+			values: (row: unknown) => {
+				mocks.values(row);
+				return {
+					onConflictDoNothing: () => ({ returning: async () => [{ id: 1 }] }),
+				};
+			},
+		}),
 		update: () => ({ set: mocks.set }),
 		execute: vi.fn(),
 		batch: (statements: unknown[]) => Promise.all(statements),
