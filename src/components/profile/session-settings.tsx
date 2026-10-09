@@ -25,6 +25,10 @@ const REQUEST_FAILED = "The request failed. Try again.";
 const REVOKE_OTHERS = "Sign out of all other devices";
 
 const BROWSERS = [
+	["EdgiOS/", "Edge"],
+	["EdgA/", "Edge"],
+	["CriOS/", "Chrome"],
+	["FxiOS/", "Firefox"],
 	["Edg/", "Edge"],
 	["OPR/", "Opera"],
 	["Firefox/", "Firefox"],
@@ -57,7 +61,7 @@ function deviceName(userAgent: string | null | undefined) {
 export function SessionSettings() {
 	const currentId = authClient.useSession().data?.session.id;
 	const sessions = useQuery({
-		queryKey: [QueryKey.AuthSessions],
+		queryKey: [QueryKey.AuthSessions, currentId],
 		queryFn: async () => {
 			const { data, error } = await authClient.listSessions();
 			if (error?.code === SESSION_NOT_FRESH) return null;

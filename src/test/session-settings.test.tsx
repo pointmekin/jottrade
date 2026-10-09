@@ -76,6 +76,33 @@ afterEach(() => {
 });
 
 describe("session settings", () => {
+	it.each([
+		["CriOS/140.0.7339.122 Mobile/15E148 Safari/604.1", "Chrome on iOS"],
+		["FxiOS/143.0 Mobile/15E148 Safari/605.1.15", "Firefox on iOS"],
+		[
+			"EdgiOS/140.0.3485.94 Version/18.0 Mobile/15E148 Safari/604.1",
+			"Edge on iOS",
+		],
+		[
+			"Chrome/140.0.0.0 Mobile Safari/537.36 EdgA/140.0.3485.94",
+			"Edge on Android",
+		],
+	])("names the browser of %s", async (browser, name) => {
+		const system = name.endsWith("iOS") ? "iPhone" : "Linux; Android 14";
+		mocks.listSessions.mockResolvedValue({
+			data: [
+				{ ...SESSIONS[0], userAgent: `Mozilla/5.0 (${system}) ${browser}` },
+				SESSIONS[1],
+			],
+			error: null,
+		});
+		renderSessions();
+
+		const [, other] = await rows();
+
+		expect(other.textContent).toContain(name);
+	});
+
 	it("lists each session and marks this device first", async () => {
 		mocks.listSessions.mockResolvedValue({ data: SESSIONS, error: null });
 		renderSessions();
