@@ -5,8 +5,7 @@ import { expect, open, test } from "./support";
 
 const PASSWORD = "jottrade-old-password";
 const NEW_PASSWORD = "jottrade-new-password";
-const SENT =
-	"If an account with a password exists for this email, we sent a reset link.";
+const SENT = "If an account exists for this email, we sent a reset link.";
 
 // Production has no email key in the verify run, so the server does not send
 // or log the link. The spec reads the token from the disposable database.

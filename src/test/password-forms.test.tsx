@@ -51,8 +51,7 @@ const { PasswordSettings } = await import(
 	"@/components/profile/password-settings"
 );
 
-const GENERIC =
-	"If an account with a password exists for this email, we sent a reset link.";
+const GENERIC = "If an account exists for this email, we sent a reset link.";
 
 function fill(label: string | RegExp, value: string) {
 	fireEvent.change(screen.getByLabelText(label), { target: { value } });

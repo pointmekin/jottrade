@@ -142,7 +142,7 @@ Fix the cause of a finding. Do not suppress a rule or change a threshold to pass
 
 - `DATABASE_URL`: required. Server-only; never use a `VITE_` prefix.
 - `DATABASE_DRIVER`: optional. `neon` (default) or `pg`.
-- `BETTER_AUTH_SECRET`: required in production. `BETTER_AUTH_URL`: optional.
+- `BETTER_AUTH_SECRET`: required in production. `BETTER_AUTH_URL`: required in production (the reset link in the email starts with it).
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: optional, Google sign-in.
 - `GCP_BUCKET_NAME`, `GCP_SERVICE_ACCOUNT_KEY`: trade screenshots.
 - `GEMINI_API_KEY`: optional command palette fallback.

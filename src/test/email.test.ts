@@ -54,6 +54,23 @@ describe("sendPasswordResetEmail", () => {
 		expect(logged()).not.toContain("secret-token");
 	});
 
+	it("stops waiting for Resend after 5 seconds", async () => {
+		useEnv({
+			NODE_ENV: "production",
+			RESEND_API_KEY: "re_test",
+			EMAIL_FROM: "no-reply@jottrade.test",
+		});
+		const timeout = vi.spyOn(AbortSignal, "timeout");
+		const fetch = vi.fn(async (_url: string, init: RequestInit) => {
+			throw init.signal?.reason ?? new Error("no signal");
+		});
+		vi.stubGlobal("fetch", fetch);
+		timeout.mockImplementation(() => AbortSignal.abort(new Error("timed out")));
+
+		await expect(sendPasswordResetEmail(TO, URL)).rejects.toThrow("timed out");
+		expect(timeout).toHaveBeenCalledWith(5_000);
+	});
+
 	it.each([
 		["RESEND_API_KEY", { EMAIL_FROM: "no-reply@jottrade.test" }],
 		["EMAIL_FROM", { RESEND_API_KEY: "re_test" }],
@@ -75,7 +92,7 @@ describe("sendPasswordResetEmail", () => {
 		},
 	);
 
-	it("fails when Resend rejects the email, without the link in the error", async () => {
+	it("fails when Resend rejects the email, with the status only", async () => {
 		useEnv({
 			NODE_ENV: "production",
 			RESEND_API_KEY: "re_test",
@@ -84,7 +101,10 @@ describe("sendPasswordResetEmail", () => {
 		vi.stubGlobal(
 			"fetch",
 			vi.fn(
-				async () => new Response('{"name":"invalid_from"}', { status: 422 }),
+				async () =>
+					new Response(`{"message":"invalid recipient ${TO}"}`, {
+						status: 422,
+					}),
 			),
 		);
 
@@ -92,6 +112,7 @@ describe("sendPasswordResetEmail", () => {
 		expect(error).toBeInstanceOf(Error);
 		expect(error.message).toContain("422");
 		expect(error.message).not.toContain("secret-token");
+		expect(error.message).not.toContain(TO);
 	});
 
 	it("writes the link to the server log outside production without a key", async () => {

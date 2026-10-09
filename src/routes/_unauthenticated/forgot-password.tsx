@@ -48,8 +48,7 @@ function ForgotPassword() {
 		>
 			{sent ? (
 				<FormNotice>
-					If an account with a password exists for this email, we sent a reset
-					link.
+					If an account exists for this email, we sent a reset link.
 				</FormNotice>
 			) : (
 				<>

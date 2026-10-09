@@ -1,4 +1,8 @@
 const RESEND_URL = "https://api.resend.com/emails";
+// Better Auth waits for the send only for a known email. A slow Resend must
+// not make that response much slower, because the delay shows that the
+// account exists.
+const RESEND_TIMEOUT_MS = 5_000;
 
 export async function sendPasswordResetEmail(
 	to: string,
@@ -20,6 +24,7 @@ export async function sendPasswordResetEmail(
 
 	const response = await fetch(RESEND_URL, {
 		method: "POST",
+		signal: AbortSignal.timeout(RESEND_TIMEOUT_MS),
 		headers: {
 			Authorization: `Bearer ${apiKey}`,
 			"Content-Type": "application/json",
@@ -37,8 +42,9 @@ export async function sendPasswordResetEmail(
 		}),
 	});
 	if (!response.ok) {
+		// The response body can contain the recipient address.
 		throw new Error(
-			`Password reset email not sent: Resend returned ${response.status} ${await response.text()}`,
+			`Password reset email not sent: Resend returned ${response.status}.`,
 		);
 	}
 }
