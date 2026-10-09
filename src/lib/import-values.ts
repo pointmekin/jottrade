@@ -108,6 +108,16 @@ export function normalizeImportHeader(value: string): string {
 		.toLowerCase();
 }
 
+export function quoteImportColumns(
+	names: readonly string[],
+	separator = ", ",
+): string {
+	return names.map((name) => `"${name}"`).join(separator);
+}
+
+export const IMPORT_DATE_ISSUE =
+	"Enter a UTC date and time, for example 2026-09-01 08:00:00.";
+
 export type ImportRowIssue = { column: string; message: string };
 export type CsvRow = Record<string, string | undefined>;
 export type ParsedImportRow<T> = {

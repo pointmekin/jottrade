@@ -10,6 +10,7 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TRADE_REQUIRED_HEADERS } from "@/lib/trade-import";
 import { AdjustmentImportZone } from "./AdjustmentImportZone";
 import { ImportZone } from "./ImportZone";
 import { ImportHistory } from "./import-history";
@@ -60,7 +61,9 @@ export function ImportDialog() {
 						<TabsContent value="trades" className="space-y-3">
 							<p className="text-xs leading-5 text-muted-foreground">
 								In Exness History of orders, choose the account and date range,
-								download the trade CSV, then upload it here.
+								download the trade CSV, then upload it here. Required columns:{" "}
+								{TRADE_REQUIRED_HEADERS.join(", ")}. Only buy and sell trades
+								import.
 							</p>
 							<ImportZone onSuccess={close} />
 						</TabsContent>

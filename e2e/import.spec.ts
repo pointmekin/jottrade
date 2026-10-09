@@ -38,3 +38,19 @@ test("a reimport of the same CSV adds no duplicate trades", async ({
 	await expect(eurusd).toHaveCount(1);
 	await expect(gbpusd).toHaveCount(1);
 });
+
+test("a CSV from another broker gets specific guidance", async ({ page }) => {
+	await signIn(page, SeedUser.Erin);
+	await open(page, "/journal");
+	await page.getByRole("button", { name: "Import CSV" }).click();
+	const dialog = page.getByRole("dialog", { name: "Import journal data" });
+	await dialog.getByRole("checkbox", { name: /I confirm/ }).check();
+	await dialog.locator('input[type="file"]').setInputFiles({
+		name: "other-broker.csv",
+		mimeType: "text/csv",
+		buffer: Buffer.from("Date,Instrument,Side\n2026-09-01,EURUSD,Long\n"),
+	});
+	await expect(dialog.getByRole("alert")).toHaveText(
+		"This file is not an Exness trade history CSV. Download the trade CSV from Exness History of orders. For an adjustment file, use the Adjustment CSV tab. Nothing was imported.",
+	);
+});

@@ -1,8 +1,18 @@
 import { useId, useState } from "react";
-import { useDropzone } from "react-dropzone";
+import { ErrorCode, useDropzone } from "react-dropzone";
 import { Input } from "@/components/ui/input";
 import { useAccounts } from "@/hooks/use-accounts";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
+import { IMPORT_TOO_LARGE, MAX_IMPORT_BYTES } from "@/lib/import-source";
+
+const REJECTION_MESSAGES: Record<string, string> = {
+	[ErrorCode.FileInvalidType]:
+		"This file is not a CSV. Upload the .csv file from Exness.",
+	[ErrorCode.FileTooLarge]: IMPORT_TOO_LARGE,
+	[ErrorCode.FileTooSmall]:
+		"This file is empty. Download the CSV from Exness again.",
+	[ErrorCode.TooManyFiles]: "Upload one file at a time.",
+};
 export function ImportSourceUpload({
 	pending,
 	onStage,
@@ -20,7 +30,8 @@ export function ImportSourceUpload({
 	const confirmed = confirmation === confirmationScope;
 	const dropzone = useDropzone({
 		multiple: false,
-		maxSize: 5 * 1024 * 1024,
+		minSize: 1,
+		maxSize: MAX_IMPORT_BYTES,
 		accept: { "text/csv": [".csv"] },
 		disabled: pending,
 		onDrop: ([file]) => {
@@ -29,6 +40,7 @@ export function ImportSourceUpload({
 			onStage(file, target.id, currency);
 		},
 	});
+	const rejection = dropzone.fileRejections[0]?.errors[0];
 
 	return (
 		<>
@@ -74,9 +86,9 @@ export function ImportSourceUpload({
 					records.
 				</p>
 			</div>
-			{dropzone.fileRejections.length > 0 && (
+			{rejection && (
 				<p role="alert" className="text-sm text-destructive">
-					Choose one CSV smaller than 5 MB.
+					{REJECTION_MESSAGES[rejection.code] ?? rejection.message}
 				</p>
 			)}
 		</>
