@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { AccountKind } from "@/lib/account";
 import { AccountEntryKind } from "@/lib/account-entry";
 import { PeriodPreset } from "@/lib/period";
+import { PlaybookCriterionKind } from "@/lib/playbook";
 import { TradeSide } from "@/lib/trade";
 import { checkTarget } from "../../scripts/db/target";
 
@@ -28,6 +29,12 @@ const BOB_ACCOUNT = 4;
 const ALICE_STRATEGY = 1;
 const NORA = "seed-nora";
 const NOT_FOUND = "Saved view not found.";
+const CRITERION = {
+	id: "c1",
+	kind: PlaybookCriterionKind.Entry,
+	text: "Close above the range",
+	required: true,
+};
 const DUPLICATE = "A view with this name already exists.";
 
 describe.skipIf(!verifyUrl)("user isolation on the seeded database", () => {
@@ -204,7 +211,7 @@ describe.skipIf(!verifyUrl)("user isolation on the seeded database", () => {
 			],
 			[
 				strategies.updateStrategy({
-					data: { id: ALICE_STRATEGY, name: "Taken" },
+					data: { id: ALICE_STRATEGY, name: "Taken", criteria: [CRITERION] },
 				}),
 				"Strategy not found",
 			],
@@ -445,6 +452,93 @@ describe.skipIf(!verifyUrl)("user isolation on the seeded database", () => {
 			const names = (await savedRows()).map((row) => row.name);
 			expect(names).toHaveLength(50);
 			expect(names).toContain("Feb SPY");
+		});
+	});
+	describe("strategy playbooks", () => {
+		const strategyRow = async (id: number) => {
+			const { eq } = await import("drizzle-orm");
+			const [row] = await db
+				.select()
+				.from(schema.strategies)
+				.where(eq(schema.strategies.id, id));
+			return row;
+		};
+		const createAliceStrategy = (name: string) => {
+			session.userId = ALICE;
+			return server.strategies.createStrategy({ data: { name, criteria: [] } });
+		};
+
+		it("increases the criteria version only when the criteria or the risk guidance change", async () => {
+			const { id } = await createAliceStrategy("Versioned");
+			const versions: number[] = [];
+			for (const fields of [
+				{ name: "Renamed", riskGuidance: "" },
+				{ criteria: [CRITERION] },
+				{ criteria: [CRITERION] },
+				{ criteria: [CRITERION], riskGuidance: "Risk 1%" },
+			]) {
+				const saved = await server.strategies.updateStrategy({
+					data: { id, name: "Versioned", criteria: [], ...fields },
+				});
+				versions.push(saved.criteriaVersion);
+			}
+
+			expect(versions).toEqual([1, 2, 2, 3]);
+			await server.strategies.deleteStrategy({ data: { id } });
+			expect(await strategyRow(id)).toBeUndefined();
+		});
+
+		it("lets only the owner archive, restore, edit or delete an archived strategy", async () => {
+			const { id } = await createAliceStrategy("Archived");
+			await server.strategies.archiveStrategy({ data: { id, archived: true } });
+			const before = await strategyRow(id);
+			expect(before.archivedAt).toBeInstanceOf(Date);
+
+			session.userId = BOB;
+			const { strategies } = server;
+			const writes = [
+				strategies.archiveStrategy({ data: { id, archived: true } }),
+				strategies.archiveStrategy({ data: { id, archived: false } }),
+				strategies.updateStrategy({
+					data: { id, name: "Taken", criteria: [CRITERION] },
+				}),
+				strategies.deleteStrategy({ data: { id } }),
+			];
+			const results = await Promise.allSettled(writes);
+
+			expect(
+				results.map((result) =>
+					result.status === "rejected" ? result.reason.message : "fulfilled",
+				),
+			).toEqual(writes.map(() => "Strategy not found"));
+			expect(await strategyRow(id)).toEqual(before);
+
+			session.userId = ALICE;
+			const restored = await strategies.archiveStrategy({
+				data: { id, archived: false },
+			});
+			expect(restored.archivedAt).toBeNull();
+			await strategies.deleteStrategy({ data: { id } });
+		});
+
+		it("refuses to delete a used strategy and keeps the link on its trades", async () => {
+			const { eq } = await import("drizzle-orm");
+			const linked = () =>
+				db
+					.select()
+					.from(schema.trades)
+					.where(eq(schema.trades.setupId, ALICE_STRATEGY));
+			const before = await linked();
+			expect(before.length).toBeGreaterThan(0);
+			session.userId = ALICE;
+
+			expect(
+				await server.strategies.deleteStrategy({
+					data: { id: ALICE_STRATEGY },
+				}),
+			).toEqual({ deleted: false, usedBy: before.length });
+
+			expect(await linked()).toEqual(before);
 		});
 	});
 });
