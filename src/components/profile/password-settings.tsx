@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -6,36 +5,24 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { useHasPassword } from "@/hooks/use-has-password";
 import { authClient } from "@/lib/auth-client";
 import { newPasswordError } from "@/lib/password";
-import { QueryKey } from "@/lib/query-keys";
 
-// Better Auth stores an email/password login as the "credential" account.
-const CREDENTIAL_PROVIDER = "credential";
 const REQUEST_FAILED = "The request failed. Try again.";
 
 export function PasswordSettings() {
-	const accounts = useQuery({
-		queryKey: [QueryKey.AuthAccounts],
-		queryFn: async () => {
-			const { data, error } = await authClient.listAccounts();
-			if (error) throw new Error(error.message ?? REQUEST_FAILED);
-			return data;
-		},
-	});
+	const hasPassword = useHasPassword();
 
-	if (accounts.isPending) return <Spinner />;
-	if (accounts.isError) {
+	if (hasPassword.isPending) return <Spinner />;
+	if (hasPassword.isError) {
 		return (
 			<p className="text-xs text-destructive">
 				Could not load your sign-in methods. Reload the page.
 			</p>
 		);
 	}
-	const hasPassword = accounts.data.some(
-		(account) => account.providerId === CREDENTIAL_PROVIDER,
-	);
-	if (!hasPassword) {
+	if (!hasPassword.data) {
 		return (
 			<p className="text-xs text-muted-foreground">
 				You sign in with Google, so this account has no password. To add one,

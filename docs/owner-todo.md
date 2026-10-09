@@ -115,7 +115,17 @@ Password reset sends its email through Resend. Without the 2 variables below, pr
 
 Preview deployments do not need these variables. A preview without them runs in production mode, so it logs the error and sends nothing.
 
-## 10. Other open items
+## 10. GCP: permission to delete screenshots
+
+Account deletion lists and deletes the objects under `trades/<user id>/` in the screenshot bucket. If the service account cannot do this, each deletion fails with "Your account was not deleted. Try again.", and the server log shows `GCP list failed: 403`.
+
+- [ ] In the Google Cloud console, open **Cloud Storage → Buckets**, select the bucket in `GCP_BUCKET_NAME`, and open **Permissions**.
+- [ ] Make sure that the service account in `GCP_SERVICE_ACCOUNT_KEY` has `storage.objects.list` and `storage.objects.delete` on the bucket. The **Storage Object Admin** role has both.
+- [ ] Test: sign up a test user, add a trade with a screenshot, and delete the account on `/profile`. Make sure that the object is gone from the bucket.
+- [ ] Check that object versioning is off on the bucket. With versioning on, a delete keeps the old object versions.
+- [ ] Optional: an upload URL from before a delete stays valid for 15 minutes, so an object can appear under a deleted user's prefix. To remove such objects, find them with `gsutil ls gs://<bucket>/trades/` against the user ids that no longer exist, or keep this gap as accepted (it is listed in `docs/feature-map.md`).
+
+## 11. Other open items
 
 These items are not about deploys. They come from the audit of the merged work for #9, #10 and #11.
 
