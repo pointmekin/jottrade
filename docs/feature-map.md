@@ -4,7 +4,7 @@ This map lists the supported product features, where each one starts, which code
 
 Update this file in the same pull request when you add, remove or change a route, an entry point, a user flow, a server module or the verification of a feature.
 
-Template leftovers: the demo routes and demo data were removed before issue #33. Issue #33 removed the unused template assets (`src/logo.svg`, `public/demo-neon.svg`, `public/drizzle.svg`, the TanStack logos, and `public/manifest.json` with its icons, which no page linked). `src/integrations/tanstack-query/` stays: the router and the root layout use it.
+Template leftovers: the demo routes and demo data were removed before issue #33. Issue #33 removed the unused template assets (`src/logo.svg`, `public/demo-neon.svg`, `public/drizzle.svg`, the TanStack logos, and `public/manifest.json` with its icons, which no page linked). Issue #20 replaced the starter `public/favicon.ico`. `src/integrations/tanstack-query/` stays: the router and the root layout use it.
 
 ## How to read the verification column
 
@@ -46,6 +46,7 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 - **Navigation**: `src/lib/nav-items.ts` feeds the desktop sidebar (`app-sidebar.tsx`) and the mobile bottom nav (`bottom-nav.tsx`). Order: Dashboard, Journal, Calendar, Strategies, Reviews, Settings. Verified: Unit `nav-items.test.ts`, `app-sidebar.test.tsx` (navigates on primary mouse-down).
 - **Account switcher**: in the sidebar and the mobile drawer (`src/components/account/account-switcher.tsx`). The active account is kept in local storage (`jottrade.active-accounts`, `src/lib/account-store.ts`). If the accounts do not load, it shows an error with a Retry action. Verified: Unit `app-sidebar.test.tsx`, `account-switcher.test.tsx`.
 - **Command palette**: `Cmd+K` / `Ctrl+K` (`src/hooks/use-command-shortcut.ts`), or the command button in the sidebar and bottom nav. Commands (`src/lib/commands/registry.ts`): go to each nav page, log a trade, add a deposit, add a withdrawal, change the theme. Free text is parsed locally; `GEMINI_API_KEY` enables an optional Gemini fallback (`src/server/commandIntentActions.ts`). Dictation uses the browser speech API. Verified: Unit `commands.test.ts`, `command-intent.test.ts`, `command-intent-server.test.ts`, `command-palette.test.tsx`, `command-palette-fallback.test.tsx`, `command-palette-speech.test.tsx`, `command-preview.test.tsx`.
+- **Installed app**: `public/manifest.webmanifest` names the app JotTrade, starts at `/dashboard` and opens standalone. The icons in `public/icons/` and `public/favicon.ico` use the Crosshair mark from the sidebar. `src/routes/__root.tsx` links the manifest, the icons and the theme color. There is no service worker, so the app needs the network to start. Verified: Unit `app-manifest.test.ts`; E2E `app-identity.spec.ts` (Chromium parses the manifest, the content type is `application/manifest+json`, each icon loads). Manual: install on Android Chrome and iOS Safari.
 
 ## Features
 
