@@ -1,5 +1,6 @@
 import type { portfolios, strategies, tags, tradeTags } from "@/db/schema";
 import { AccountKind } from "@/lib/account";
+import { PlaybookCriterionKind } from "@/lib/playbook";
 import { TagColor } from "@/lib/trade-tag";
 
 type PortfolioRow = typeof portfolios.$inferInsert;
@@ -100,6 +101,27 @@ export const STRATEGIES: StrategyRow[] = [
 		userId: SeedUser.Alice,
 		name: "Breakout",
 		description: "Range break with volume.",
+		criteria: [
+			{
+				id: "breakout-close",
+				kind: PlaybookCriterionKind.Entry,
+				text: "Price closes above the range high.",
+				required: true,
+			},
+			{
+				id: "breakout-volume",
+				kind: PlaybookCriterionKind.Entry,
+				text: "Volume is above the 20-bar average.",
+				required: false,
+			},
+			{
+				id: "breakout-fail",
+				kind: PlaybookCriterionKind.Invalidation,
+				text: "Price closes back inside the range.",
+				required: true,
+			},
+		],
+		riskGuidance: "Risk 1% of the account or less.",
 	},
 	{
 		id: 2,

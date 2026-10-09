@@ -1,22 +1,21 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useId } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { SectionHeading } from "@/components/app-page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+	type PlaybookFields,
+	playbookFieldsSchema,
+	type Strategy,
+} from "@/lib/playbook";
 import { QueryKey } from "@/lib/query-keys";
 import { createStrategy, updateStrategy } from "@/server/strategyActions";
+import { PlaybookCriteriaFields } from "./playbook-criteria-fields";
 import { StrategyPerformance } from "./StrategyPerformance";
-
-const schema = z.object({
-	name: z.string().min(1, "Name is required").max(100),
-	description: z.string().max(1000).optional(),
-});
-type FormValues = z.infer<typeof schema>;
-
-type Strategy = { id: number; name: string; description: string | null };
 
 interface StrategyFormProps {
 	strategy: Strategy | null;
@@ -30,21 +29,25 @@ export function StrategyForm({ strategy, onSaved }: StrategyFormProps) {
 	"use no memo";
 
 	const qc = useQueryClient();
+	const riskGuidanceId = useId();
 	const {
 		register,
+		control,
 		handleSubmit,
-		formState: { errors },
+		formState: { errors, isDirty },
 		reset,
-	} = useForm<FormValues>({
-		resolver: zodResolver(schema),
+	} = useForm<PlaybookFields>({
+		resolver: zodResolver(playbookFieldsSchema),
 		values: {
 			name: strategy?.name ?? "",
 			description: strategy?.description ?? "",
+			criteria: strategy?.criteria ?? [],
+			riskGuidance: strategy?.riskGuidance ?? "",
 		},
 	});
 
 	const saveMut = useMutation({
-		mutationFn: (values: FormValues) =>
+		mutationFn: (values: PlaybookFields) =>
 			strategy
 				? updateStrategy({ data: { id: strategy.id, ...values } })
 				: createStrategy({ data: values }),
@@ -81,9 +84,38 @@ export function StrategyForm({ strategy, onSaved }: StrategyFormProps) {
 					placeholder="Describe this setup..."
 				/>
 			</div>
+			<section className="space-y-4" aria-label="Playbook">
+				<SectionHeading
+					title="Playbook"
+					detail="The rules you check for each trade"
+				/>
+				<PlaybookCriteriaFields
+					control={control}
+					register={register}
+					errors={errors}
+				/>
+				<div className="space-y-1">
+					<Label htmlFor={riskGuidanceId}>Risk guidance</Label>
+					<Textarea
+						id={riskGuidanceId}
+						{...register("riskGuidance")}
+						className="bg-background"
+						rows={2}
+						placeholder="e.g. Risk 1% of the account or less"
+					/>
+				</div>
+			</section>
 			<Button type="submit" disabled={saveMut.isPending} className="w-full">
 				{saveMut.isPending ? "Saving…" : submitLabel}
 			</Button>
+			{saveMut.isError && (
+				<p role="alert" className="text-sm text-destructive">
+					{saveMut.error.message}
+				</p>
+			)}
+			{saveMut.isSuccess && !isDirty && (
+				<output className="block text-sm text-muted-foreground">Saved.</output>
+			)}
 
 			{strategy && <StrategyPerformance strategyId={strategy.id} />}
 		</form>

@@ -170,10 +170,10 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 ### Strategies
 
 - **Entry**: `/strategies`; strategy selector in the trade form and the journal filter.
-- **Flows**: create, edit and delete a strategy; view its all-time performance in the account currency (`StrategyPerformance.tsx`).
-- **Server**: `strategyActions.ts` (`getStrategies`, `getStrategyPerformance`, `createStrategy`, `updateStrategy`, `deleteStrategy`).
-- **Data**: `strategies` (owned by the user, not by an account); `trades.setup_id` links a trade.
-- **Verification**: Unit `strategy-form.test.tsx`, `strategy-performance.test.tsx`, `group-summary.test.ts`. E2E `totals.spec.ts` (strategy total). DB (verify) `user-isolation.integration.test.ts` (another user cannot edit or delete a strategy). Gap: create, edit and delete in the browser.
+- **Flows**: create and edit a strategy with its playbook: entry criteria, invalidation criteria (each criterion is required or optional) and risk guidance. Archive and restore a strategy. An archived strategy shows in a closed "Archived (N)" group and keeps its trades. Delete a strategy only when no trade uses it; otherwise the dialog offers Archive. View its all-time performance in the account currency (`StrategyPerformance.tsx`).
+- **Server**: `strategyActions.ts` (`getStrategies`, `getStrategyPerformance`, `createStrategy`, `updateStrategy`, `archiveStrategy`, `deleteStrategy`). `updateStrategy` increases `criteria_version` when the criteria or the risk guidance change.
+- **Data**: `strategies` (owned by the user, not by an account; `criteria`, `risk_guidance`, `criteria_version`, `archived_at`); `trades.setup_id` links a trade. `trades.playbook_check` is reserved for the review check (issue #18, not written yet). Domain types and limits: `src/lib/playbook.ts`.
+- **Verification**: Unit `playbook.test.ts`, `strategy-form.test.tsx` (criteria add, remove and save; archived group), `strategy-performance.test.tsx`, `group-summary.test.ts`. E2E `totals.spec.ts` (strategy total). DB (verify) `user-isolation.integration.test.ts` (another user cannot edit, archive, restore or delete a strategy; the criteria version rule; a used strategy is not deleted and its trades keep `setup_id`). Gap: create, edit, archive and delete in the browser.
 
 ### Settings and profile
 
