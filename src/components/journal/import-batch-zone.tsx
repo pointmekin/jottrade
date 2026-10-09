@@ -101,7 +101,10 @@ function ScopedImportBatchZone({
 					role="alert"
 					className="rounded border border-destructive p-3 text-sm text-destructive"
 				>
-					{error.message} Your preview remains available for repair or retry.
+					{error.message}{" "}
+					{batch
+						? "Your preview remains available for repair or retry."
+						: "Nothing was imported."}
 				</p>
 			)}
 			{batch?.state === "staged" && (

@@ -1,10 +1,12 @@
 import Papa from "papaparse";
 import {
 	type CsvRow,
+	IMPORT_DATE_ISSUE,
 	importAmount,
 	importUtcDate,
 	normalizeImportHeader,
 	type ParsedImportRow,
+	quoteImportColumns,
 } from "./import-values";
 export type ImportedAdjustment = {
 	symbol: string;
@@ -31,7 +33,10 @@ export const ADJUSTMENT_IMPORT_HEADERS = [
 	"Adjustment",
 	"Export warning",
 ];
-const requiredHeaders = ["Adjustment date", "Adjustment"] as const;
+export const ADJUSTMENT_REQUIRED_HEADERS = [
+	"Adjustment date",
+	"Adjustment",
+] as const;
 export function parseAdjustmentRows(
 	rows: CsvRow[],
 	fields: string[],
@@ -40,9 +45,15 @@ export function parseAdjustmentRows(
 		fields.find(
 			(field) => normalizeImportHeader(field) === normalizeImportHeader(name),
 		);
-	const missing = requiredHeaders.filter((name) => !column(name));
+	const missing = ADJUSTMENT_REQUIRED_HEADERS.filter((name) => !column(name));
+	if (missing.length === ADJUSTMENT_REQUIRED_HEADERS.length)
+		throw Error(
+			"This file is not an Exness adjustment CSV. Create the file with the export script above. For trade history, use the Trade history CSV tab.",
+		);
 	if (missing.length)
-		throw Error(`CSV is missing required columns: ${missing.join(", ")}.`);
+		throw Error(
+			`Missing columns: ${quoteImportColumns(missing)}. Create the file again with the export script above.`,
+		);
 	const value = (row: CsvRow, name: string) =>
 		row[column(name) ?? ""]?.trim() ?? "";
 	return rows.map((row, index) => {
@@ -52,7 +63,7 @@ export function parseAdjustmentRows(
 		if (!occurredAt)
 			issues.push({
 				column: "Adjustment date",
-				message: "Enter a valid UTC date and time.",
+				message: IMPORT_DATE_ISSUE,
 			});
 		if (amount === null || amount === "0")
 			issues.push({

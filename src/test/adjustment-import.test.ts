@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { parseAdjustmentCsv } from "../lib/adjustment-import";
+import {
+	parseAdjustmentCsv,
+	parseAdjustmentRows,
+} from "../lib/adjustment-import";
 
 const headers =
 	"Symbol,Type,Lots,Position ID,Ex-date,Adjustment day,Adjustment date,Dividend rate,Adjustment";
@@ -43,7 +46,15 @@ describe("Exness adjustment CSV parsing", () => {
 			parseAdjustmentCsv(
 				"ticket,symbol,opening_time_utc,profit\n1,XAUUSD,2026-09-14 10:00:00,5",
 			),
-		).toThrow(/adjustment date.*adjustment/i);
+		).toThrow(
+			"This file is not an Exness adjustment CSV. Create the file with the export script above. For trade history, use the Trade history CSV tab.",
+		);
+	});
+
+	it("names a missing adjustment column", () => {
+		expect(() => parseAdjustmentRows([], ["Adjustment date"])).toThrow(
+			'Missing columns: "Adjustment". Create the file again with the export script above.',
+		);
 	});
 
 	it("skips incomplete rows and reports their count", () => {
