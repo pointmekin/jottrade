@@ -22,6 +22,7 @@ export const QueryKey = {
 	StrategyPerformance: "strategy-performance",
 	ExnessExportScript: "exness-export-script",
 	AuthAccounts: "auth-accounts",
+	AuthSessions: "auth-sessions",
 } as const;
 
 export type QueryKey = (typeof QueryKey)[keyof typeof QueryKey];

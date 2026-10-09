@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Mail } from "lucide-react";
 import { AppPageHeader, SectionHeading } from "@/components/app-page-header";
 import { PasswordSettings } from "@/components/profile/password-settings";
+import { SessionSettings } from "@/components/profile/session-settings";
 import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "../lib/auth-client";
 
@@ -133,6 +134,13 @@ function Profile() {
 										</p>
 									</div>
 								</div>
+							</section>
+
+							<div className="border-t border-border" />
+
+							<section className="grid gap-4">
+								<SectionHeading title="Sessions" detail="Signed-in devices" />
+								<SessionSettings />
 							</section>
 						</div>
 					</div>
