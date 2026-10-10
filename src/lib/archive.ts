@@ -13,6 +13,7 @@ type ArchiveTables<Trade extends WithTradeId> = {
 	tags: unknown[];
 	tradeTags: unknown[];
 	savedViews: unknown[];
+	riskRuleVersions: unknown[];
 };
 
 export function buildArchive<Trade extends WithTradeId>(
@@ -44,6 +45,7 @@ export function buildArchive<Trade extends WithTradeId>(
 			reviews: tables.reviews.length,
 			tags: tables.tags.length,
 			savedViews: tables.savedViews.length,
+			riskRuleVersions: tables.riskRuleVersions.length,
 			attachments: attachments.length,
 		},
 		accounts: tables.accounts,
@@ -56,6 +58,7 @@ export function buildArchive<Trade extends WithTradeId>(
 		tags: tables.tags,
 		tradeTags: tables.tradeTags,
 		savedViews: tables.savedViews,
+		riskRuleVersions: tables.riskRuleVersions,
 		attachments,
 	};
 }

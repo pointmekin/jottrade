@@ -70,6 +70,7 @@ function PreferenceForm({
 					queryKey: [QueryKey.ReviewPreferences],
 				}),
 				queryClient.invalidateQueries({ queryKey: [QueryKey.Onboarding] }),
+				queryClient.invalidateQueries({ queryKey: [QueryKey.RiskRules] }),
 			]),
 	});
 	return (
