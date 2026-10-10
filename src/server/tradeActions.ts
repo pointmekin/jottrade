@@ -26,6 +26,9 @@ import { authMiddleware } from "./auth-middleware";
 const tradeSchema = tradeCaptureSchema.extend({
 	portfolioId: z.number().int().positive(),
 });
+const createTradeSchema = tradeSchema.extend({
+	clientDraftId: z.uuid().optional(),
+});
 const updateTradeSchema = tradeSchema
 	.omit({
 		initialStopPrice: true,
@@ -46,7 +49,7 @@ const updateTradeSchema = tradeSchema
 
 export const createTrade = createServerFn({ method: "POST" })
 	.middleware([authMiddleware])
-	.validator(tradeSchema)
+	.validator(createTradeSchema)
 	.handler(async ({ data, context }) => {
 		const { userId } = context;
 		const portfolio = await requireOwnedPortfolio(userId, data.portfolioId);
@@ -81,20 +84,35 @@ export const createTrade = createServerFn({ method: "POST" })
 			status:
 				data.status ?? (isClosing ? TradeStatus.Closed : TradeStatus.Open),
 		});
-		const { setupId } = data;
+		const { setupId, clientDraftId } = data;
+		let created: { id: number } | undefined;
 		try {
-			await db.batch([
+			const results = await db.batch([
 				lockPortfolio(userId, portfolio.id),
 				...(setupId
 					? [db.execute(assertActiveStrategySql(userId, setupId))]
 					: []),
-				insert,
+				insert
+					.onConflictDoNothing({
+						target: [trades.userId, trades.clientDraftId],
+						where: sql`${trades.clientDraftId} IS NOT NULL`,
+					})
+					.returning({ id: trades.id }),
 			]);
+			[created] = results.at(-1) as { id: number }[];
 		} catch (error) {
 			await requireOwnedStrategy(userId, setupId);
 			throw error;
 		}
-		return { success: true };
+		if (created) return { success: true, id: created.id, duplicate: false };
+		if (!clientDraftId) throw new Error("Trade was not saved.");
+		const [existing] = await db
+			.select({ id: trades.id })
+			.from(trades)
+			.where(
+				and(eq(trades.userId, userId), eq(trades.clientDraftId, clientDraftId)),
+			);
+		return { success: true, id: existing.id, duplicate: true };
 	});
 
 type ExistingTrade = typeof trades.$inferSelect;

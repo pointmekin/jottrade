@@ -120,7 +120,8 @@ describe("command confirmation", () => {
 		vi.mocked(createTrade).mockImplementationOnce(
 			() =>
 				new Promise((resolve) => {
-					resolveSave = () => resolve({ success: true });
+					resolveSave = () =>
+						resolve({ success: true, id: 1, duplicate: false });
 				}),
 		);
 		setup();

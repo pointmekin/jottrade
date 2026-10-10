@@ -92,6 +92,13 @@
       "when": 1791538561155,
       "tag": "0012_playbooks",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791559955937,
+      "tag": "0013_trade_client_draft_id",
+      "breakpoints": true
     }
   ]
 }

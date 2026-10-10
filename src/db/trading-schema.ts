@@ -12,16 +12,12 @@ import {
 	text,
 	timestamp,
 	uniqueIndex,
+	uuid,
 } from "drizzle-orm/pg-core";
 import { AccountKind } from "@/lib/account";
 import { AccountEntryKind } from "@/lib/account-entry";
 import type { ImportedAdjustment } from "@/lib/adjustment-import";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
-import type {
-	ImportOutcome,
-	ImportPreviewRow,
-	ImportSummary,
-} from "@/lib/import-batch";
 import type { PlaybookCriterion } from "@/lib/playbook";
 import type { PlaybookCheck } from "@/lib/playbook-check";
 import type { PnlCalculationSnapshot } from "@/lib/pnl-context";
@@ -234,6 +230,7 @@ export const trades = pgTable(
 		brokerSwap: numeric("broker_swap"),
 		brokerCloseReason: text("broker_close_reason"),
 		playbookCheck: jsonb("playbook_check").$type<PlaybookCheck>(),
+		clientDraftId: uuid("client_draft_id"),
 	},
 	(t) => [
 		index("idx_trades_user").on(t.userId),
@@ -244,6 +241,9 @@ export const trades = pgTable(
 			t.entryDate.desc().nullsLast(),
 			t.id.desc().nullsFirst(),
 		),
+		uniqueIndex("trades_user_client_draft_unique")
+			.on(t.userId, t.clientDraftId)
+			.where(sql`${t.clientDraftId} IS NOT NULL`),
 	],
 );
 
@@ -361,66 +361,3 @@ export const strategyRelations = relations(strategies, ({ one, many }) => ({
 	}),
 	trades: many(trades, { relationName: "strategy" }),
 }));
-
-export const importBatches = pgTable(
-	"import_batches",
-	{
-		id: text("id").primaryKey(),
-		userId: text("user_id")
-			.notNull()
-			.references(() => user.id, { onDelete: "cascade" }),
-		portfolioId: integer("portfolio_id")
-			.notNull()
-			.references(() => portfolios.id, { onDelete: "cascade" }),
-		revision: integer("revision").notNull().default(0),
-		kind: text("kind").notNull(),
-		state: text("state").notNull().default("staged"),
-		fileName: text("file_name").notNull(),
-		fileHash: text("file_hash").notNull(),
-		sourceCurrency: text("source_currency").notNull(),
-		parserVersion: integer("parser_version").notNull().default(2),
-		rows: jsonb("rows").$type<ImportPreviewRow[]>().notNull(),
-		outcomes: jsonb("outcomes").$type<ImportOutcome[]>().notNull().default([]),
-		summary: jsonb("summary").$type<ImportSummary>().notNull(),
-		createdAt: timestamp("created_at").notNull().defaultNow(),
-		expiresAt: timestamp("expires_at").notNull(),
-		committedAt: timestamp("committed_at"),
-		undoneAt: timestamp("undone_at"),
-	},
-	(t) => [index("idx_import_batches_account").on(t.userId, t.portfolioId)],
-);
-export const importIdentities = pgTable(
-	"import_identities",
-	{
-		id: serial("id").primaryKey(),
-		userId: text("user_id")
-			.notNull()
-			.references(() => user.id, { onDelete: "cascade" }),
-		portfolioId: integer("portfolio_id")
-			.notNull()
-			.references(() => portfolios.id, { onDelete: "cascade" }),
-		kind: text("kind").notNull(),
-		fingerprint: text("fingerprint").notNull(),
-		occurrence: integer("occurrence").default(0).notNull(),
-		tradeId: integer("trade_id").references(() => trades.id, {
-			onDelete: "set null",
-		}),
-		cashFlowId: integer("cash_flow_id").references(() => cashFlows.id, {
-			onDelete: "set null",
-		}),
-		recordedRecordId: integer("recorded_record_id").notNull(),
-		state: text("state").notNull().default("active"),
-		batchId: text("batch_id")
-			.notNull()
-			.references(() => importBatches.id, { onDelete: "cascade" }),
-	},
-	(t) => [
-		uniqueIndex("import_identity_account_version_unique").on(
-			t.userId,
-			t.portfolioId,
-			t.kind,
-			t.fingerprint,
-			t.occurrence,
-		),
-	],
-);
