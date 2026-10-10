@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SignOutDialog } from "@/components/sign-out-dialog";
 import { useSignOut } from "@/hooks/use-sign-out";
 import { reviewDraftKey } from "@/lib/review-draft";
@@ -11,16 +11,14 @@ import { tradeDraftKey } from "@/lib/trade-draft";
 
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
-	signOut: vi.fn(
-		async (options: { fetchOptions: { onSuccess: () => Promise<void> } }) => {
-			await options.fetchOptions.onSuccess();
-		},
-	),
+	signOut: vi.fn(),
+	toastError: vi.fn(),
 }));
 
 vi.mock("@tanstack/react-router", () => ({
 	useRouter: () => ({ navigate: mocks.navigate }),
 }));
+vi.mock("sonner", () => ({ toast: { error: mocks.toastError } }));
 vi.mock("@/lib/auth-client", () => ({
 	authClient: {
 		useSession: () => ({ data: { user: { id: "alice" } } }),
@@ -50,6 +48,10 @@ function renderSignOut() {
 	});
 	return queryClient;
 }
+
+beforeEach(() => {
+	mocks.signOut.mockResolvedValue({ data: { success: true }, error: null });
+});
 
 afterEach(() => {
 	localStorage.clear();
@@ -113,4 +115,33 @@ describe("sign out", () => {
 		expect(mocks.signOut).not.toHaveBeenCalled();
 		expect(localStorage.getItem(tradeDraftKey("alice", 1))).toBe("{}");
 	});
+
+	it.each([
+		["the server returns an error", { data: null, error: { status: 500 } }],
+		["the device is offline", new TypeError("Failed to fetch")],
+	])(
+		"keeps the drafts, the session and the cache when %s",
+		async (_, result) => {
+			if (result instanceof Error) mocks.signOut.mockRejectedValueOnce(result);
+			else mocks.signOut.mockResolvedValueOnce(result);
+			localStorage.setItem(tradeDraftKey("alice", 1), "{}");
+			const queryClient = renderSignOut();
+
+			fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
+			fireEvent.click(
+				await screen.findByRole("button", {
+					name: "Delete drafts and sign out",
+				}),
+			);
+
+			await waitFor(() =>
+				expect(mocks.toastError).toHaveBeenCalledWith(
+					"Couldn't sign out. Your drafts are kept. Try again.",
+				),
+			);
+			expect(localStorage.getItem(tradeDraftKey("alice", 1))).toBe("{}");
+			expect(mocks.navigate).not.toHaveBeenCalled();
+			expect(queryClient.getQueryData(["trades"])).toEqual([{ id: 1 }]);
+		},
+	);
 });
