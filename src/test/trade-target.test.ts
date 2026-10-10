@@ -16,6 +16,9 @@ vi.mock("@/lib/auth", () => ({
 		return session.user.id;
 	},
 }));
+vi.mock("@/db/risk-rule-context", () => ({
+	loadRuleContext: async () => ({ version: null }),
+}));
 vi.mock("@/db", () => ({
 	db: {
 		select: () => ({ from: () => ({ where: mocks.where }) }),

@@ -80,8 +80,18 @@ describe.skipIf(!verifyUrl)("idempotent trade create", () => {
 		const first = await createTrade({ data });
 		const second = await createTrade({ data });
 
-		expect(first).toEqual({ success: true, id: first.id, duplicate: false });
-		expect(second).toEqual({ success: true, id: first.id, duplicate: true });
+		expect(first).toEqual({
+			success: true,
+			id: first.id,
+			duplicate: false,
+			ruleCheck: null,
+		});
+		expect(second).toEqual({
+			success: true,
+			id: first.id,
+			duplicate: true,
+			ruleCheck: null,
+		});
 		const rows = await tradesWithSymbol("DRAFTA");
 		expect(rows.map((row) => row.id)).toEqual([first.id]);
 	});

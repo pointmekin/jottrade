@@ -1,4 +1,5 @@
 import type { PnlCalculationSnapshot } from "./pnl-context";
+import type { StoredRuleCheck } from "./risk-rule-evaluation";
 import type { InitialRiskSnapshot, RiskCorrection } from "./trade-risk-schema";
 import type { TradeTag } from "./trade-tag";
 
@@ -38,6 +39,7 @@ export type Trade = {
 	initialRiskSnapshot?: InitialRiskSnapshot | null;
 	managementStopPrice?: string | null;
 	riskCorrectionHistory?: RiskCorrection[] | null;
+	ruleCheck?: StoredRuleCheck | null;
 	exitQuoteToAccountRate?: string | null;
 	pnlCalculationSnapshot?: PnlCalculationSnapshot | null;
 	brokerSource?: string | null;

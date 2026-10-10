@@ -85,6 +85,7 @@ beforeEach(() => {
 		success: true,
 		id: 1,
 		duplicate: false,
+		ruleCheck: null,
 	});
 });
 afterEach(() => {
@@ -131,7 +132,12 @@ describe("log trade draft", () => {
 	it("keeps the draft after a failed save and sends the same draft id on retry", async () => {
 		vi.mocked(createTrade)
 			.mockRejectedValueOnce(new Error("Network error"))
-			.mockResolvedValueOnce({ success: true, id: 5, duplicate: true });
+			.mockResolvedValueOnce({
+				success: true,
+				id: 5,
+				duplicate: true,
+				ruleCheck: null,
+			});
 		const onSuccess = vi.fn();
 		setup(<TradeEntryForm onSuccess={onSuccess} />);
 		fillTrade();

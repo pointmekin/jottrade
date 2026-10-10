@@ -79,6 +79,7 @@ beforeEach(() => {
 		success: true,
 		id: 1,
 		duplicate: false,
+		ruleCheck: null,
 	});
 	vi.mocked(updateTrade).mockResolvedValue({ success: true });
 	state.activeAccount = state.accounts[0];

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useAccounts } from "@/hooks/use-accounts";
+import { useRuleCheck } from "@/hooks/use-rule-check";
 import { useTradeDraft } from "@/hooks/use-trade-draft";
 import { authClient } from "@/lib/auth-client";
 import { localDateTimeToIso, toDateTimeLocalValue } from "@/lib/date";
@@ -53,6 +54,7 @@ function blankCapture(): TradeCaptureValues {
 		exitDate: "",
 		fees: "",
 		notes: "",
+		ruleNote: "",
 		exitQuoteToAccountRate: "",
 	};
 }
@@ -99,6 +101,7 @@ function TradeEntryCapture({
 	const observed = useWatch({ control: form.control });
 	const values = { ...form.getValues(), ...observed };
 	const sideLabel = values.side === TradeSide.Long ? "Long" : "Short";
+	const { notifyStored } = useRuleCheck(values, account?.id);
 	const save = useMutation({
 		mutationFn: (capture: TradeCaptureValues) => {
 			if (!account) throw new Error("The reviewed account is unavailable.");
@@ -114,7 +117,8 @@ function TradeEntryCapture({
 				},
 			});
 		},
-		onSuccess: async () => {
+		onSuccess: async ({ ruleCheck }) => {
+			notifyStored(ruleCheck);
 			draft.logged();
 			await invalidateTradeQueries(client);
 			toast.success("Trade saved to journal");

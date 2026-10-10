@@ -39,6 +39,7 @@ export const tradeCaptureSchema = riskInputSchema.extend({
 		)
 		.optional(),
 	notes: z.string().optional(),
+	ruleNote: z.string().trim().max(500).optional(),
 	status: z.enum(TradeStatus).optional(),
 	setupId: z.number().int().positive().nullable().optional(),
 });

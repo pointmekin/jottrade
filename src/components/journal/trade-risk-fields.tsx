@@ -25,7 +25,7 @@ export function RiskFields({
 	values: TradeCaptureValues;
 	currency: string;
 	portfolioId?: number;
-	onChange: (patch: Partial<RiskInputs>) => void;
+	onChange: (patch: Partial<RiskInputs & { ruleNote: string }>) => void;
 }) {
 	const id = useId();
 	const unknown = !resolveInstrumentSpec(values.symbol).quoteCurrency;
@@ -66,7 +66,11 @@ export function RiskFields({
 			)}
 			<RiskPreview values={values} currency={currency} />
 			{portfolioId !== undefined && (
-				<RuleCheckPreview values={values} portfolioId={portfolioId} />
+				<RuleCheckPreview
+					values={values}
+					portfolioId={portfolioId}
+					onNoteChange={(ruleNote) => onChange({ ruleNote })}
+				/>
 			)}
 			<p className="text-xs text-muted-foreground">
 				Stop-distance risk excludes costs. Entry FX is historical and separate
