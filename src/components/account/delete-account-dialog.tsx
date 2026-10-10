@@ -20,6 +20,7 @@ import {
 	invalidateTradeQueries,
 } from "@/lib/query-keys";
 import { clearAccountReviewDrafts } from "@/lib/review-draft";
+import { clearAccountTradeDraft } from "@/lib/trade-draft";
 import { type AccountRecord, deleteAccount } from "@/server/portfolioActions";
 
 interface DeleteAccountDialogProps {
@@ -53,8 +54,10 @@ export function DeleteAccountDialog({
 			});
 		},
 		onSuccess: () => {
-			if (account && session?.user.id)
+			if (account && session?.user.id) {
 				clearAccountReviewDrafts(session.user.id, account.id);
+				clearAccountTradeDraft(session.user.id, account.id);
+			}
 			if (account && activeAccount?.id === account.id) clearActiveAccount();
 			invalidateTradeQueries(queryClient);
 			invalidateAccountEntryQueries(queryClient);

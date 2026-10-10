@@ -18,6 +18,8 @@ export type AutosaveState<T> = {
 	serverFields: T;
 	error: string | null;
 };
+export const DEVICE_STORAGE_ERROR =
+	"Device storage failed. Copy your text before leaving.";
 export type DraftStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 export class ReviewAutosave<T extends object> {
 	private draft: ReviewDraft<T>;
@@ -89,7 +91,7 @@ export class ReviewAutosave<T extends object> {
 			this.publish({
 				...this.state,
 				status: "storage-error",
-				error: "Device storage failed. Copy your text before leaving.",
+				error: DEVICE_STORAGE_ERROR,
 			});
 			return false;
 		}
@@ -102,7 +104,7 @@ export class ReviewAutosave<T extends object> {
 			this.publish({
 				...this.state,
 				status: "storage-error",
-				error: "Device storage failed. Copy your text before leaving.",
+				error: DEVICE_STORAGE_ERROR,
 			});
 		}
 	}

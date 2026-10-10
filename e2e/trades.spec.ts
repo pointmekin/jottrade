@@ -71,3 +71,94 @@ test("create with a strategy, edit and delete a trade, with each change kept aft
 	await expect(page.getByRole("heading", { name: "Journal" })).toBeVisible();
 	await expect(row).toHaveCount(0);
 });
+
+const DRAFT_SYMBOL = "E2EDRAFT";
+
+test.describe("log trade draft on a phone", () => {
+	test.use({ viewport: { width: 375, height: 812 } });
+
+	test("a draft survives a reload, and a lost response and a retry make one trade", async ({
+		page,
+	}) => {
+		await signIn(page, SeedUser.Erin);
+		await open(page, "/journal");
+		await page.getByRole("button", { name: "Log Trade" }).click();
+		const form = page.getByRole("dialog", { name: "Log New Trade" });
+		await form.getByRole("textbox", { name: "Symbol" }).fill(DRAFT_SYMBOL);
+		await form
+			.getByRole("textbox", { name: "Entry date" })
+			.fill("2026-09-02T08:00");
+		await form.getByRole("spinbutton", { name: "Entry price" }).fill("50");
+		await form.getByRole("spinbutton", { name: "Quantity (units)" }).fill("3");
+		await form.getByRole("textbox", { name: "Notes" }).fill("Draft note.");
+		await expect(form.getByText(/Draft on this device/)).toBeVisible();
+
+		await page.reload();
+		await page.getByRole("button", { name: "Log Trade Draft" }).click();
+		await expect(form.getByText(/Not in your journal yet/)).toBeVisible();
+		await expect(form.getByRole("textbox", { name: "Symbol" })).toHaveValue(
+			DRAFT_SYMBOL,
+		);
+		await expect(form.getByRole("textbox", { name: "Notes" })).toHaveValue(
+			"Draft note.",
+		);
+
+		// The server saves the trade, but the browser does not get the response.
+		let isLost = false;
+		await page.route("**/_serverFn/**", async (route) => {
+			if (isLost || route.request().method() !== "POST")
+				return route.continue();
+			isLost = true;
+			await route.fetch();
+			return route.abort();
+		});
+		await form.getByRole("button", { name: "Log Long" }).click();
+		await expect(form.getByRole("alert")).toContainText(
+			"Not saved. Your draft stays on this device.",
+		);
+		await form.getByRole("button", { name: "Log Long" }).click();
+		await expect(form).toBeHidden();
+		await expect(page.getByText("Trade saved to journal")).toBeVisible();
+
+		await page.reload();
+		const rows = page.getByRole("link", { name: new RegExp(DRAFT_SYMBOL) });
+		await expect(rows).toHaveCount(1);
+		await expect(page.getByRole("button", { name: "Log Trade" })).toHaveText(
+			"Log Trade",
+		);
+
+		await rows.click();
+		await page.getByRole("button", { name: "Delete trade" }).click();
+		await page
+			.getByRole("alertdialog", { name: "Delete trade?" })
+			.getByRole("button", { name: "Delete permanently" })
+			.click();
+		await expect(page).toHaveURL(/\/journal(\?|$)/);
+	});
+});
+
+test("each account shows only its own draft", async ({ page }) => {
+	await signIn(page, SeedUser.Bob);
+	await open(page, "/journal");
+	const logTrade = page.getByRole("button", { name: /^Log Trade/ });
+	const form = page.getByRole("dialog", { name: "Log New Trade" });
+	const symbol = form.getByRole("textbox", { name: "Symbol" });
+	await logTrade.click();
+	await symbol.fill(DRAFT_SYMBOL);
+	await form.getByRole("button", { name: "Cancel" }).click();
+	await expect(logTrade).toHaveAccessibleName("Log Trade Draft");
+
+	await page.getByRole("button", { name: /Bob Main/ }).click();
+	await page.getByRole("menuitem", { name: /Bob Crypto/ }).click();
+	await expect(logTrade).toHaveAccessibleName("Log Trade");
+	await logTrade.click();
+	await expect(symbol).toHaveValue("");
+	await expect(form.getByText(/Draft on this device/)).toHaveCount(0);
+	await form.getByRole("button", { name: "Cancel" }).click();
+
+	await page.getByRole("button", { name: /Bob Crypto/ }).click();
+	await page.getByRole("menuitem", { name: /Bob Main/ }).click();
+	await logTrade.click();
+	await expect(symbol).toHaveValue(DRAFT_SYMBOL);
+	await expect(form.getByText(/Draft on this device/)).toBeVisible();
+});

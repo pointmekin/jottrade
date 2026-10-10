@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useId } from "react";
+import { useEffect, useId } from "react";
 import { type UseFormReturn, useWatch } from "react-hook-form";
 import { PlaybookSummary } from "@/components/strategies/playbook-summary";
 import {
@@ -129,6 +129,10 @@ export function TradeStrategyField({ form }: { form: CaptureForm }) {
 	const setupId = useWatch({ control: form.control, name: "setupId" });
 	const selected = active.find((strategy) => strategy.id === setupId);
 	const hasNone = isSuccess && !active.length;
+	const isGone = isSuccess && Boolean(setupId) && !selected;
+	useEffect(() => {
+		if (isGone) form.setValue("setupId", null);
+	}, [form, isGone]);
 	return (
 		<div className="space-y-2">
 			<Label htmlFor={id}>Strategy</Label>
