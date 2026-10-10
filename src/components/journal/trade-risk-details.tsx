@@ -9,6 +9,7 @@ import {
 } from "@/lib/trade-risk";
 import { RiskUnavailableReason } from "@/lib/trade-risk-schema";
 import { TradeRiskCorrectionForm } from "./trade-risk-correction-form";
+import { TradeRuleCheck } from "./trade-rule-check";
 
 export function TradeRiskDetails({ trade }: { trade: Trade }) {
 	const { accounts } = useAccounts();
@@ -65,6 +66,7 @@ export function TradeRiskDetails({ trade }: { trade: Trade }) {
 				/>
 			)}
 			<RiskCorrectionHistory trade={trade} />
+			<TradeRuleCheck check={trade.ruleCheck} currency={currency} />
 		</section>
 	);
 }

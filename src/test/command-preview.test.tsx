@@ -8,7 +8,7 @@ import {
 	screen,
 	waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CommandPreview } from "@/components/command-palette/command-preview";
 import type { WriteIntent } from "@/lib/commands/types";
 import { addCashFlow } from "@/server/cashFlowActions";
@@ -55,6 +55,14 @@ function setup(intent: WriteIntent = trade) {
 	);
 	return { invalidate, onSuccess, onBack };
 }
+beforeEach(() => {
+	vi.mocked(createTrade).mockResolvedValue({
+		success: true,
+		id: 1,
+		duplicate: false,
+		ruleCheck: null,
+	});
+});
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
@@ -125,7 +133,12 @@ describe("command confirmation", () => {
 			() =>
 				new Promise((resolve) => {
 					resolveSave = () =>
-						resolve({ success: true, id: 1, duplicate: false });
+						resolve({
+							success: true,
+							id: 1,
+							duplicate: false,
+							ruleCheck: null,
+						});
 				}),
 		);
 		setup();

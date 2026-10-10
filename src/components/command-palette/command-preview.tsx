@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useAccounts } from "@/hooks/use-accounts";
+import { useRuleCheck } from "@/hooks/use-rule-check";
 import { AccountEntryKind } from "@/lib/account-entry";
 import { resolveCommandSymbol } from "@/lib/commands/aliases";
 import {
@@ -39,7 +40,7 @@ type TradeDraft = TradeCaptureValues;
 
 async function saveTrade(accountId: number, draft: TradeDraft) {
 	const capture = tradeCaptureSchema.parse(draft);
-	await createTrade({
+	return createTrade({
 		data: {
 			...capture,
 			portfolioId: accountId,
@@ -190,6 +191,11 @@ export function CommandPreview({
 	const account = accounts.find((item) => item.id === accountId);
 	const [draft, setDraft] = useState(() => initialDraft(intent));
 	const [amount, setAmount] = useState(() => initialAmount(intent));
+	const isTrade = intent.type === IntentType.Trade;
+	const { notifyStored } = useRuleCheck(
+		draft,
+		isTrade ? account?.id : undefined,
+	);
 	const [error, setError] = useState<string>();
 	const saving = useRef(false);
 	const requestedCurrency = requestedCurrencyOf(intent);
@@ -199,11 +205,12 @@ export function CommandPreview({
 	const mutation = useSaveIntent(intent, {
 		save: async () => {
 			if (!account) throw new Error("Choose an account before saving.");
-			if (intent.type === IntentType.Trade) {
-				await saveTrade(account.id, {
+			if (isTrade) {
+				const { ruleCheck } = await saveTrade(account.id, {
 					...draft,
 					symbol: resolveCommandSymbol(draft.symbol.trim()),
 				});
+				notifyStored(ruleCheck);
 				return;
 			}
 			await saveAccountEntry(account.id, intent.params, amount);

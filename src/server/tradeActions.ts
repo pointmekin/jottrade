@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { lockPortfolio, requireOwnedPortfolio } from "@/db/portfolios";
+import { loadRuleContext } from "@/db/risk-rule-context";
 import { trades } from "@/db/schema";
 import {
 	activeStrategySql,
@@ -11,10 +12,20 @@ import {
 } from "@/db/strategies";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { calculateManualPnl } from "@/lib/pnl-context";
+import {
+	evaluateEntry,
+	hasViolation,
+	RULES_UNREADABLE,
+	type RuleEntry,
+	type StoredRuleCheck,
+} from "@/lib/risk-rule-evaluation";
 import { TradeConfidence, TradeStatus } from "@/lib/trade";
 import { tradeCaptureSchema } from "@/lib/trade-capture";
 import { calculateInitialRisk } from "@/lib/trade-risk";
-import { optionalPositiveDecimal } from "@/lib/trade-risk-schema";
+import {
+	optionalPositiveDecimal,
+	RiskCaptureSource,
+} from "@/lib/trade-risk-schema";
 import {
 	assertExitKept,
 	assertInitialPlanPreserved,
@@ -35,6 +46,7 @@ const updateTradeSchema = tradeSchema
 		entryQuoteToAccountRate: true,
 		balanceAccount: true,
 		captureSource: true,
+		ruleNote: true,
 	})
 	.partial()
 	.extend({
@@ -46,6 +58,44 @@ const updateTradeSchema = tradeSchema
 		mistake: z.string().optional(),
 	})
 	.strict();
+
+// A read failure must not fail the save, so the check is Unknown.
+async function entryRuleCheck(
+	userId: string,
+	portfolioId: number,
+	entry: RuleEntry,
+	capture: Pick<
+		z.infer<typeof createTradeSchema>,
+		"captureSource" | "ruleNote"
+	>,
+): Promise<StoredRuleCheck | null> {
+	const stored = {
+		v: 1 as const,
+		evaluatedAt: new Date().toISOString(),
+		captureSource: capture.captureSource ?? RiskCaptureSource.Manual,
+		acknowledged: false,
+		note: null,
+		reason: null,
+	};
+	try {
+		const context = await loadRuleContext(userId, portfolioId, entry.entryDate);
+		const check = evaluateEntry(context, entry);
+		if (check.version === null) return null;
+		if (!hasViolation(check)) return { ...stored, ...check };
+		const note = capture.ruleNote || null;
+		return { ...stored, ...check, acknowledged: true, note };
+	} catch (error) {
+		console.error("Entry rule check failed", error);
+		return {
+			...stored,
+			version: null,
+			timezone: null,
+			dayKey: null,
+			outcomes: [],
+			reason: RULES_UNREADABLE,
+		};
+	}
+}
 
 export const createTrade = createServerFn({ method: "POST" })
 	.middleware([authMiddleware])
@@ -60,6 +110,7 @@ export const createTrade = createServerFn({ method: "POST" })
 		delete execution.balanceAccount;
 		delete execution.confirmedUnitQuoteCurrency;
 		delete execution.captureSource;
+		delete execution.ruleNote;
 		const plan = calculateInitialRisk({ ...data, accountCurrency });
 		const isClosing = Boolean(data.exitPrice);
 		const pnl = data.exitPrice
@@ -69,13 +120,27 @@ export const createTrade = createServerFn({ method: "POST" })
 					accountCurrency,
 				})
 			: undefined;
+		const entryDate = new Date(data.entryDate);
+		const exitDate = data.exitDate ? new Date(data.exitDate) : null;
+		const ruleCheck = await entryRuleCheck(
+			userId,
+			portfolio.id,
+			{
+				entryDate,
+				plan,
+				exit: pnl
+					? { at: exitDate ?? entryDate, netPnl: Number(pnl.netPnl) }
+					: null,
+			},
+			data,
+		);
 		const insert = db.insert(trades).values({
 			...execution,
 			userId,
 			...plan,
 			managementStopPrice: data.initialStopPrice || null,
-			entryDate: new Date(data.entryDate),
-			exitDate: data.exitDate ? new Date(data.exitDate) : null,
+			entryDate,
+			exitDate,
 			fees: data.fees || "0",
 			netPnl: pnl?.netPnl,
 			returnPercent: pnl?.returnPercent,
@@ -83,6 +148,7 @@ export const createTrade = createServerFn({ method: "POST" })
 			exitQuoteToAccountRate: pnl?.exitQuoteToAccountRate ?? null,
 			status:
 				data.status ?? (isClosing ? TradeStatus.Closed : TradeStatus.Open),
+			ruleCheck,
 		});
 		const { setupId, clientDraftId } = data;
 		let created: { id: number } | undefined;
@@ -104,15 +170,21 @@ export const createTrade = createServerFn({ method: "POST" })
 			await requireOwnedStrategy(userId, setupId);
 			throw error;
 		}
-		if (created) return { success: true, id: created.id, duplicate: false };
+		if (created)
+			return { success: true, id: created.id, duplicate: false, ruleCheck };
 		if (!clientDraftId) throw new Error("Trade was not saved.");
 		const [existing] = await db
-			.select({ id: trades.id })
+			.select({ id: trades.id, ruleCheck: trades.ruleCheck })
 			.from(trades)
 			.where(
 				and(eq(trades.userId, userId), eq(trades.clientDraftId, clientDraftId)),
 			);
-		return { success: true, id: existing.id, duplicate: true };
+		return {
+			success: true,
+			id: existing.id,
+			duplicate: true,
+			ruleCheck: existing.ruleCheck,
+		};
 	});
 
 type ExistingTrade = typeof trades.$inferSelect;

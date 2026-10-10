@@ -30,6 +30,7 @@ const tradeDraftSchema = z.object({
 		exitQuoteToAccountRate: draftText,
 		fees: draftText,
 		notes: draftText,
+		ruleNote: draftText,
 		setupId: z.number().int().positive().nullable().optional(),
 	}),
 });

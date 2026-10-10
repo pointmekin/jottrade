@@ -21,6 +21,7 @@ import { DEFAULT_CURRENCY } from "@/lib/currency";
 import type { PlaybookCriterion } from "@/lib/playbook";
 import type { PlaybookCheck } from "@/lib/playbook-check";
 import type { PnlCalculationSnapshot } from "@/lib/pnl-context";
+import type { StoredRuleCheck } from "@/lib/risk-rule-evaluation";
 import { type TradeConfidence, type TradeSide, TradeStatus } from "@/lib/trade";
 import type {
 	InitialRiskSnapshot,
@@ -232,7 +233,7 @@ export const trades = pgTable(
 		playbookCheck: jsonb("playbook_check").$type<PlaybookCheck>(),
 		clientDraftId: uuid("client_draft_id"),
 		// Reserved for the entry rule check of issue #19; no code writes it yet.
-		ruleCheck: jsonb("rule_check").$type<null>(),
+		ruleCheck: jsonb("rule_check").$type<StoredRuleCheck>(),
 	},
 	(t) => [
 		index("idx_trades_user").on(t.userId),

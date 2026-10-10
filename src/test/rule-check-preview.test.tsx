@@ -8,13 +8,19 @@ import {
 	waitFor,
 } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CommandPreview } from "@/components/command-palette/command-preview";
 import { TradeEntryForm } from "@/components/journal/TradeEntryForm";
 import type { WriteIntent } from "@/lib/commands/types";
-import type { RuleContext } from "@/lib/risk-rule-evaluation";
+import {
+	RiskRuleKind,
+	type RuleContext,
+	RuleOutcome,
+} from "@/lib/risk-rule-evaluation";
 import { DailyLossUnit, RULES_DISCLAIMER } from "@/lib/risk-rules";
 import { getRuleContext } from "@/server/riskRuleActions";
+import { createTrade } from "@/server/tradeActions";
 
 const state = vi.hoisted(() => ({
 	accounts: [{ id: 7, name: "Main account", currency: "USD" }],
@@ -34,7 +40,7 @@ vi.mock("@tanstack/react-router", () => ({
 		<a href={to}>{children}</a>
 	),
 }));
-vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), warning: vi.fn() } }));
 
 const NOW = new Date("2026-10-09T14:00:00Z");
 
@@ -173,5 +179,88 @@ describe("rule check preview", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 		await waitFor(() => expect(getRuleContext).toHaveBeenCalledTimes(2));
 		await ruleCheck();
+	});
+
+	it("shows the note field only when a rule is violated, and sends the note", async () => {
+		vi.mocked(createTrade).mockResolvedValue({
+			success: true,
+			id: 1,
+			duplicate: false,
+			ruleCheck: null,
+		});
+		setup(<TradeEntryForm />);
+		fill("Symbol", "EURUSD");
+		fill("Entry price", "1.1");
+		fill("Quantity (lots)", "1");
+		fill("Initial stop price", "1.09");
+		await ruleCheck();
+
+		fill("Why did you take it? (optional)", "News setup.");
+		fireEvent.click(screen.getByRole("button", { name: "Log Long" }));
+
+		await waitFor(() =>
+			expect(createTrade).toHaveBeenCalledWith({
+				data: expect.objectContaining({ ruleNote: "News setup." }),
+			}),
+		);
+	});
+
+	it("hides the note field when no rule is violated", async () => {
+		vi.mocked(getRuleContext).mockResolvedValue({
+			...context,
+			enteredCount: 0,
+			recentClosed: [],
+			version: { ...context.version, rules: { v: 1, maxTradesPerDay: 3 } },
+		} as RuleContext);
+		setup(<TradeEntryForm />);
+		fill("Symbol", "EURUSD");
+
+		expect((await ruleCheck()).textContent).toContain("Trades today: 1 of 3");
+		expect(
+			screen.queryByLabelText("Why did you take it? (optional)"),
+		).toBeNull();
+	});
+
+	it("shows the stored result when the server result differs from the preview", async () => {
+		vi.mocked(createTrade).mockResolvedValue({
+			success: true,
+			id: 1,
+			duplicate: false,
+			ruleCheck: {
+				v: 1,
+				version: 3,
+				timezone: "America/New_York",
+				dayKey: "2026-10-09",
+				evaluatedAt: NOW.toISOString(),
+				captureSource: "MANUAL",
+				outcomes: [
+					{
+						kind: RiskRuleKind.DailyTradeCount,
+						outcome: RuleOutcome.Violated,
+						limit: 3,
+						actual: 5,
+						reason: null,
+						until: null,
+					},
+				],
+				acknowledged: true,
+				note: null,
+				reason: null,
+			},
+		});
+		setup(<TradeEntryForm />);
+		fill("Symbol", "EURUSD");
+		fill("Entry price", "1.1");
+		fill("Quantity (lots)", "1");
+		await ruleCheck();
+
+		fireEvent.click(screen.getByRole("button", { name: "Log Long" }));
+
+		await waitFor(() =>
+			expect(toast.warning).toHaveBeenCalledWith(
+				"The saved rule check is different from the preview.",
+				{ description: "Trades today: 5 of 3 · Violated" },
+			),
+		);
 	});
 });

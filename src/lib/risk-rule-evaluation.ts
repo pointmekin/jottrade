@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { type CashFlow, realizedAt, summarizeTrades } from "./analytics";
 import { roundCents } from "./currency";
 import { toDayKey, zonedDayStart } from "./date";
@@ -7,7 +8,11 @@ import { DailyLossUnit } from "./risk-rules";
 import { TradeStatus } from "./trade";
 import type { TradeCaptureValues } from "./trade-capture";
 import { calculateInitialRisk } from "./trade-risk";
-import { type RiskPlan, RiskUnavailableReason } from "./trade-risk-schema";
+import {
+	RiskCaptureSource,
+	type RiskPlan,
+	RiskUnavailableReason,
+} from "./trade-risk-schema";
 
 export const RiskRuleKind = {
 	TradeRiskAmount: "trade_risk_amount",
@@ -65,21 +70,40 @@ export type RuleEntry = {
 	exit: { at: Date; netPnl: number | null } | null;
 };
 
-export type RuleResult = {
-	kind: RiskRuleKind;
-	outcome: RuleOutcome;
-	limit: number | null;
-	actual: number | null;
-	reason: string | null;
-	until: string | null;
-};
+const ruleResultSchema = z.object({
+	kind: z.enum(RiskRuleKind),
+	outcome: z.enum(RuleOutcome),
+	limit: z.number().nullable(),
+	actual: z.number().nullable(),
+	reason: z.string().nullable(),
+	until: z.string().nullable(),
+});
+export type RuleResult = z.infer<typeof ruleResultSchema>;
 
-export type RuleCheck = {
-	version: number | null;
-	timezone: string | null;
-	dayKey: string | null;
-	outcomes: RuleResult[];
+const ruleCheckShape = {
+	version: z.number().int().positive().nullable(),
+	timezone: z.string().nullable(),
+	dayKey: z.string().nullable(),
+	outcomes: z.array(ruleResultSchema),
 };
+export type RuleCheck = z.infer<z.ZodObject<typeof ruleCheckShape>>;
+
+/** The entry check stored on `trades.rule_check`. It never changes after the save. */
+export const ruleCheckSchema = z.object({
+	v: z.literal(1),
+	...ruleCheckShape,
+	evaluatedAt: z.iso.datetime(),
+	captureSource: z.enum(RiskCaptureSource),
+	acknowledged: z.boolean(),
+	note: z.string().nullable(),
+	reason: z.string().nullable(),
+});
+export type StoredRuleCheck = z.infer<typeof ruleCheckSchema>;
+
+export const RULES_UNREADABLE = "Rules could not be read";
+
+export const hasViolation = (check: Pick<RuleCheck, "outcomes">) =>
+	check.outcomes.some((item) => item.outcome === RuleOutcome.Violated);
 
 const NO_BALANCE = "Day-start balance unavailable";
 

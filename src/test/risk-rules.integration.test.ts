@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { RiskRuleKind, RuleOutcome } from "@/lib/risk-rule-evaluation";
 import { DailyLossUnit } from "@/lib/risk-rules";
+import { TradeSide } from "@/lib/trade";
 import { checkTarget } from "../../scripts/db/target";
 
 // Runs in `npm run verify` on the seeded database, as user-isolation.integration.test.ts.
@@ -20,12 +22,16 @@ const BOB = "seed-bob";
 const ALICE_MAIN = 1;
 const ALICE_PROP = 2;
 const ALICE_EUR = 3;
+const BOB_ACCOUNT = 4;
 const BOB_NO_TIMEZONE = 5;
 const RULES = { maxTradesPerDay: 3 };
+const SYMBOL = "RULECHECK";
+const DRAFT_ID = "0b7e3f52-4c1d-4e8a-9f3b-6a2d1c5e7f90";
 
 describe.skipIf(!verifyUrl)("risk rules on the seeded database", () => {
 	let server: typeof import("@/server/riskRuleActions");
 	let accounts: typeof import("@/server/portfolioActions");
+	let tradeActions: typeof import("@/server/tradeActions");
 	let db: typeof import("@/db").db;
 	let schema: typeof import("@/db/schema");
 	let orm: typeof import("drizzle-orm");
@@ -52,10 +58,12 @@ describe.skipIf(!verifyUrl)("risk rules on the seeded database", () => {
 		orm = await import("drizzle-orm");
 		server = await import("@/server/riskRuleActions");
 		accounts = await import("@/server/portfolioActions");
+		tradeActions = await import("@/server/tradeActions");
 	});
 
 	afterAll(async () => {
 		if (!db) return;
+		await db.delete(schema.trades).where(orm.eq(schema.trades.symbol, SYMBOL));
 		await db
 			.delete(schema.riskRuleVersions)
 			.where(orm.eq(schema.riskRuleVersions.userId, ALICE));
@@ -187,5 +195,82 @@ describe.skipIf(!verifyUrl)("risk rules on the seeded database", () => {
 		});
 
 		expect(await versionsOf(account.id)).toEqual([]);
+	});
+
+	const logTrade = (portfolioId: number, entryDate: string) =>
+		tradeActions.createTrade({
+			data: {
+				portfolioId,
+				entryDate,
+				symbol: SYMBOL,
+				side: TradeSide.Long,
+				entryPrice: "100",
+				quantity: "1",
+			},
+		});
+	const storedCheck = async (id: number) => {
+		const [row] = await db
+			.select({ ruleCheck: schema.trades.ruleCheck })
+			.from(schema.trades)
+			.where(orm.eq(schema.trades.id, id));
+		return row.ruleCheck;
+	};
+	const countOf = (check: Awaited<ReturnType<typeof storedCheck>>) =>
+		check?.outcomes.find((item) => item.kind === RiskRuleKind.DailyTradeCount);
+
+	it("checks a trade only with the rules and day facts of its own account", async () => {
+		session.userId = ALICE;
+		await server.saveRiskRules({
+			data: { portfolioId: ALICE_PROP, rules: RULES },
+		});
+		const entryDate = new Date(Date.now() + 60_000).toISOString();
+		session.userId = BOB;
+		const bob = await logTrade(BOB_ACCOUNT, entryDate);
+		await expect(logTrade(ALICE_PROP, entryDate)).rejects.toThrow(
+			"Account not found.",
+		);
+		session.userId = ALICE;
+		const { enteredCount } = await server.getRuleContext({
+			data: { portfolioId: ALICE_PROP, entryDate },
+		});
+		const main = await logTrade(ALICE_MAIN, entryDate);
+		const prop = await logTrade(ALICE_PROP, entryDate);
+
+		expect(bob.ruleCheck).toBeNull();
+		expect(await storedCheck(bob.id)).toBeNull();
+		expect(await storedCheck(main.id)).toBeNull();
+		const stored = await storedCheck(prop.id);
+		expect(stored).toEqual(prop.ruleCheck);
+		expect(stored).toMatchObject({ v: 1, timezone: "UTC" });
+		expect(countOf(stored)).toMatchObject({
+			limit: 3,
+			actual: enteredCount + 1,
+		});
+	});
+
+	it("makes one trade with one check for a retry with the same draft id", async () => {
+		session.userId = ALICE;
+		const data = {
+			portfolioId: ALICE_PROP,
+			entryDate: new Date(Date.now() + 60_000).toISOString(),
+			symbol: SYMBOL,
+			side: TradeSide.Long,
+			entryPrice: "100",
+			quantity: "1",
+			clientDraftId: DRAFT_ID,
+		};
+
+		const first = await tradeActions.createTrade({ data });
+		const retry = await tradeActions.createTrade({ data });
+
+		expect(retry).toMatchObject({ id: first.id, duplicate: true });
+		expect(retry.ruleCheck).toEqual(first.ruleCheck);
+		expect(await storedCheck(first.id)).toEqual(first.ruleCheck);
+		const rows = await db
+			.select({ id: schema.trades.id })
+			.from(schema.trades)
+			.where(orm.eq(schema.trades.clientDraftId, DRAFT_ID));
+		expect(rows).toHaveLength(1);
+		expect(countOf(first.ruleCheck)?.outcome).not.toBe(RuleOutcome.NotSet);
 	});
 });

@@ -32,6 +32,7 @@ const draft: TradeDraft = {
 		side: TradeSide.Short,
 		entryPrice: "1.1",
 		notes: "Waited for the retest.",
+		ruleNote: "Planned the size before the open.",
 		setupId: 4,
 	},
 };

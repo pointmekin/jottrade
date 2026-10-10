@@ -20,6 +20,9 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@tanstack/react-start", () => import("./server-fn-mock"));
 vi.mock("@/lib/auth", () => ({ requireUserId: () => mocks.user() }));
+vi.mock("@/db/risk-rule-context", () => ({
+	loadRuleContext: async () => ({ version: null }),
+}));
 vi.mock("@/db", () => ({
 	db: {
 		select: () => ({ from: () => ({ where: mocks.where }) }),
