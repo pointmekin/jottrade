@@ -1,9 +1,4 @@
-import {
-	Link,
-	useHydrated,
-	useLocation,
-	useRouter,
-} from "@tanstack/react-router";
+import { Link, useHydrated, useLocation } from "@tanstack/react-router";
 import {
 	Check,
 	Crosshair,
@@ -16,6 +11,7 @@ import {
 import { useState } from "react";
 import { AccountFormDialog } from "@/components/account/account-form-dialog";
 import { AccountKindBadge } from "@/components/account/account-kind-badge";
+import { SignOutDialog } from "@/components/sign-out-dialog";
 import { Separator } from "@/components/ui/separator";
 import {
 	Sheet,
@@ -24,6 +20,7 @@ import {
 	SheetTitle,
 } from "@/components/ui/sheet";
 import { useAccounts } from "@/hooks/use-accounts";
+import { useSignOut } from "@/hooks/use-sign-out";
 import { authClient } from "@/lib/auth-client";
 import { navItems } from "@/lib/nav-items";
 import { cn } from "@/lib/utils";
@@ -32,7 +29,6 @@ const mobileItems = navItems.slice(0, 4);
 
 export function BottomNav({ onOpenCommands }: { onOpenCommands?: () => void }) {
 	const location = useLocation();
-	const router = useRouter();
 	const session = authClient.useSession();
 	const isHydrated = useHydrated();
 	const [sheetOpen, setSheetOpen] = useState(false);
@@ -41,11 +37,10 @@ export function BottomNav({ onOpenCommands }: { onOpenCommands?: () => void }) {
 
 	const isActive = (url: string) =>
 		location.pathname === url || location.pathname.startsWith(`${url}/`);
-	const handleSignOut = async () => {
+	const signOut = useSignOut();
+	const handleSignOut = () => {
 		setSheetOpen(false);
-		await authClient.signOut({
-			fetchOptions: { onSuccess: () => router.navigate({ to: "/sign-in" }) },
-		});
+		signOut.requestSignOut();
 	};
 	const userInitial = isHydrated
 		? (session.data?.user.name?.charAt(0).toUpperCase() ?? "U")
@@ -207,6 +202,7 @@ export function BottomNav({ onOpenCommands }: { onOpenCommands?: () => void }) {
 				open={accountFormOpen}
 				onOpenChange={setAccountFormOpen}
 			/>
+			<SignOutDialog {...signOut} />
 		</>
 	);
 }

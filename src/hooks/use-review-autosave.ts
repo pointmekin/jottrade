@@ -40,11 +40,23 @@ export function useReviewAutosave<T extends object>(
 				.then((value) => controller.reconcile(value))
 				.catch(() => {});
 		};
+		const reconnect = () => {
+			void reload()
+				.then((value) => {
+					controller.reconcile(value);
+					const { status } = controller.getSnapshot();
+					if (status === "local" || status === "error")
+						return controller.flush();
+				})
+				.catch(() => {});
+		};
 		window.addEventListener("focus", refresh);
 		window.addEventListener("storage", refresh);
+		window.addEventListener("online", reconnect);
 		return () => {
 			window.removeEventListener("focus", refresh);
 			window.removeEventListener("storage", refresh);
+			window.removeEventListener("online", reconnect);
 			controller.dispose();
 		};
 	}, [controller, reload]);

@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import type { SaveStatus } from "@/lib/review-autosave";
 
@@ -10,6 +11,15 @@ const LABELS: Record<SaveStatus, string> = {
 		"Changed elsewhere. Reload to compare before choosing which text to save.",
 	"storage-error": "Device storage failed. Copy your text before leaving.",
 };
+const OFFLINE_LABEL = "Offline. Saved on this device only.";
+function subscribeOnline(onChange: () => void) {
+	window.addEventListener("online", onChange);
+	window.addEventListener("offline", onChange);
+	return () => {
+		window.removeEventListener("online", onChange);
+		window.removeEventListener("offline", onChange);
+	};
+}
 export function ReviewSaveStatus({
 	status,
 	error,
@@ -25,6 +35,13 @@ export function ReviewSaveStatus({
 	resolve: (keep: boolean) => void;
 	serverText: string;
 }) {
+	const isOnline = useSyncExternalStore(
+		subscribeOnline,
+		() => navigator.onLine,
+		() => true,
+	);
+	const label =
+		status === "error" && !isOnline ? OFFLINE_LABEL : LABELS[status];
 	return (
 		<div className="space-y-2 text-xs" aria-live="polite">
 			<p
@@ -32,7 +49,7 @@ export function ReviewSaveStatus({
 					status === "error" || status === "storage-error" ? "alert" : "status"
 				}
 			>
-				{LABELS[status]}
+				{label}
 			</p>
 			{error && <p className="text-destructive">{error}</p>}
 			{(status === "error" || status === "storage-error") && (

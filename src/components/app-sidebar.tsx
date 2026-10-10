@@ -27,8 +27,10 @@ import {
 	SidebarMenuItem,
 	useSidebar,
 } from "@/components/ui/sidebar";
+import { useSignOut } from "@/hooks/use-sign-out";
 import { navItems } from "@/lib/nav-items";
 import { authClient } from "../lib/auth-client";
+import { SignOutDialog } from "./sign-out-dialog";
 import { Separator } from "./ui/separator";
 import { Spinner } from "./ui/spinner";
 
@@ -56,11 +58,7 @@ export function AppSidebar({
 	const { state, toggleSidebar } = useSidebar();
 	const isCollapsed = state === "collapsed";
 
-	const handleSignOut = async () => {
-		await authClient.signOut({
-			fetchOptions: { onSuccess: () => router.navigate({ to: "/sign-in" }) },
-		});
-	};
+	const signOut = useSignOut();
 
 	const isActive = (url: string) =>
 		location.pathname === url || location.pathname.startsWith(`${url}/`);
@@ -211,7 +209,7 @@ export function AppSidebar({
 									</Link>
 									<Separator className="my-1" />
 									<DropdownMenuItem
-										onClick={handleSignOut}
+										onClick={signOut.requestSignOut}
 										className="gap-2 text-destructive focus:text-destructive"
 									>
 										<LogOut className="size-4" /> Sign out
@@ -222,6 +220,7 @@ export function AppSidebar({
 					</SidebarMenu>
 				)}
 			</SidebarFooter>
+			<SignOutDialog {...signOut} />
 		</Sidebar>
 	);
 }
