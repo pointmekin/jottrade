@@ -17,6 +17,12 @@ export const PlanAdherence = {
 
 export type PlanAdherence = (typeof PlanAdherence)[keyof typeof PlanAdherence];
 
+export const PLAN_ADHERENCE_LABEL: Record<PlanAdherence, string> = {
+	[PlanAdherence.Followed]: "Followed",
+	[PlanAdherence.Broken]: "Broke",
+	[PlanAdherence.Unchecked]: "Not checked",
+};
+
 export const playbookCheckSchema = z.object({
 	v: z.literal(1),
 	strategyId: z.number().int().positive(),

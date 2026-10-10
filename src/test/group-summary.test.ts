@@ -4,7 +4,12 @@ import {
 	summarizeTrades,
 	type TradeRecord,
 } from "@/lib/analytics";
-import { summarizeGroup, summarizeGroups } from "@/lib/group-summary";
+import {
+	summarizeAdherence,
+	summarizeGroup,
+	summarizeGroups,
+} from "@/lib/group-summary";
+import { PlanAdherence } from "@/lib/playbook-check";
 import { TradeStatus } from "@/lib/trade";
 
 describe("summarizeGroup", () => {
@@ -22,6 +27,34 @@ describe("summarizeGroup", () => {
 
 	it("reports the win rate as unavailable for an empty group", () => {
 		expect(summarizeGroup([]).winRate).toBeNull();
+	});
+});
+
+describe("summarizeAdherence", () => {
+	it("splits every trade into one plan bucket, so the buckets add up to all", () => {
+		const adherence = Object.values(PlanAdherence);
+		const rows = Array.from({ length: 31 }, (_, i) => ({
+			netPnl: ((i * 13) % 9) - 4 + 0.25,
+			adherence: adherence[i % adherence.length],
+		}));
+
+		const { all, followed, broken, unchecked } = summarizeAdherence(rows);
+
+		expect(all).toEqual(summarizeGroup(rows.map((row) => row.netPnl)));
+		expect(followed.count + broken.count + unchecked.count).toBe(all.count);
+		expect(followed.wins + broken.wins + unchecked.wins).toBe(all.wins);
+		expect(
+			followed.totalPnl + broken.totalPnl + unchecked.totalPnl,
+		).toBeCloseTo(all.totalPnl, 2);
+		expect(followed.count).toBe(11);
+	});
+
+	it("returns empty buckets when no trade is checked", () => {
+		const { followed, broken, unchecked } = summarizeAdherence([
+			{ netPnl: 5, adherence: PlanAdherence.Unchecked },
+		]);
+
+		expect([followed.count, broken.count, unchecked.count]).toEqual([0, 0, 1]);
 	});
 });
 

@@ -10,6 +10,7 @@ import { SymbolMatch } from "@/lib/analysis-scope";
 import { CLEARED_TRADE_FILTERS, NO_STRATEGY } from "@/lib/journal-search";
 import { describePeriod, PeriodPreset } from "@/lib/period";
 import { strategyLabel } from "@/lib/playbook";
+import { PLAN_ADHERENCE_LABEL, type PlanAdherence } from "@/lib/playbook-check";
 import { QueryKey } from "@/lib/query-keys";
 import { type TradeSide, TradeStatus } from "@/lib/trade";
 import { parseTagIds, TagMatch } from "@/lib/trade-tag";
@@ -27,6 +28,7 @@ export type JournalFilters = {
 	status?: TradeStatus;
 	/** A strategy id, or "none". */
 	setupId?: string;
+	adherence?: PlanAdherence;
 	/** Comma-separated confidence levels. */
 	confidence?: string;
 	mistake?: string;
@@ -218,6 +220,14 @@ function FilterChips({
 					onClear={() => update({ setupId: undefined })}
 				/>
 			)}
+			{filters.adherence && (
+				<FilterChip
+					clearLabel="Clear plan filter"
+					onClear={() => update({ adherence: undefined })}
+				>
+					Plan: {PLAN_ADHERENCE_LABEL[filters.adherence]}
+				</FilterChip>
+			)}
 			{filters.confidence && (
 				<FilterChip
 					clearLabel="Clear confidence filter"
@@ -267,6 +277,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 		filters.side,
 		filters.status,
 		filters.setupId,
+		filters.adherence,
 		filters.confidence,
 		filters.mistake,
 		filters.tags,

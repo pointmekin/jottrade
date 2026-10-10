@@ -1,6 +1,11 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { PlaybookCriterionKind } from "@/lib/playbook";
-import { TradeSide } from "@/lib/trade";
+import {
+	buildPlaybookCheck,
+	CriterionResult,
+	PlanAdherence,
+} from "@/lib/playbook-check";
+import { TradeSide, TradeStatus } from "@/lib/trade";
 import { BulkTradeAction } from "@/lib/trade-tag";
 import { checkTarget } from "../../scripts/db/target";
 
@@ -19,6 +24,7 @@ vi.mock("@tanstack/react-start", () => import("./server-fn-mock"));
 // Seed facts from scripts/db/seed-accounts.ts.
 const ALICE = "seed-alice";
 const BOB = "seed-bob";
+const ALICE_ACCOUNT = 1;
 const BOB_ACCOUNT = 4;
 const ALICE_STRATEGY = 1;
 const STRATEGY_UNAVAILABLE =
@@ -35,6 +41,7 @@ describe.skipIf(!verifyUrl)("strategy isolation on the seeded database", () => {
 		trades: typeof import("@/server/tradeActions");
 		strategies: typeof import("@/server/strategyActions");
 		tags: typeof import("@/server/tagActions");
+		list: typeof import("@/server/getTrades");
 	};
 	let db: typeof import("@/db").db;
 	let schema: typeof import("@/db/schema");
@@ -55,6 +62,7 @@ describe.skipIf(!verifyUrl)("strategy isolation on the seeded database", () => {
 			trades: await import("@/server/tradeActions"),
 			strategies: await import("@/server/strategyActions"),
 			tags: await import("@/server/tagActions"),
+			list: await import("@/server/getTrades"),
 		};
 	});
 	it("rejects another user's strategy on a trade create, edit or bulk edit", async () => {
@@ -245,5 +253,95 @@ describe.skipIf(!verifyUrl)("strategy isolation on the seeded database", () => {
 
 			expect(await linked()).toEqual(before);
 		});
+	});
+
+	it("splits the closed trades of a strategy by the check you marked, as the journal does", async () => {
+		const { inArray } = await import("drizzle-orm");
+		session.userId = ALICE;
+		const strategy = await server.strategies.createStrategy({
+			data: { name: "Compared", criteria: [CRITERION] },
+		});
+		const check = (result: CriterionResult, id = strategy.id) =>
+			buildPlaybookCheck(
+				{ ...strategy, id },
+				{ [CRITERION.id]: result },
+				new Date(),
+			);
+		const closed = (netPnl: string, playbookCheck: unknown) => ({
+			userId: ALICE,
+			portfolioId: ALICE_ACCOUNT,
+			symbol: "ADHERENCE",
+			side: TradeSide.Long,
+			status: TradeStatus.Closed,
+			entryDate: new Date("2026-09-01T08:00:00Z"),
+			exitDate: new Date("2026-09-01T09:00:00Z"),
+			netPnl,
+			setupId: strategy.id,
+			playbookCheck: playbookCheck as ReturnType<typeof check> | null,
+		});
+		const inserted = await db
+			.insert(schema.trades)
+			.values([
+				closed("30", check(CriterionResult.Followed)),
+				closed("-10.5", check(CriterionResult.Followed)),
+				closed("-25", check(CriterionResult.Broke)),
+				closed("12", check(CriterionResult.Followed, ALICE_STRATEGY)),
+				closed("4", null),
+				{
+					...closed("99", check(CriterionResult.Followed)),
+					status: TradeStatus.Open,
+				},
+			])
+			.returning({ id: schema.trades.id });
+		const scope = { portfolioId: ALICE_ACCOUNT, strategyId: strategy.id };
+		try {
+			const performance = await server.strategies.getStrategyPerformance({
+				data: scope,
+			});
+			const { all, followed, broken, unchecked } = performance;
+			expect([followed.count, broken.count, unchecked.count]).toEqual([
+				2, 1, 2,
+			]);
+			expect(all.count).toBe(followed.count + broken.count + unchecked.count);
+			expect(unchecked.totalPnl).toBe(16);
+			for (const adherence of Object.values(PlanAdherence)) {
+				const { closedSummary } = await server.list.getTrades({
+					data: {
+						portfolioId: ALICE_ACCOUNT,
+						setupId: strategy.id,
+						status: TradeStatus.Closed,
+						adherence,
+						page: 1,
+					},
+				});
+				expect(closedSummary, adherence).toEqual({
+					count: performance[adherence].count,
+					netPnl: performance[adherence].totalPnl,
+				});
+			}
+
+			session.userId = BOB;
+			const foreign = await server.strategies.getStrategyPerformance({
+				data: scope,
+			});
+			const bobList = await server.list.getTrades({
+				data: {
+					portfolioId: ALICE_ACCOUNT,
+					adherence: PlanAdherence.Followed,
+					page: 1,
+				},
+			});
+			expect(foreign.all.count).toBe(0);
+			expect(bobList.total).toBe(0);
+		} finally {
+			await db.delete(schema.trades).where(
+				inArray(
+					schema.trades.id,
+					inserted.map(({ id }) => id),
+				),
+			);
+			session.userId = ALICE;
+			await server.strategies.deleteStrategy({ data: { id: strategy.id } });
+		}
 	});
 });

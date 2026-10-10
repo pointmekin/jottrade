@@ -10,6 +10,7 @@ import {
 	toTradeQuery,
 } from "@/lib/journal-search";
 import { PeriodPreset } from "@/lib/period";
+import { PlanAdherence } from "@/lib/playbook-check";
 import { TradeStatus } from "@/lib/trade";
 
 describe("journal search", () => {
@@ -28,6 +29,7 @@ describe("journal search", () => {
 			"side",
 			"status",
 			"setupId",
+			"adherence",
 			"confidence",
 			"mistake",
 			"tags",
@@ -37,6 +39,21 @@ describe("journal search", () => {
 			"dateTo",
 			"savedView",
 		]);
+	});
+
+	it("sends the plan adherence of a strategy link to the trade query", () => {
+		const search = journalSearchSchema.parse({
+			setupId: "4",
+			adherence: PlanAdherence.Broken,
+			status: TradeStatus.Closed,
+		});
+
+		expect(toTradeQuery(search, { from: null, to: null })).toMatchObject({
+			setupId: 4,
+			adherence: PlanAdherence.Broken,
+			status: TradeStatus.Closed,
+		});
+		expect(() => journalSearchSchema.parse({ adherence: "maybe" })).toThrow();
 	});
 });
 

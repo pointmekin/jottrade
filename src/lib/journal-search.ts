@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { AccountEntryRecord } from "./account-entry";
 import { SymbolMatch } from "./analysis-scope";
 import { PeriodPreset } from "./period";
+import { PlanAdherence } from "./playbook-check";
 import { TradeConfidence, TradeSide, TradeStatus } from "./trade";
 import { SortDirection, TradeSortField } from "./trade-sort";
 import { parseTagIds, TagMatch } from "./trade-tag";
@@ -26,6 +27,7 @@ export const scopeSearchSchema = z.object({
 	side: z.enum(TradeSide).optional(),
 	status: z.enum(TradeStatus).optional(),
 	setupId: z.string().optional(),
+	adherence: z.enum(PlanAdherence).optional(),
 	confidence: z.string().optional(),
 	mistake: z.string().optional(),
 	tags: z.string().optional(),
@@ -47,6 +49,7 @@ export const CLEARED_TRADE_FILTERS = {
 	side: undefined,
 	status: undefined,
 	setupId: undefined,
+	adherence: undefined,
 	confidence: undefined,
 	mistake: undefined,
 	tags: undefined,
@@ -96,6 +99,7 @@ export function toTradeQuery(
 		side: search.side,
 		status: search.status,
 		setupId: toSetupFilter(search.setupId),
+		adherence: search.adherence,
 		confidence,
 		mistake: splitList(search.mistake),
 		tagIds: parseTagIds(search.tags),

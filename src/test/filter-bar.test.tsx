@@ -6,6 +6,7 @@ import { FilterBar, type JournalFilters } from "@/components/journal/FilterBar";
 import { SymbolMatch } from "@/lib/analysis-scope";
 import { CLEARED_TRADE_FILTERS } from "@/lib/journal-search";
 import { PeriodPreset } from "@/lib/period";
+import { PlanAdherence } from "@/lib/playbook-check";
 
 vi.mock("@tanstack/react-query", () => ({
 	useQuery: () => ({ data: [{ id: 7, name: "Breakout" }] }),
@@ -210,6 +211,19 @@ describe("FilterBar", () => {
 
 		expect(screen.getByText("Closed or opened in: This month")).toBeTruthy();
 		expect(screen.getByText("Strategy: None")).toBeTruthy();
+	});
+
+	it("shows and clears the plan adherence filter of a strategy link", () => {
+		const { onFiltersChange } = renderFilterBar({
+			setupId: "7",
+			adherence: PlanAdherence.Unchecked,
+		});
+
+		expect(screen.getByText("Plan: Not checked")).toBeTruthy();
+		fireEvent.click(screen.getByRole("button", { name: "Clear plan filter" }));
+		expect(onFiltersChange).toHaveBeenCalledWith(
+			expect.objectContaining({ setupId: "7", adherence: undefined }),
+		);
 	});
 
 	it("shows an exact symbol from a chart and drops the exact match when the user types", () => {

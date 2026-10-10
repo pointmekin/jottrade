@@ -3,7 +3,8 @@ import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { strategies, trades } from "@/db/schema";
-import { summarizeGroup } from "@/lib/group-summary";
+import { tradeAdherence, tradeConditions } from "@/db/trade-filter";
+import { summarizeAdherence } from "@/lib/group-summary";
 import { playbookFieldsSchema } from "@/lib/playbook";
 import { TradeStatus } from "@/lib/trade";
 import { authMiddleware } from "./auth-middleware";
@@ -17,7 +18,7 @@ export const getStrategies = createServerFn({ method: "GET" })
 		return db.select().from(strategies).where(eq(strategies.userId, userId));
 	});
 
-/** All time, over every closed trade of the strategy, so it does not depend on journal pages. */
+/** All time, over every closed trade of the strategy, so it does not depend on journal pages. The journal filter gives the same buckets. */
 export const getStrategyPerformance = createServerFn({ method: "GET" })
 	.middleware([authMiddleware])
 	.validator(
@@ -29,17 +30,18 @@ export const getStrategyPerformance = createServerFn({ method: "GET" })
 	.handler(async ({ data, context }) => {
 		const { userId } = context;
 		const rows = await db
-			.select({ netPnl: trades.netPnl })
+			.select({ netPnl: trades.netPnl, adherence: tradeAdherence })
 			.from(trades)
 			.where(
-				and(
-					eq(trades.userId, userId),
-					eq(trades.portfolioId, data.portfolioId),
-					eq(trades.setupId, data.strategyId),
-					eq(trades.status, TradeStatus.Closed),
-				),
+				tradeConditions(userId, {
+					portfolioId: data.portfolioId,
+					setupId: data.strategyId,
+					status: TradeStatus.Closed,
+				}),
 			);
-		return summarizeGroup(rows.map((row) => Number(row.netPnl ?? 0)));
+		return summarizeAdherence(
+			rows.map((row) => ({ ...row, netPnl: Number(row.netPnl ?? 0) })),
+		);
 	});
 
 export const createStrategy = createServerFn({ method: "POST" })

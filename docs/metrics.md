@@ -61,4 +61,11 @@ The **balance at entry** is every deposit, withdrawal, adjustment and closed tra
 
 The dashboard strategy chart and the strategy page use one aggregation, `summarizeGroup`. The strategy page reads every closed trade of the strategy on the server, so it does not depend on journal pages. With the dashboard period set to "All time", both screens show the same trade count, average P&L and win rate. The test "strategy reconciliation fixture" in `src/test/group-summary.test.ts` checks this on 80 trades.
 
+The strategy page also splits the same closed trades by plan adherence (`summarizeAdherence`). The bucket of a trade comes from `tradeAdherence` in `src/db/trade-filter.ts`:
+
+- "Followed" or "Broke": the result of the saved playbook check, when the check `strategyId` equals the trade `setup_id`.
+- "Not checked": no check, or a check for another strategy.
+
+The three buckets add up to the "all" totals. The journal `adherence` filter uses the same expression, so "Open N trades" shows the same closed count and net P&L. "Followed" is the trader's own answer, not a measured fact.
+
 `scripts/reconcile-metrics.ts` runs the same check on a real database. It reads every account in one read-only transaction and compares the headline and the strategy chart with SQL totals. It also counts the closed trades whose stored `return_percent` is not the price return.
