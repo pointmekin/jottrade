@@ -74,7 +74,7 @@ The three buckets add up to the "all" totals. The journal `adherence` filter use
 
 The dashboard "Rules today" card and the "Rule compliance" section check the trades of the active account against its risk and discipline rules (issue #19). The code is in `src/lib/risk-rule-compliance.ts`. It reuses the rule functions of the entry check (`src/lib/risk-rule-evaluation.ts`).
 
-- **Version.** Each event uses the version in effect at that time: the latest version with `effective_from` at or before the event. An event before the first version is not checked (no backfill). A rule edit does not change old events. A trade edit or a risk correction changes the result, because the check reads the current trade.
+- **Version.** Each event uses the version in effect at that time: the latest version with `effective_from` at or before the event. A version is effective from the start of its save minute, because entry dates have minute precision. An event before the first version is not checked (no backfill). A rule edit does not change old events. A trade edit or a risk correction changes the result, because the check reads the current trade.
 - **Day.** A day ends at midnight in the timezone saved with the version. The browser timezone does not change it.
 - **Per trade.** Risk per trade (amount and %) and cooldown are checked at the entry time of each trade in the period.
 - **Per day.** Daily loss and trades per day are checked once for each day with an event in the period. The latest event of the day selects the version.

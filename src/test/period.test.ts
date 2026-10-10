@@ -58,6 +58,16 @@ describe("resolvePeriod", () => {
 		expect(to?.getHours()).toBe(23);
 	});
 
+	it("keeps exact instants in a custom range, in any browser timezone", () => {
+		const from = "2026-10-09T04:00:00.000Z";
+		const to = "2026-10-10T03:59:59.999Z";
+
+		const range = resolvePeriod({ preset: PeriodPreset.Custom, from, to }, NOW);
+
+		expect(iso(range.from)).toBe(from);
+		expect(iso(range.to)).toBe(to);
+	});
+
 	it("leaves a missing custom bound open", () => {
 		const { from, to } = resolvePeriod(
 			{ preset: PeriodPreset.Custom, from: "2025-02-01" },

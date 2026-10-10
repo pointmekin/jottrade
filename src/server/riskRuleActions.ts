@@ -9,6 +9,7 @@ import {
 	toDateRange,
 } from "@/lib/analysis-scope";
 import { evaluateCompliance, evaluateToday } from "@/lib/risk-rule-compliance";
+import { evaluateTradeNow } from "@/lib/risk-rule-trade-check";
 import { riskRulesInputSchema } from "@/lib/risk-rules";
 import { authMiddleware } from "./auth-middleware";
 
@@ -62,6 +63,17 @@ export const getRuleCompliance = createServerFn({ method: "GET" })
 export type RuleComplianceResult = NonNullable<
 	Awaited<ReturnType<typeof getRuleCompliance>>
 >;
+
+export const getTradeRuleCheckNow = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
+	.validator(portfolioIdSchema.extend({ tradeId: z.number().int().positive() }))
+	.handler(async ({ data, context }) => {
+		const history = await loadComplianceHistory(
+			context.userId,
+			data.portfolioId,
+		);
+		return history && evaluateTradeNow(history, data.tradeId);
+	});
 
 export const saveRiskRules = createServerFn({ method: "POST" })
 	.middleware([authMiddleware])

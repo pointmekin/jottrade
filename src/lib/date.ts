@@ -58,6 +58,20 @@ export function zonedDayStart(day: string, timeZone: string): Date {
 	return new Date(start);
 }
 
+/** The first and the last instant of civil days, as ISO strings for a period link or a scope. */
+export function zonedDayBounds(
+	fromDay: string,
+	toDayExclusive: string,
+	timeZone: string,
+) {
+	return {
+		dateFrom: zonedDayStart(fromDay, timeZone).toISOString(),
+		dateTo: new Date(
+			zonedDayStart(toDayExclusive, timeZone).getTime() - 1,
+		).toISOString(),
+	};
+}
+
 export function previousDayKey(day: string): string {
 	const date = new Date(`${day}T00:00:00Z`);
 	date.setUTCDate(date.getUTCDate() - 1);

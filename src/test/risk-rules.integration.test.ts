@@ -248,6 +248,41 @@ describe.skipIf(!verifyUrl)("risk rules on the seeded database", () => {
 		});
 	});
 
+	it("checks a trade logged in the same minute as the save with that version", async () => {
+		session.userId = ALICE;
+		const [account] = await db
+			.insert(schema.portfolios)
+			.values({ userId: ALICE, name: "Same minute", reviewTimezone: "UTC" })
+			.returning({ id: schema.portfolios.id });
+		await server.saveRiskRules({
+			data: { portfolioId: account.id, rules: RULES },
+		});
+		// The entry input has minute precision.
+		const minute = new Date();
+		minute.setUTCSeconds(0, 0);
+
+		const logged = await logTrade(account.id, minute.toISOString());
+		const now = await server.getTradeRuleCheckNow({
+			data: { portfolioId: account.id, tradeId: logged.id },
+		});
+
+		expect(logged.ruleCheck).toMatchObject({ version: 1 });
+		expect(now).toMatchObject({
+			version: 1,
+			outcomes: logged.ruleCheck?.outcomes,
+		});
+		session.userId = BOB;
+		await expect(
+			server.getTradeRuleCheckNow({
+				data: { portfolioId: account.id, tradeId: logged.id },
+			}),
+		).rejects.toThrow("Account not found.");
+		session.userId = ALICE;
+		await accounts.deleteAccount({
+			data: { id: account.id, confirmName: "Same minute" },
+		});
+	});
+
 	it("makes one trade with one check for a retry with the same draft id", async () => {
 		session.userId = ALICE;
 		const data = {

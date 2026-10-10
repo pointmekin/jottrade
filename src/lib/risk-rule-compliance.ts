@@ -52,6 +52,7 @@ export type RuleViolation = {
 	dayKey: string;
 	tradeId: number | null;
 	version: number;
+	timezone: string;
 	limit: number | null;
 	actual: number | null;
 	sourceTradeIds: number[];
@@ -106,7 +107,10 @@ class Tally {
 	add(
 		result: RuleResult,
 		version: RuleVersion,
-		fields: Omit<RuleViolation, "kind" | "version" | "limit" | "actual">,
+		fields: Omit<
+			RuleViolation,
+			"kind" | "version" | "timezone" | "limit" | "actual"
+		>,
 	) {
 		if (result.outcome === RuleOutcome.NotSet) return;
 		this.versions.add(version.version);
@@ -125,6 +129,7 @@ class Tally {
 			this.violations.push({
 				kind: result.kind,
 				version: version.version,
+				timezone: version.timezone,
 				limit: result.limit,
 				actual: result.actual,
 				...fields,

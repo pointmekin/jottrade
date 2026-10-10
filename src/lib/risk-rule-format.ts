@@ -8,6 +8,9 @@ export const RULE_LABEL: Record<RiskRuleKind, string> = {
 	[RiskRuleKind.Cooldown]: "Cooldown",
 };
 
+/** The dashboard section id, so a link can open it. */
+export const RULE_COMPLIANCE_ID = "rule-compliance";
+
 const DAY_FORMAT = new Intl.DateTimeFormat("en-GB", {
 	timeZone: "UTC",
 	weekday: "short",

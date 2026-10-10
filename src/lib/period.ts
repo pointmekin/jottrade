@@ -58,9 +58,12 @@ export type PeriodSelection = {
 	to?: string;
 };
 
+/** A link can send an exact instant, for example a day in the rules timezone. */
+const isInstant = (value: string | undefined) => value?.includes("T");
+
 function parseDay(value: string | undefined): Date | null {
 	if (!value) return null;
-	const parsed = new Date(`${value}T00:00:00`);
+	const parsed = new Date(isInstant(value) ? value : `${value}T00:00:00`);
 	return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
@@ -92,7 +95,8 @@ export function resolvePeriod(
 		case PeriodPreset.Custom: {
 			const from = parseDay(selection?.from);
 			const to = parseDay(selection?.to);
-			return { from, to: to ? endOfDay(to) : null };
+			if (!to || isInstant(selection?.to)) return { from, to };
+			return { from, to: endOfDay(to) };
 		}
 		default:
 			return { from: null, to: null };

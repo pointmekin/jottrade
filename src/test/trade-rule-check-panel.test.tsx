@@ -54,11 +54,35 @@ describe("rule check at entry", () => {
 		render(<TradeRuleCheck check={check} currency="USD" />);
 
 		const text = panel().textContent;
-		expect(text).toContain("Trades today: 4 of 3 · Violated");
+		expect(text).toContain("Trades per day: 4 of 3 · Violated");
 		expect(text).not.toContain("Risk per trade");
 		expect(text).toContain("Rules v3 · Fri 9 Oct, America/New_York");
 		expect(text).toContain("Why did you take it?");
 		expect(text).toContain("Clean breakout.");
+	});
+
+	it("adds today's result when it differs from the stored check", () => {
+		const now = {
+			version: 3,
+			timezone: check.timezone,
+			dayKey: check.dayKey,
+			outcomes: check.outcomes.map((item) => ({
+				...item,
+				outcome:
+					item.outcome === RuleOutcome.Violated
+						? RuleOutcome.Pass
+						: item.outcome,
+			})),
+		};
+		render(<TradeRuleCheck check={check} now={now} currency="USD" />);
+
+		expect(panel().textContent).toContain("Now: Pass (v3)");
+	});
+
+	it("shows no today line when the result is the same", () => {
+		render(<TradeRuleCheck check={check} now={check} currency="USD" />);
+
+		expect(panel().textContent).not.toContain("Now:");
 	});
 
 	it("shows Unknown when the rules could not be read", () => {

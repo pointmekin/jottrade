@@ -8,6 +8,7 @@ import {
 	evaluateToday,
 } from "@/lib/risk-rule-compliance";
 import { RiskRuleKind, RuleOutcome } from "@/lib/risk-rule-evaluation";
+import { evaluateTradeNow } from "@/lib/risk-rule-trade-check";
 import { DailyLossUnit, type RiskRules } from "@/lib/risk-rules";
 import { TradeStatus } from "@/lib/trade";
 import { RiskUnavailableReason } from "@/lib/trade-risk-schema";
@@ -178,6 +179,7 @@ describe("evaluateCompliance", () => {
 			expect.objectContaining({
 				kind: RiskRuleKind.DailyLoss,
 				dayKey: "2026-03-02",
+				timezone: "America/New_York",
 				limit: 500,
 				actual: 550,
 				sourceTradeIds: tuesday.map((item) => item.id),
@@ -397,5 +399,44 @@ describe("evaluateToday", () => {
 			outcome: RuleOutcome.Unknown,
 			reason: "1 closed trade today has no P&L",
 		});
+	});
+});
+
+describe("evaluateTradeNow", () => {
+	const outcomeOf = (
+		check: ReturnType<typeof evaluateTradeNow>,
+		kind: RiskRuleKind,
+	) => check?.outcomes.find((item) => item.kind === kind)?.outcome;
+
+	it("checks one trade with its current plan and only the trades before it", () => {
+		const versions = [
+			version({ maxTradeRiskAmount: "120", maxTradesPerDay: 2 }),
+		];
+		const first = trade("2026-03-02T09:00:00Z");
+		const corrected = trade("2026-03-02T10:00:00Z", { plan: risk("150") });
+		const third = trade("2026-03-02T11:00:00Z");
+		const later = trade("2026-03-02T12:00:00Z");
+		const all = history({ versions, trades: [later, third, corrected, first] });
+
+		const now = evaluateTradeNow(all, corrected.id);
+
+		expect(now).toMatchObject({
+			version: 1,
+			timezone: "UTC",
+			dayKey: "2026-03-02",
+		});
+		expect(outcomeOf(now, RiskRuleKind.TradeRiskAmount)).toBe(
+			RuleOutcome.Violated,
+		);
+		expect(outcomeOf(now, RiskRuleKind.DailyTradeCount)).toBe(RuleOutcome.Pass);
+		expect(
+			outcomeOf(evaluateTradeNow(all, third.id), RiskRuleKind.DailyTradeCount),
+		).toBe(RuleOutcome.Violated);
+	});
+
+	it("is null for a trade that is not in the account", () => {
+		expect(
+			evaluateTradeNow(history({ versions: [version({})] }), 999),
+		).toBeNull();
 	});
 });

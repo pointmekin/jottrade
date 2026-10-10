@@ -99,6 +99,7 @@ const violation = (patch: Partial<RuleViolation>): RuleViolation => ({
 	dayKey: "2026-10-09",
 	tradeId: null,
 	version: 2,
+	timezone: "America/New_York",
 	limit: 3,
 	actual: 4,
 	sourceTradeIds: [41],
@@ -236,7 +237,7 @@ describe("RulesComplianceSection", () => {
 		).toEqual([
 			"/journal/51",
 			"/journal/52",
-			"/journal?status=CLOSED&period=custom&dateFrom=2026-10-09&dateTo=2026-10-09",
+			"/journal?status=CLOSED&period=custom&dateFrom=2026-10-09T04%3A00%3A00.000Z&dateTo=2026-10-10T03%3A59%3A59.999Z",
 		]);
 		expect(count.textContent).toContain("Trades per day: 4 of 3");
 		expect(count.textContent).toContain("Fri 9 Oct · Rules v2");

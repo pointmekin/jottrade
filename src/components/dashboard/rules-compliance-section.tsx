@@ -9,6 +9,7 @@ import { useAccounts } from "@/hooks/use-accounts";
 import { useCurrency } from "@/hooks/use-currency";
 import type { AnalysisScope } from "@/lib/analysis-scope";
 import { formatMoney } from "@/lib/currency";
+import { nextDayKey, zonedDayBounds } from "@/lib/date";
 import { PeriodPreset } from "@/lib/period";
 import { QueryKey } from "@/lib/query-keys";
 import {
@@ -17,7 +18,12 @@ import {
 	type RuleViolation,
 } from "@/lib/risk-rule-compliance";
 import { RiskRuleKind } from "@/lib/risk-rule-evaluation";
-import { formatRuleDay, plural, RULE_LABEL } from "@/lib/risk-rule-format";
+import {
+	formatRuleDay,
+	plural,
+	RULE_COMPLIANCE_ID,
+	RULE_LABEL,
+} from "@/lib/risk-rule-format";
 import { RULES_DISCLAIMER } from "@/lib/risk-rules";
 import { TradeStatus } from "@/lib/trade";
 import { getRuleCompliance } from "@/server/riskRuleActions";
@@ -53,7 +59,7 @@ function violationDetail(violation: RuleViolation, currency: string) {
 	}
 }
 
-function ViolationItem({
+export function ViolationItem({
 	violation,
 	currency,
 }: {
@@ -88,8 +94,11 @@ function ViolationItem({
 						search={{
 							status: TradeStatus.Closed,
 							period: PeriodPreset.Custom,
-							dateFrom: violation.dayKey,
-							dateTo: violation.dayKey,
+							...zonedDayBounds(
+								violation.dayKey,
+								nextDayKey(violation.dayKey),
+								violation.timezone,
+							),
 						}}
 						className={LINK_CLASS}
 					>
@@ -166,7 +175,11 @@ export function RulesComplianceSection({
 	const compliance = query.data;
 	if (!compliance) return null;
 	return (
-		<section aria-label="Rule compliance" className="mt-6 space-y-3 sm:mt-8">
+		<section
+			id={RULE_COMPLIANCE_ID}
+			aria-label="Rule compliance"
+			className="mt-6 space-y-3 sm:mt-8"
+		>
 			<SectionHeading title="Rule compliance" detail={periodLabel} />
 			{compliance.scopeIgnored && (
 				<p className="text-sm text-muted-foreground">

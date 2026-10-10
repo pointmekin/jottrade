@@ -20,6 +20,7 @@ import {
 } from "@/server/reviewActions";
 import { ReviewImportChanges } from "./review-import-changes";
 import { ReviewResults } from "./review-results";
+import { ReviewRuleViolations } from "./review-rule-violations";
 import { ReviewSaveStatus } from "./review-save-status";
 
 type Review = Awaited<ReturnType<typeof getReviewPeriod>>;
@@ -104,7 +105,14 @@ export function ReviewEditor({
 	});
 	return (
 		<div className="grid gap-5 lg:grid-cols-2">
-			<ReviewSummary review={review} completed={completed} />
+			<div className="space-y-4">
+				<ReviewSummary review={review} completed={completed} />
+				<ReviewRuleViolations
+					portfolioId={portfolioId}
+					kind={kind}
+					window={review.window}
+				/>
+			</div>
 			<section className="surface space-y-4 p-5">
 				<h2 className="font-semibold">
 					{completed ? "Completed review" : "Review notes"}
