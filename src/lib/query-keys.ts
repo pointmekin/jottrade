@@ -75,6 +75,9 @@ export const invalidateTradeQueries = (queryClient: QueryClient) =>
 export const invalidateAccountEntryQueries = (queryClient: QueryClient) =>
 	invalidate(queryClient, ACCOUNT_ENTRY_DEPENDENT_KEYS);
 
+export const invalidateRiskRuleQueries = (queryClient: QueryClient) =>
+	invalidate(queryClient, [QueryKey.RiskRules, QueryKey.RuleContext]);
+
 export const invalidateImportQueries = (queryClient: QueryClient) =>
 	invalidate(queryClient, [
 		QueryKey.ImportBatches,

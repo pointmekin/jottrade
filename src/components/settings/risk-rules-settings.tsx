@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAccounts } from "@/hooks/use-accounts";
 import { authClient } from "@/lib/auth-client";
-import { QueryKey } from "@/lib/query-keys";
+import { invalidateRiskRuleQueries, QueryKey } from "@/lib/query-keys";
 import {
 	DailyLossUnit,
 	hasRiskRules,
@@ -177,7 +177,7 @@ function RulesEditor({
 			if (!rules) setForm(EMPTY_FORM);
 			if (!saved) setResult("No change. Nothing was saved.");
 			else setResult(rules ? "Rules saved." : "Rules cleared.");
-			return queryClient.invalidateQueries({ queryKey: [QueryKey.RiskRules] });
+			return invalidateRiskRuleQueries(queryClient);
 		},
 	});
 	const save = () => {

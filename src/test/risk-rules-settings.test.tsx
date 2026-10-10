@@ -55,6 +55,7 @@ function renderRules(state: object) {
 			<RiskRulesSettings />
 		</QueryClientProvider>,
 	);
+	return client;
 }
 
 const field = (label: RegExp) => screen.getByLabelText(label);
@@ -157,6 +158,24 @@ describe("RiskRulesSettings", () => {
 			"Account not found.",
 		);
 	});
+
+	it.each([
+		["Save rules", mocks.saveRiskRules],
+		["Clear rules", mocks.clearRiskRules],
+	])(
+		"refreshes the rules and the entry preview after %s",
+		async (name, action) => {
+			action.mockResolvedValue({ saved: true });
+			const client = renderRules({ current: VERSION_3 });
+			const invalidate = vi.spyOn(client, "invalidateQueries");
+			fireEvent.click(await screen.findByRole("button", { name }));
+			await waitFor(() =>
+				expect(
+					invalidate.mock.calls.map(([filters]) => filters?.queryKey),
+				).toEqual([["risk-rules"], ["rule-context"]]),
+			);
+		},
+	);
 
 	it("clears the rules", async () => {
 		mocks.clearRiskRules.mockResolvedValue({ saved: true });
