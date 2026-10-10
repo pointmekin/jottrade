@@ -2,6 +2,10 @@
 
 JotTrade is a private trading journal. You record or import trades, track funding and adjustments per trading account, review days and weeks, and read performance metrics.
 
+[![Watch the 45-second JotTrade product video](videos/jottrade-launch/poster.jpg)](videos/jottrade-launch/renders/video.mp4)
+
+The 45-second product video uses real app screens with fictional demo data. Its HyperFrames source is in [videos/jottrade-launch](videos/jottrade-launch/README.md).
+
 - Product features, routes and verification: [docs/feature-map.md](docs/feature-map.md)
 - Architecture and agent rules: [AGENTS.md](AGENTS.md)
 - Metric definitions: [docs/metrics.md](docs/metrics.md)
