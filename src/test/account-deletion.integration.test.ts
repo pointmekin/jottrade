@@ -106,6 +106,13 @@ async function seedUser() {
 		name: "Fixture view",
 		scope: {},
 	});
+	await db.insert(schema.riskRuleVersions).values({
+		userId,
+		portfolioId,
+		version: 1,
+		rules: { v: 1, maxTradesPerDay: 3 },
+		timezone: "UTC",
+	});
 	const batchId = randomUUID();
 	await db.insert(schema.importBatches).values({
 		id: batchId,

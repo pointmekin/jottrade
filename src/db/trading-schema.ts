@@ -231,6 +231,8 @@ export const trades = pgTable(
 		brokerCloseReason: text("broker_close_reason"),
 		playbookCheck: jsonb("playbook_check").$type<PlaybookCheck>(),
 		clientDraftId: uuid("client_draft_id"),
+		// Reserved for the entry rule check of issue #19; no code writes it yet.
+		ruleCheck: jsonb("rule_check").$type<null>(),
 	},
 	(t) => [
 		index("idx_trades_user").on(t.userId),
