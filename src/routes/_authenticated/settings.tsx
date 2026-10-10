@@ -4,6 +4,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { ReviewPreferences } from "@/components/reviews/review-preferences";
 import { DataExport } from "@/components/settings/data-export";
 import { OnboardingGuide } from "@/components/settings/onboarding-guide";
+import { RiskRulesSettings } from "@/components/settings/risk-rules-settings";
 import { TradingAccounts } from "@/components/settings/TradingAccounts";
 import { TagSettings } from "@/components/settings/tag-settings";
 
@@ -26,6 +27,7 @@ function RouteComponent() {
 				<div className="mt-6">
 					<ReviewPreferences />
 				</div>
+				<RiskRulesSettings />
 
 				<TagSettings />
 

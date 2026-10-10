@@ -19,6 +19,7 @@ export const QueryKey = {
 	Strategies: "strategies",
 	Tags: "tags",
 	SavedViews: "saved-views",
+	RiskRules: "risk-rules",
 	StrategyPerformance: "strategy-performance",
 	PlaybookCheck: "playbook-check",
 	ExnessExportScript: "exness-export-script",
