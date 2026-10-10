@@ -14,6 +14,7 @@ import {
 import { trades } from "@/db/schema";
 import { tagCondition } from "@/db/trade-tags";
 import { SymbolMatch, type TradeFilter } from "@/lib/analysis-scope";
+import { PlanAdherence } from "@/lib/playbook-check";
 import { TradeStatus } from "@/lib/trade";
 import {
 	SortDirection,
@@ -27,6 +28,9 @@ export const tradeScopeDate = sql`case when ${trades.status} = ${TradeStatus.Clo
 /** Encodes like the timestamp columns, so the bound is UTC in any server timezone. */
 export const scopeDateBound = (iso: string) =>
 	sql.param(new Date(iso), trades.entryDate);
+
+/** A check counts only for the strategy the trade has now; a check made for another strategy is stale. */
+export const tradeAdherence = sql<PlanAdherence>`case when (${trades.playbookCheck}->>'strategyId')::int = ${trades.setupId} then ${trades.playbookCheck}->>'result' else ${PlanAdherence.Unchecked} end`;
 
 function setupCondition(setupId: TradeFilter["setupId"]) {
 	if (setupId === "none") return isNull(trades.setupId);
@@ -48,6 +52,7 @@ export function tradeConditions(userId: string, filter: TradeFilter) {
 		filter.side ? eq(trades.side, filter.side) : undefined,
 		filter.status ? eq(trades.status, filter.status) : undefined,
 		setupCondition(filter.setupId),
+		filter.adherence ? eq(tradeAdherence, filter.adherence) : undefined,
 		filter.confidence?.length
 			? inArray(trades.confidence, filter.confidence)
 			: undefined,

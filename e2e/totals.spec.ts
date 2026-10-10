@@ -43,8 +43,17 @@ test("dashboard, calendar and strategy totals agree for one account", async ({
 		name: "Strategy performance",
 	});
 	await expect(performance).toContainText("Bob Main");
-	// Avg P&L and Total P&L: one closed trade.
+	// Avg P&L and Total P&L of one closed trade, in the cards and in the "Not checked" bucket.
 	await expect(performance.getByText("+$15.80", { exact: true })).toHaveCount(
-		2,
+		4,
 	);
+
+	const adherence = performance.getByRole("region", { name: "Plan adherence" });
+	await expect(
+		adherence.getByRole("listitem", { name: "Followed" }),
+	).toContainText("No trades");
+	await adherence.getByRole("link", { name: "Open 1 trade" }).click();
+	await expect(page).toHaveURL(/adherence=unchecked/);
+	await expect(page.getByText("Plan: Not checked")).toBeVisible();
+	await expect(page.getByText(/· 1 closed · net P&L \+\$15\.80/)).toBeVisible();
 });

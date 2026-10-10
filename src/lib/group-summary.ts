@@ -1,4 +1,5 @@
 import { roundCents } from "./currency";
+import { PlanAdherence } from "./playbook-check";
 
 export type GroupSummary = {
 	count: number;
@@ -46,4 +47,21 @@ export function summarizeGroups<T, K>(
 	return new Map(
 		Array.from(pnlsByKey, ([key, pnls]) => [key, summarizeGroup(pnls)]),
 	);
+}
+
+export function summarizeAdherence(
+	rows: { netPnl: number; adherence: PlanAdherence }[],
+) {
+	const summarize = (adherence?: PlanAdherence) =>
+		summarizeGroup(
+			rows
+				.filter((row) => !adherence || row.adherence === adherence)
+				.map((row) => row.netPnl),
+		);
+	return {
+		all: summarize(),
+		[PlanAdherence.Followed]: summarize(PlanAdherence.Followed),
+		[PlanAdherence.Broken]: summarize(PlanAdherence.Broken),
+		[PlanAdherence.Unchecked]: summarize(PlanAdherence.Unchecked),
+	};
 }

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { DateRange } from "./analytics";
 import { isValidTimeZone } from "./date";
+import { PlanAdherence } from "./playbook-check";
 import { TradeConfidence, TradeSide, TradeStatus } from "./trade";
 import { TAG_FILTER_LIMIT, TagMatch } from "./trade-tag";
 
@@ -22,6 +23,7 @@ export const tradeFilterSchema = z.object({
 	side: z.enum(TradeSide).optional(),
 	status: z.enum(TradeStatus).optional(),
 	setupId: z.union([z.number(), z.literal("none")]).optional(),
+	adherence: z.enum(PlanAdherence).optional(),
 	confidence: z.array(z.enum(TradeConfidence)).optional(),
 	mistake: z.array(z.string()).optional(),
 	tagIds: z.array(z.number().int().positive()).max(TAG_FILTER_LIMIT).optional(),
@@ -48,6 +50,7 @@ export function isTradeAttributeFiltered(filter: TradeFilter) {
 			filter.side ||
 			filter.status ||
 			filter.setupId !== undefined ||
+			filter.adherence ||
 			filter.confidence?.length ||
 			filter.mistake?.length ||
 			filter.tagIds?.length,

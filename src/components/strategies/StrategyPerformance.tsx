@@ -7,6 +7,7 @@ import { formatMoney } from "@/lib/currency";
 import { MetricVariant, toneOf, UNAVAILABLE } from "@/lib/metric";
 import { QueryKey } from "@/lib/query-keys";
 import { getStrategyPerformance } from "@/server/strategyActions";
+import { StrategyAdherence } from "./strategy-adherence";
 
 const CELL_KEYS = ["trades", "win-rate", "avg", "total"];
 
@@ -15,7 +16,7 @@ export function StrategyPerformance({ strategyId }: { strategyId: number }) {
 	const currency = useCurrency();
 	const portfolioId = activeAccount?.id;
 
-	const { data } = useQuery({
+	const { data: performance } = useQuery({
 		queryKey: [QueryKey.StrategyPerformance, portfolioId, strategyId],
 		queryFn: () =>
 			getStrategyPerformance({
@@ -23,6 +24,7 @@ export function StrategyPerformance({ strategyId }: { strategyId: number }) {
 			}),
 		enabled: portfolioId !== undefined,
 	});
+	const data = performance?.all;
 
 	const scope = ["All time", activeAccount?.name, currency]
 		.filter(Boolean)
@@ -85,6 +87,9 @@ export function StrategyPerformance({ strategyId }: { strategyId: number }) {
 						sub="Sum of closed trades"
 					/>
 				</div>
+			)}
+			{performance && data && data.count > 0 && (
+				<StrategyAdherence strategyId={strategyId} performance={performance} />
 			)}
 		</section>
 	);
