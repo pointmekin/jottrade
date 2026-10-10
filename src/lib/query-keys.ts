@@ -21,6 +21,8 @@ export const QueryKey = {
 	SavedViews: "saved-views",
 	RiskRules: "risk-rules",
 	RuleContext: "rule-context",
+	RuleToday: "rule-today",
+	RuleCompliance: "rule-compliance",
 	StrategyPerformance: "strategy-performance",
 	PlaybookCheck: "playbook-check",
 	ExnessExportScript: "exness-export-script",
@@ -45,6 +47,8 @@ const TRADE_DEPENDENT_KEYS: QueryKey[] = [
 	QueryKey.StrategyPerformance,
 	QueryKey.PlaybookCheck,
 	QueryKey.RuleContext,
+	QueryKey.RuleToday,
+	QueryKey.RuleCompliance,
 	QueryKey.Accounts,
 	QueryKey.Onboarding,
 ];
@@ -60,6 +64,8 @@ const ACCOUNT_ENTRY_DEPENDENT_KEYS: QueryKey[] = [
 	QueryKey.Analytics,
 	QueryKey.AdvancedAnalytics,
 	QueryKey.RuleContext,
+	QueryKey.RuleToday,
+	QueryKey.RuleCompliance,
 	QueryKey.Onboarding,
 ];
 
@@ -76,7 +82,12 @@ export const invalidateAccountEntryQueries = (queryClient: QueryClient) =>
 	invalidate(queryClient, ACCOUNT_ENTRY_DEPENDENT_KEYS);
 
 export const invalidateRiskRuleQueries = (queryClient: QueryClient) =>
-	invalidate(queryClient, [QueryKey.RiskRules, QueryKey.RuleContext]);
+	invalidate(queryClient, [
+		QueryKey.RiskRules,
+		QueryKey.RuleContext,
+		QueryKey.RuleToday,
+		QueryKey.RuleCompliance,
+	]);
 
 export const invalidateImportQueries = (queryClient: QueryClient) =>
 	invalidate(queryClient, [

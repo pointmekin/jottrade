@@ -172,7 +172,12 @@ describe("RiskRulesSettings", () => {
 			await waitFor(() =>
 				expect(
 					invalidate.mock.calls.map(([filters]) => filters?.queryKey),
-				).toEqual([["risk-rules"], ["rule-context"]]),
+				).toEqual([
+					["risk-rules"],
+					["rule-context"],
+					["rule-today"],
+					["rule-compliance"],
+				]),
 			);
 		},
 	);

@@ -1,7 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { loadComplianceHistory } from "@/db/risk-rule-compliance";
 import { loadRuleContext } from "@/db/risk-rule-context";
 import { appendRiskRuleVersion, loadRiskRules } from "@/db/risk-rules";
+import {
+	analysisScopeSchema,
+	isTradeAttributeFiltered,
+	toDateRange,
+} from "@/lib/analysis-scope";
+import { evaluateCompliance, evaluateToday } from "@/lib/risk-rule-compliance";
 import { riskRulesInputSchema } from "@/lib/risk-rules";
 import { authMiddleware } from "./auth-middleware";
 
@@ -24,6 +31,37 @@ export const getRuleContext = createServerFn({ method: "GET" })
 	.handler(({ data, context }) =>
 		loadRuleContext(context.userId, data.portfolioId, new Date(data.entryDate)),
 	);
+
+export const getRuleToday = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
+	.validator(portfolioIdSchema)
+	.handler(async ({ data, context }) => {
+		const history = await loadComplianceHistory(
+			context.userId,
+			data.portfolioId,
+		);
+		return history && evaluateToday(history, new Date());
+	});
+
+/** Rules read only the account and the period of the scope. */
+export const getRuleCompliance = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
+	.validator(analysisScopeSchema)
+	.handler(async ({ data, context }) => {
+		const history = await loadComplianceHistory(
+			context.userId,
+			data.portfolioId,
+		);
+		if (!history) return null;
+		return {
+			...evaluateCompliance(history, toDateRange(data)),
+			scopeIgnored: isTradeAttributeFiltered(data),
+		};
+	});
+
+export type RuleComplianceResult = NonNullable<
+	Awaited<ReturnType<typeof getRuleCompliance>>
+>;
 
 export const saveRiskRules = createServerFn({ method: "POST" })
 	.middleware([authMiddleware])

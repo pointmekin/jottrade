@@ -40,5 +40,5 @@ export function useDashboardAnalytics(search: ScopeSearch) {
 		enabled,
 	});
 
-	return { summary, advanced };
+	return { summary, advanced, scope: rangeInput };
 }
