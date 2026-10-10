@@ -27,6 +27,9 @@ vi.mock("@/lib/auth-client", () => ({
 	authClient: { useSession: () => ({ data: { user: { id: "u1" } } }) },
 }));
 vi.mock("@/server/tradeActions", () => ({ createTrade: vi.fn() }));
+vi.mock("@/server/riskRuleActions", () => ({
+	getRuleContext: async () => ({ version: null }),
+}));
 vi.mock("@/server/strategyActions", () => ({
 	getStrategies: async () => state.strategies,
 }));

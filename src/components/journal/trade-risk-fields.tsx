@@ -9,6 +9,7 @@ import {
 	calculatePlannedRewardRisk,
 } from "@/lib/trade-risk";
 import type { RiskInputs } from "@/lib/trade-risk-schema";
+import { RuleCheckPreview } from "./rule-check-preview";
 
 const FIELDS = [
 	["initialStopPrice", "Initial stop price"],
@@ -18,10 +19,12 @@ const FIELDS = [
 export function RiskFields({
 	values,
 	currency,
+	portfolioId,
 	onChange,
 }: {
 	values: TradeCaptureValues;
 	currency: string;
+	portfolioId?: number;
 	onChange: (patch: Partial<RiskInputs>) => void;
 }) {
 	const id = useId();
@@ -62,6 +65,9 @@ export function RiskFields({
 				</div>
 			)}
 			<RiskPreview values={values} currency={currency} />
+			{portfolioId !== undefined && (
+				<RuleCheckPreview values={values} portfolioId={portfolioId} />
+			)}
 			<p className="text-xs text-muted-foreground">
 				Stop-distance risk excludes costs. Entry FX is historical and separate
 				from exit FX. Balance is optional; review it at the original entry time.

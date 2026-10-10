@@ -44,9 +44,11 @@ export function TradeFields({
 	draft,
 	onChange,
 	currency,
+	portfolioId,
 }: {
 	id: string;
 	currency: string;
+	portfolioId?: number;
 	draft: TradeDraft;
 	onChange: (patch: Partial<TradeDraft>) => void;
 }) {
@@ -106,7 +108,12 @@ export function TradeFields({
 				onChange={(targetPrice) => onChange({ targetPrice })}
 				isRequired={false}
 			/>
-			<RiskFields values={draft} currency={currency} onChange={onChange} />
+			<RiskFields
+				values={draft}
+				currency={currency}
+				portfolioId={portfolioId}
+				onChange={onChange}
+			/>
 			<CommandCloseFields id={id} draft={draft} onChange={onChange} />
 			<p className="text-xs text-muted-foreground">
 				A target does not close the trade. Leave exit fields blank to save an

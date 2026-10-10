@@ -147,6 +147,30 @@ describe.skipIf(!verifyUrl)("risk rules on the seeded database", () => {
 		expect(await versionsOf(ALICE_PROP)).toEqual(before);
 	});
 
+	it("returns the version in effect and the day of the entry, only to the owner", async () => {
+		session.userId = ALICE;
+		await server.saveRiskRules({
+			data: { portfolioId: ALICE_PROP, rules: RULES },
+		});
+		const entryDate = new Date(Date.now() + 60_000).toISOString();
+		const data = { portfolioId: ALICE_PROP, entryDate };
+
+		const context = await server.getRuleContext({ data });
+		const before = await server.getRuleContext({
+			data: { ...data, entryDate: "2020-01-01T00:00:00.000Z" },
+		});
+
+		expect(context).toMatchObject({
+			version: { rules: { v: 1, ...RULES }, timezone: "UTC" },
+			dayKey: entryDate.slice(0, 10),
+		});
+		expect(before.version).toBeNull();
+		session.userId = BOB;
+		await expect(server.getRuleContext({ data })).rejects.toThrow(
+			"Account not found.",
+		);
+	});
+
 	it("deletes the versions with the account", async () => {
 		session.userId = ALICE;
 		const [account] = await db
