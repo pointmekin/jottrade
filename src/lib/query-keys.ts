@@ -20,6 +20,7 @@ export const QueryKey = {
 	Tags: "tags",
 	SavedViews: "saved-views",
 	RiskRules: "risk-rules",
+	RuleContext: "rule-context",
 	StrategyPerformance: "strategy-performance",
 	PlaybookCheck: "playbook-check",
 	ExnessExportScript: "exness-export-script",
@@ -43,6 +44,7 @@ const TRADE_DEPENDENT_KEYS: QueryKey[] = [
 	QueryKey.AdvancedAnalytics,
 	QueryKey.StrategyPerformance,
 	QueryKey.PlaybookCheck,
+	QueryKey.RuleContext,
 	QueryKey.Accounts,
 	QueryKey.Onboarding,
 ];
@@ -57,6 +59,7 @@ const ACCOUNT_ENTRY_DEPENDENT_KEYS: QueryKey[] = [
 	QueryKey.Trade,
 	QueryKey.Analytics,
 	QueryKey.AdvancedAnalytics,
+	QueryKey.RuleContext,
 	QueryKey.Onboarding,
 ];
 

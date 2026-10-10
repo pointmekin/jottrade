@@ -156,6 +156,7 @@ function TradeEntryCapture({
 					<RiskFields
 						values={values}
 						currency={account?.currency ?? "USD"}
+						portfolioId={account?.id}
 						onChange={(patch) => {
 							for (const [key, value] of Object.entries(patch))
 								form.setValue(key as keyof TradeCaptureValues, value, {

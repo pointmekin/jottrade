@@ -248,6 +248,7 @@ export function CommandPreview({
 					<TradeFields
 						id={id}
 						currency={account?.currency ?? "USD"}
+						portfolioId={account?.id}
 						draft={draft}
 						onChange={(patch) => setDraft({ ...draft, ...patch })}
 					/>

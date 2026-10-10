@@ -28,6 +28,36 @@ export function toDayKey(date: Date, timeZone = "UTC"): string {
 	return `${partValue(parts, "year")}-${partValue(parts, "month")}-${partValue(parts, "day")}`;
 }
 
+function zoneOffsetMs(date: Date, timeZone: string): number {
+	const parts = new Intl.DateTimeFormat(DATE_LOCALE, {
+		timeZone,
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+		hourCycle: "h23",
+	}).formatToParts(date);
+	const wallTime = Date.UTC(
+		Number(partValue(parts, "year")),
+		Number(partValue(parts, "month")) - 1,
+		Number(partValue(parts, "day")),
+		Number(partValue(parts, "hour")),
+		Number(partValue(parts, "minute")),
+		Number(partValue(parts, "second")),
+	);
+	return wallTime - Math.floor(date.getTime() / 1000) * 1000;
+}
+
+/** Returns the instant of midnight at the start of a civil day in an IANA timezone. */
+export function zonedDayStart(day: string, timeZone: string): Date {
+	const midnightUtc = Date.parse(`${day}T00:00:00Z`);
+	let start = midnightUtc - zoneOffsetMs(new Date(midnightUtc), timeZone);
+	start = midnightUtc - zoneOffsetMs(new Date(start), timeZone);
+	return new Date(start);
+}
+
 export function previousDayKey(day: string): string {
 	const date = new Date(`${day}T00:00:00Z`);
 	date.setUTCDate(date.getUTCDate() - 1);

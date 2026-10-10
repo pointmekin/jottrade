@@ -36,6 +36,9 @@ vi.mock("@/server/tradeActions", () => ({
 	updateTrade: vi.fn(),
 }));
 vi.mock("@/server/strategyActions", () => ({ getStrategies: async () => [] }));
+vi.mock("@/server/riskRuleActions", () => ({
+	getRuleContext: async () => ({ version: null }),
+}));
 vi.mock("@tanstack/react-router", () => ({
 	Link: ({ to, children }: { to: string; children: ReactNode }) => (
 		<a href={to}>{children}</a>

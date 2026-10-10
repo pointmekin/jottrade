@@ -23,6 +23,10 @@ vi.mock("@/hooks/use-accounts", () => ({
 }));
 vi.mock("@/hooks/use-account-entries", () => ({}));
 vi.mock("@/server/tradeActions", () => ({ createTrade: vi.fn() }));
+vi.mock("@/server/riskRuleActions", () => ({
+	getRuleContext: async () => ({ version: null }),
+}));
+vi.mock("@tanstack/react-router", () => ({ Link: () => null }));
 vi.mock("@/server/cashFlowActions", () => ({ addCashFlow: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
 const trade: WriteIntent = {
