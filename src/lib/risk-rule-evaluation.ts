@@ -9,6 +9,7 @@ import { TradeStatus } from "./trade";
 import type { TradeCaptureValues } from "./trade-capture";
 import { calculateInitialRisk } from "./trade-risk";
 import {
+	type InitialRiskSnapshot,
 	RiskCaptureSource,
 	type RiskPlan,
 	RiskUnavailableReason,
@@ -64,9 +65,20 @@ export type RuleContext = {
 	recentClosed: { exitDate: string | null; netPnl: number | null }[];
 };
 
+/** The stored plan columns are enough, so a saved trade is checked like a new one. */
+export type RulePlan = Pick<
+	RiskPlan,
+	"initialRiskAmount" | "initialRiskPercent"
+> & {
+	initialRiskSnapshot: Pick<
+		InitialRiskSnapshot,
+		"accountCurrency" | "unavailableReason"
+	> | null;
+};
+
 export type RuleEntry = {
 	entryDate: Date;
-	plan: RiskPlan | null;
+	plan: RulePlan | null;
 	exit: { at: Date; netPnl: number | null } | null;
 };
 
@@ -110,7 +122,7 @@ const NO_BALANCE = "Day-start balance unavailable";
 const isClosed = (trade: RuleTrade) => trade.status === TradeStatus.Closed;
 const before = (date: Date, limit: Date) => date.getTime() < limit.getTime();
 
-function versionInEffect(versions: RuleVersion[], entryDate: Date) {
+export function versionInEffect(versions: RuleVersion[], entryDate: Date) {
 	return versions
 		.filter((item) => !before(entryDate, item.effectiveFrom))
 		.sort(
@@ -121,7 +133,10 @@ function versionInEffect(versions: RuleVersion[], entryDate: Date) {
 }
 
 /** Opening funding, cash flows and realized P&L before the day start, as the dashboard balance. */
-function dayStartBalance({ trades, cashFlows }: RuleHistory, dayStart: Date) {
+export function dayStartBalance(
+	{ trades, cashFlows }: RuleHistory,
+	dayStart: Date,
+) {
 	const carried = trades.filter(
 		(trade) => isClosed(trade) && before(realizedAt(trade), dayStart),
 	);
@@ -235,7 +250,7 @@ const compare = (
 		actual,
 	});
 
-function riskReason(plan: RiskPlan | null, currency: string) {
+function riskReason(plan: RulePlan | null, currency: string) {
 	if (!plan) return RiskUnavailableReason.InvalidInput;
 	if (plan.initialRiskAmount === null)
 		return (
@@ -247,7 +262,7 @@ function riskReason(plan: RiskPlan | null, currency: string) {
 	return null;
 }
 
-function tradeRiskAmount(
+export function tradeRiskAmount(
 	rules: RiskRules,
 	context: RuleContext,
 	entry: RuleEntry,
@@ -262,7 +277,7 @@ function tradeRiskAmount(
 	return compare(kind, limit, actual, actual > limit);
 }
 
-function tradeRiskPercent(
+export function tradeRiskPercent(
 	rules: RiskRules,
 	context: RuleContext,
 	entry: RuleEntry,
@@ -288,7 +303,11 @@ function dailyLossLimit(rules: RiskRules, balance: number | null) {
 		: null;
 }
 
-function dailyLoss(rules: RiskRules, context: RuleContext, entry: RuleEntry) {
+export function dailyLoss(
+	rules: RiskRules,
+	context: RuleContext,
+	entry: RuleEntry,
+) {
 	const kind = RiskRuleKind.DailyLoss;
 	if (!rules.dailyLoss || !context.version)
 		return result(kind, RuleOutcome.NotSet);
@@ -325,7 +344,11 @@ function dailyTradeCount(rules: RiskRules, context: RuleContext) {
 	);
 }
 
-function cooldown(rules: RiskRules, context: RuleContext, entry: RuleEntry) {
+export function cooldown(
+	rules: RiskRules,
+	context: RuleContext,
+	entry: RuleEntry,
+) {
 	const kind = RiskRuleKind.Cooldown;
 	if (!rules.cooldown) return result(kind, RuleOutcome.NotSet);
 	const { afterLosses, minutes } = rules.cooldown;

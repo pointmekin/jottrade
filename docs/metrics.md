@@ -69,3 +69,18 @@ The strategy page also splits the same closed trades by plan adherence (`summari
 The three buckets add up to the "all" totals. The journal `adherence` filter uses the same expression, so "Open N trades" shows the same closed count and net P&L. "Followed" is the trader's own answer, not a measured fact.
 
 `scripts/reconcile-metrics.ts` runs the same check on a real database. It reads every account in one read-only transaction and compares the headline and the strategy chart with SQL totals. It also counts the closed trades whose stored `return_percent` is not the price return.
+
+## Rule compliance
+
+The dashboard "Rules today" card and the "Rule compliance" section check the trades of the active account against its risk and discipline rules (issue #19). The code is in `src/lib/risk-rule-compliance.ts`. It reuses the rule functions of the entry check (`src/lib/risk-rule-evaluation.ts`).
+
+- **Version.** Each event uses the version in effect at that time: the latest version with `effective_from` at or before the event. An event before the first version is not checked (no backfill). A rule edit does not change old events. A trade edit or a risk correction changes the result, because the check reads the current trade.
+- **Day.** A day ends at midnight in the timezone saved with the version. The browser timezone does not change it.
+- **Per trade.** Risk per trade (amount and %) and cooldown are checked at the entry time of each trade in the period.
+- **Per day.** Daily loss and trades per day are checked once for each day with an event in the period. The latest event of the day selects the version.
+  - Daily loss: the realized net loss of the closed trades that day, by exit time. Open trades and cash-flow adjustments are not included ("Realized only"). A % limit uses the day-start balance: deposits, withdrawals, adjustments and realized P&L before midnight, as the dashboard balance. The day is Violated when the loss reaches the limit. The sources are the closed trades of the day.
+  - Trades per day: every trade entered that day, open or closed, also trades entered before the version started. The sources are the trades after the limit. A partial close that imports as two rows counts as two trades.
+- **Unknown.** Missing data gives Unknown, never Pass: no stop, no FX rate, no balance for a %, a plan in another currency, a closed trade with no P&L, or a day-start balance that is not positive. Unknown has its own count. It is not in the pass count.
+- **Today.** "Loss left today" is the limit minus the realized loss of today. "Trades left" is the limit minus the trades entered today. "Cooldown" shows the end of the wait after the last losing trades in a row. "Open initial risk" adds the saved initial risk of the open trades; it does not change the allowance. An open trade with no saved risk in the account currency counts as unknown risk.
+- **Filters.** Compliance reads only the account and the period. With a trade attribute filter, it shows "Rules use the account and the period only."
+- **Meaning.** Pass means "inside your rule with the data in the journal". It does not mean broker or prop-firm compliance. Do not read compliance as a profit claim.

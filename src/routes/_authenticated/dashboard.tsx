@@ -14,6 +14,8 @@ import {
 import { EquityCurveSection } from "@/components/dashboard/equity-curve-section";
 import { FundingNotice } from "@/components/dashboard/funding-notice";
 import { RiskSection } from "@/components/dashboard/risk-section";
+import { RulesComplianceSection } from "@/components/dashboard/rules-compliance-section";
+import { RulesTodayCard } from "@/components/dashboard/rules-today-card";
 import { ScopeNotice } from "@/components/dashboard/scope-notice";
 import { FilterBar } from "@/components/journal/FilterBar";
 import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist";
@@ -42,7 +44,11 @@ function Dashboard() {
 	const navigate = useNavigate({ from: "/dashboard" });
 	const search = useSearch({ from: "/_authenticated/dashboard" });
 	const currency = useCurrency();
-	const { summary, advanced } = useDashboardAnalytics(search);
+	const {
+		summary,
+		advanced,
+		scope: analysisScope,
+	} = useDashboardAnalytics(search);
 	const { isChecklistVisible } = useOnboarding();
 
 	const stats = summary.data?.stats;
@@ -104,6 +110,7 @@ function Dashboard() {
 				) : (
 					<AccountSummarySkeleton />
 				)}
+				<RulesTodayCard />
 				<EquityCurveSection
 					data={summary.data?.equityCurve ?? []}
 					isLoading={summary.isLoading}
@@ -116,6 +123,10 @@ function Dashboard() {
 					isLoading={advanced.isLoading}
 					periodLabel={periodLabel}
 					isAccountWide={scope?.isFiltered}
+				/>
+				<RulesComplianceSection
+					scope={analysisScope}
+					periodLabel={periodLabel}
 				/>
 				<section className="mt-6 space-y-4 sm:mt-8">
 					<SectionHeading
