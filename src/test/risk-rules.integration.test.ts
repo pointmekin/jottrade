@@ -17,6 +17,7 @@ vi.mock("@tanstack/react-start", () => import("./server-fn-mock"));
 // Seed facts from scripts/db/seed-accounts.ts.
 const ALICE = "seed-alice";
 const BOB = "seed-bob";
+const ALICE_MAIN = 1;
 const ALICE_PROP = 2;
 const ALICE_EUR = 3;
 const BOB_NO_TIMEZONE = 5;
@@ -96,13 +97,26 @@ describe.skipIf(!verifyUrl)("risk rules on the seeded database", () => {
 		expect(current).toMatchObject({ version: 3, rules: { v: 1 } });
 	});
 
+	it("treats an equal decimal in another form as no change", async () => {
+		session.userId = ALICE;
+		const save = (value: string) =>
+			server.saveRiskRules({
+				data: { portfolioId: ALICE_EUR, rules: { maxTradeRiskAmount: value } },
+			});
+
+		expect(await save("500")).toEqual({ saved: true });
+		expect(await save("500.00")).toEqual({ saved: false });
+		expect(await save("0500.0")).toEqual({ saved: false });
+		expect(await versionsOf(ALICE_EUR)).toHaveLength(1);
+	});
+
 	it("does not write a clear when the account has no rules", async () => {
 		session.userId = ALICE;
 
 		expect(
-			await server.clearRiskRules({ data: { portfolioId: ALICE_EUR } }),
+			await server.clearRiskRules({ data: { portfolioId: ALICE_MAIN } }),
 		).toEqual({ saved: false });
-		expect(await versionsOf(ALICE_EUR)).toEqual([]);
+		expect(await versionsOf(ALICE_MAIN)).toEqual([]);
 	});
 
 	it("rejects a save when the account has no review timezone", async () => {

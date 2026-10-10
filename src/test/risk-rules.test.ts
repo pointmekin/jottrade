@@ -60,6 +60,19 @@ describe("riskRulesInputSchema", () => {
 			}).success,
 		).toBe(true);
 	});
+
+	it("stores each decimal in one canonical form", () => {
+		const rules = riskRulesInputSchema.parse({
+			maxTradeRiskAmount: "0500.00",
+			maxTradeRiskPercent: ".50",
+			dailyLoss: { unit: DailyLossUnit.Amount, value: "250.10" },
+		});
+		expect(rules).toEqual({
+			maxTradeRiskAmount: "500",
+			maxTradeRiskPercent: "0.5",
+			dailyLoss: { unit: DailyLossUnit.Amount, value: "250.1" },
+		});
+	});
 });
 
 describe("storedRiskRulesSchema", () => {

@@ -10,19 +10,28 @@ export type DailyLossUnit = (typeof DailyLossUnit)[keyof typeof DailyLossUnit];
 export const RULES_DISCLAIMER =
 	"Journal checks are reminders. They cannot stop orders at your broker or guarantee prop-firm compliance.";
 
-const percent = positiveDecimal.refine(
-	(value) => Number(value) <= 100,
-	"Enter 100 or less.",
-);
+// One form per value, so "500" and "500.00" compare equal as stored jsonb.
+function canonicalDecimal(value: string) {
+	const [whole, fraction = ""] = value.split(".");
+	const integer = BigInt(whole || "0").toString();
+	let end = fraction.length;
+	while (end > 0 && fraction[end - 1] === "0") end -= 1;
+	return end ? `${integer}.${fraction.slice(0, end)}` : integer;
+}
+
+const amount = positiveDecimal.transform(canonicalDecimal);
+const percent = positiveDecimal
+	.refine((value) => Number(value) <= 100, "Enter 100 or less.")
+	.transform(canonicalDecimal);
 
 const riskRulesShape = {
-	maxTradeRiskAmount: positiveDecimal.optional(),
+	maxTradeRiskAmount: amount.optional(),
 	maxTradeRiskPercent: percent.optional(),
 	dailyLoss: z
 		.discriminatedUnion("unit", [
 			z.object({
 				unit: z.literal(DailyLossUnit.Amount),
-				value: positiveDecimal,
+				value: amount,
 			}),
 			z.object({
 				unit: z.literal(DailyLossUnit.BalancePercent),
