@@ -28,6 +28,7 @@ import {
 } from "@/lib/trade-risk-schema";
 import {
 	assertExitKept,
+	assertFillFieldsKept,
 	assertInitialPlanPreserved,
 	blankDecimalsToNull,
 	manualPnlForUpdate,
@@ -248,6 +249,7 @@ export const updateTrade = createServerFn({ method: "POST" })
 				expectedRevision,
 				expectedAnnotationRevision,
 			);
+			assertFillFieldsKept(existing, changes);
 			assertInitialPlanPreserved(existing, changes);
 			assertExitKept(existing, changes);
 			const portfolio = await requireOwnedPortfolio(

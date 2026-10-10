@@ -40,7 +40,7 @@ export function hasPnlChanges(
 	});
 }
 
-function savedUnitQuote(existing: StoredTrade) {
+export function savedUnitQuote(existing: StoredTrade) {
 	const context = existing.pnlCalculationSnapshot;
 	if (context?.specSource === SpecSource.ConfirmedUnits)
 		return context.quoteCurrency ?? "";
@@ -115,6 +115,23 @@ export function assertExitKept(
 		throw new Error(
 			"A closed trade keeps its exit price. Enter the corrected exit price instead.",
 		);
+}
+
+export function assertFillFieldsKept(
+	existing: StoredTrade & { executionCount: number },
+	changes: TradeUpdateFields,
+) {
+	if (!existing.executionCount) return;
+	const isChanged =
+		hasPnlChanges(existing, {
+			...changes,
+			fees: changes.fees === "" ? "0" : changes.fees,
+		}) ||
+		(changes.entryDate !== undefined &&
+			dateDiffers(changes.entryDate, existing.entryDate)) ||
+		(changes.status !== undefined && changes.status !== existing.status);
+	if (isChanged)
+		throw new Error("This trade has fills. Edit the fills instead.");
 }
 
 export function assertInitialPlanPreserved(
