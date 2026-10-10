@@ -84,3 +84,21 @@ The dashboard "Rules today" card and the "Rule compliance" section check the tra
 - **Today.** "Loss left today" is the limit minus the realized loss of today. "Trades left" is the limit minus the trades entered today. "Cooldown" shows the end of the wait after the last losing trades in a row. "Open initial risk" adds the saved initial risk of the open trades; it does not change the allowance. An open trade with no saved risk in the account currency counts as unknown risk.
 - **Filters.** Compliance reads only the account and the period. With a trade attribute filter, it shows "Rules use the account and the period only."
 - **Meaning.** Pass means "inside your rule with the data in the journal". It does not mean broker or prop-firm compliance. Do not read compliance as a profit claim.
+
+## Positions and fills
+
+A position is one trading idea with one or more fills (issue #17). The code is in `src/lib/position.ts`. It is pure logic; no screen uses it yet.
+
+- **Order.** Fills replay by fill time. Fills with the same time keep their input order.
+- **Average entry.** Weighted average cost (WAC). Each entry fill sets average entry = (average entry × open quantity + price × quantity) ÷ new open quantity. An exit does not change the average entry.
+- **Realized P&L of an exit.** `calculateManualPnl` with the average entry as the entry price, the exit quantity, the exit FX of that fill and the fees of that exit. It uses the same formula, contract size and exit FX rules as a single-fill trade.
+- **Fees.** Each fill has its own fee in the account currency. An exit fee goes to that exit. Entry fees go to the exits by the closed quantity: allocated = unallocated entry fees × exit quantity ÷ open quantity before the exit. The full close takes all remaining entry fees. After each fill, realized P&L plus the unallocated entry fees of the open remainder is the cash result.
+- **Rounding.** The realized P&L of each exit is rounded to cents once. Position net P&L is the sum of the rounded exits. Quantities are rounded to 8 decimal places after each fill, so 0.1 + 0.2 lots close with a 0.3 lot exit.
+- **Totals.** Entry price = WAC of all entries. Quantity = total entered. Fees = sum of all fill fees. While the position is open, exit price, exit time, net P&L and price return are empty and the status is `OPEN`. At the full close, exit price = quantity-weighted exit price, exit time = time of the last fill, and price return uses these two prices.
+- **Legacy equality.** One entry and one exit give the same net P&L and price return as `calculateManualPnl` with the sum of the two fees.
+- **Rejected fills.** The replay stops at the first invalid fill and returns its error:
+  - `INVALID_QUANTITY`, `INVALID_PRICE`: the value is not a positive number. `INVALID_FEE`: the fee is negative.
+  - `EXIT_BEFORE_ENTRY`: the first fill is an exit.
+  - `OVER_CLOSE`: the exit is larger than the open quantity at its time. An earlier fill time can cause it.
+  - `REOPEN`: a fill comes after the full close. A reversal is a close plus a new position.
+- **R.** Realized R uses the initial risk of the first-entry plan. A scale-in does not change it.
