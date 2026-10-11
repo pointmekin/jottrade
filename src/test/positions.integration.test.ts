@@ -38,6 +38,9 @@ const exit = (hour: number, quantity: string, price: string) => ({
 describe.skipIf(!verifyUrl)("position fills on the seeded database", () => {
 	let trades: typeof import("@/server/tradeActions");
 	let positions: typeof import("@/server/positionActions");
+	let calendar: typeof import("@/server/calendarActions");
+	let history: typeof import("@/db/account-history");
+	let withRealizations: typeof import("@/db/positions").withRealizations;
 	let loadArchiveTables: typeof import("@/db/journal-archive").loadArchiveTables;
 	let db: typeof import("@/db").db;
 	let schema: typeof import("@/db/schema");
@@ -59,6 +62,9 @@ describe.skipIf(!verifyUrl)("position fills on the seeded database", () => {
 		orm = await import("drizzle-orm");
 		trades = await import("@/server/tradeActions");
 		positions = await import("@/server/positionActions");
+		calendar = await import("@/server/calendarActions");
+		history = await import("@/db/account-history");
+		({ withRealizations } = await import("@/db/positions"));
 		({ loadArchiveTables } = await import("@/db/journal-archive"));
 	});
 
@@ -272,5 +278,50 @@ describe.skipIf(!verifyUrl)("position fills on the seeded database", () => {
 		expect(
 			archive.tradeExecutions.filter((f) => f.tradeId === id),
 		).toHaveLength(2);
+	});
+
+	it("reads a partial exit on its own day for the owner only", async () => {
+		const id = await aliceTrade();
+		const partialAt = new Date(Date.UTC(2026, 8, 4, 10)).toISOString();
+		await add(id, { ...exit(0, "0.4", "1.1050"), executedAt: partialAt });
+
+		const account = await history.loadAccountHistory(ALICE, ALICE_ACCOUNT);
+		const position = account.trades.find((trade) => trade.id === id);
+		expect(position).toMatchObject({
+			status: TradeStatus.Open,
+			realizations: [{ at: new Date(partialAt), amount: 200 }],
+		});
+		const asBob = await withRealizations(BOB, [
+			position as (typeof account.trades)[number],
+		]);
+		expect(asBob[0].realizations).toEqual([]);
+
+		const days = await calendar.getCalendarData({
+			data: {
+				portfolioId: ALICE_ACCOUNT,
+				timeZone: "UTC",
+				year: 2026,
+				month: 9,
+				from: "2026-09-04T00:00:00.000Z",
+				to: "2026-09-05T00:00:00.000Z",
+			},
+		});
+		expect(
+			days["2026-09-04"].trades.find((trade) => trade.id === id),
+		).toMatchObject({ netPnl: 200, isPartialExit: true });
+		const afterPeriod = await calendar.getCalendarData({
+			data: {
+				portfolioId: ALICE_ACCOUNT,
+				timeZone: "UTC",
+				year: 2026,
+				month: 9,
+				from: "2026-09-04T00:00:00.000Z",
+				to: "2026-09-05T00:00:00.000Z",
+				dateTo: "2026-09-04T09:59:59.999Z",
+			},
+		});
+		expect(
+			afterPeriod["2026-09-04"]?.trades.some((trade) => trade.id === id),
+		).toBeFalsy();
 	});
 });

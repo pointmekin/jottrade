@@ -1,8 +1,14 @@
 import { z } from "zod";
-import { type CashFlow, realizedAt, summarizeTrades } from "./analytics";
+import {
+	type CashFlow,
+	cashRealizations,
+	realizedAt,
+	summarizeTrades,
+} from "./analytics";
 import { roundCents } from "./currency";
 import { toDayKey, zonedDayStart } from "./date";
 import { calculateManualPnl } from "./pnl-context";
+import type { Realization } from "./position";
 import type { RiskRules } from "./risk-rules";
 import { DailyLossUnit } from "./risk-rules";
 import { TradeStatus } from "./trade";
@@ -44,6 +50,7 @@ export type RuleTrade = {
 	entryDate: Date;
 	exitDate: Date | null;
 	netPnl: number | null;
+	realizations?: Realization[];
 };
 
 export type RuleHistory = {
@@ -171,18 +178,27 @@ export function buildRuleContext(
 	const closedBefore = history.trades
 		.filter((trade) => isClosed(trade) && before(realizedAt(trade), entryDate))
 		.sort((a, b) => realizedAt(b).getTime() - realizedAt(a).getTime());
-	const realizedToday = closedBefore.filter(
-		(trade) => toDayKey(realizedAt(trade), timezone) === dayKey,
+	const isToday = (at: Date) =>
+		before(at, entryDate) && toDayKey(at, timezone) === dayKey;
+	const realizedToday = history.trades.flatMap((trade) =>
+		cashRealizations({ ...trade, netPnl: trade.netPnl ?? 0 }).filter((item) =>
+			isToday(item.at),
+		),
+	);
+	const missingToday = closedBefore.filter(
+		(trade) =>
+			trade.netPnl === null &&
+			!trade.realizations &&
+			isToday(realizedAt(trade)),
 	);
 	return {
 		...context,
 		version,
 		dayKey,
 		realizedPnl: roundCents(
-			realizedToday.reduce((total, trade) => total + (trade.netPnl ?? 0), 0),
+			realizedToday.reduce((total, item) => total + item.amount, 0),
 		),
-		missingPnlCount: realizedToday.filter((trade) => trade.netPnl === null)
-			.length,
+		missingPnlCount: missingToday.length,
 		enteredCount: history.trades.filter(
 			(trade) => toDayKey(trade.entryDate, timezone) === dayKey,
 		).length,

@@ -4,6 +4,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps, ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DayTradesPopover } from "@/components/calendar/DayTradesPopover";
+import type { CalendarDay } from "@/lib/calendar-days";
 import { TradeSide, TradeStatus } from "@/lib/trade";
 
 const { viewport } = vi.hoisted(() => ({ viewport: { isMobile: false } }));
@@ -87,14 +88,14 @@ const day = {
 	],
 };
 
-function renderSlider(isMobile: boolean) {
+function renderSlider(isMobile: boolean, shown: CalendarDay = day) {
 	viewport.isMobile = isMobile;
 	const onOpenChange = vi.fn();
 	const onTradeClick = vi.fn();
 	render(
 		<DayTradesPopover
 			date="2025-01-03"
-			day={day}
+			day={shown}
 			open
 			onOpenChange={onOpenChange}
 			onTradeClick={onTradeClick}
@@ -146,5 +147,25 @@ describe("DayTradesPopover", () => {
 			screen.getByRole("heading", { name: /friday, january 3, 2025/i }),
 		).toBeTruthy();
 		expect(screen.getByText("AAPL")).toBeTruthy();
+	});
+
+	it("shows a partial exit on mobile without counting it as a trade", () => {
+		renderSlider(true, {
+			netPnl: 40,
+			tradeCount: 0,
+			trades: [
+				{
+					id: 7,
+					symbol: "EURUSD",
+					side: TradeSide.Long,
+					status: TradeStatus.Open,
+					netPnl: 40,
+					isPartialExit: true,
+				},
+			],
+		});
+
+		expect(screen.getByText(/1 partial exit · net p&l/i)).toBeTruthy();
+		expect(screen.getByText("Partial exit")).toBeTruthy();
 	});
 });

@@ -296,6 +296,20 @@ function checkTradeCount(
 	}
 }
 
+/** One event per exit, so a partial exit counts on its own exit day. */
+function exitEvents(trades: ComplianceTrade[]) {
+	return trades
+		.flatMap((trade) => {
+			if (!trade.realizations) return isClosed(trade) ? [trade] : [];
+			return trade.realizations.map((item) => ({
+				...trade,
+				exitDate: item.at,
+				netPnl: item.amount,
+			}));
+		})
+		.sort((a, b) => realizedAt(a).getTime() - realizedAt(b).getTime());
+}
+
 function checkDailyLoss(
 	history: ComplianceHistory,
 	range: DateRange,
@@ -327,7 +341,7 @@ function checkDailyLoss(
 			at: group.at.toISOString(),
 			dayKey,
 			tradeId: null,
-			sourceTradeIds: trades.map((trade) => trade.id),
+			sourceTradeIds: [...new Set(trades.map((trade) => trade.id))],
 			imported: trades.some((trade) => trade.imported),
 		});
 	}
@@ -349,7 +363,7 @@ export function evaluateCompliance(
 			.sort((a, b) => realizedAt(a).getTime() - realizedAt(b).getTime()),
 	};
 	checkTrades(history, range, tally, sorted);
-	checkDailyLoss(history, range, tally, sorted.closed);
+	checkDailyLoss(history, range, tally, exitEvents(history.trades));
 	checkTradeCount(history, range, tally, sorted.entered);
 	return tally.result();
 }

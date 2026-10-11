@@ -6,7 +6,7 @@ import {
 } from "./analytics";
 import { priceReturnPercent } from "./finance";
 import { summarizeGroups } from "./group-summary";
-import type { TradeSide } from "./trade";
+import { type TradeSide, TradeStatus } from "./trade";
 
 export type ReconcileTrade = TradeRecord & {
 	setupId: number | null;
@@ -16,10 +16,21 @@ export type ReconcileTrade = TradeRecord & {
 	returnPercent: number | null;
 };
 
+/** One trade with fills: its stored totals and the sums of its fill rows. */
+export type SqlPosition = {
+	tradeId: number;
+	status: string | null;
+	netPnl: number | null;
+	executionCount: number;
+	fillCount: number;
+	exitPnl: number;
+};
+
 /** Read straight from SQL, the way `getStrategyPerformance` reads them. */
 export type SqlTotals = {
 	strategies: { setupId: number | null; count: number; pnl: number }[];
 	cashFlowTotal: number;
+	positions: SqlPosition[];
 };
 
 export const ReconcileCheck = {
@@ -27,6 +38,7 @@ export const ReconcileCheck = {
 	HeadlineBalance: "headline-balance",
 	StrategyCount: "strategy-count",
 	StrategyPnl: "strategy-pnl",
+	PositionFills: "position-fills",
 } as const;
 
 export type ReconcileCheck =
@@ -47,8 +59,13 @@ function headlineDiscrepancies(
 ): Discrepancy[] {
 	const { stats } = summarizeTrades(trades, cashFlows);
 	const sqlCount = sql.strategies.reduce((a, s) => a + s.count, 0);
+	const openPartialPnl = sql.positions
+		.filter((position) => position.status !== TradeStatus.Closed)
+		.reduce((a, position) => a + position.exitPnl, 0);
 	const sqlBalance =
-		sql.strategies.reduce((a, s) => a + s.pnl, 0) + sql.cashFlowTotal;
+		sql.strategies.reduce((a, s) => a + s.pnl, 0) +
+		sql.cashFlowTotal +
+		openPartialPnl;
 	const found: Discrepancy[] = [];
 	if (stats.totalTrades !== sqlCount) {
 		found.push({
@@ -102,6 +119,14 @@ function strategyDiscrepancies(
 	return found;
 }
 
+function positionMatchesFills(position: SqlPosition): boolean {
+	if (position.fillCount !== position.executionCount) return false;
+	if (position.status !== TradeStatus.Closed) return position.netPnl === null;
+	return (
+		position.netPnl !== null && !differs(position.exitPnl, position.netPnl)
+	);
+}
+
 function storesNotionalReturn(trade: ReconcileTrade): boolean {
 	if (trade.entryPrice === null || trade.exitPrice === null) return false;
 	const expected = priceReturnPercent(
@@ -116,6 +141,7 @@ function storesNotionalReturn(trade: ReconcileTrade): boolean {
 /**
  * Every screen reads all time here, so every total must match SQL.
  * `legacyReturnRows` counts closed trades whose stored return is not the price return.
+ * `positions` counts the trades with fills whose fill rows match the stored totals.
  */
 export function reconcileAccount(
 	trades: ReconcileTrade[],
@@ -123,11 +149,22 @@ export function reconcileAccount(
 	sql: SqlTotals,
 ) {
 	const closed = closedTradesInRange(trades);
+	const unmatched = sql.positions.filter(
+		(position) => !positionMatchesFills(position),
+	);
 	return {
 		closedTrades: closed.length,
+		positions: {
+			total: sql.positions.length,
+			matching: sql.positions.length - unmatched.length,
+		},
 		discrepancies: [
 			...headlineDiscrepancies(trades, cashFlows, sql),
 			...strategyDiscrepancies(closed, sql),
+			...unmatched.map((position) => ({
+				check: ReconcileCheck.PositionFills,
+				detail: `trade ${position.tradeId}: ${position.fillCount} of ${position.executionCount} fills, exit P&L ${position.exitPnl}, stored ${position.netPnl}`,
+			})),
 		],
 		legacyReturnRows: closed.filter(storesNotionalReturn).length,
 	};
