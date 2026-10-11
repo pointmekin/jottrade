@@ -20,6 +20,7 @@ vi.mock("@tanstack/react-start", () => import("./server-fn-mock"));
 const ALICE = "seed-alice";
 const BOB = "seed-bob";
 const ALICE_ACCOUNT = 1;
+const BOB_ACCOUNT = 4;
 
 const at = (hour: number) => new Date(Date.UTC(2026, 8, 3, hour)).toISOString();
 const entry = (hour: number, quantity: string, price: string) => ({
@@ -39,6 +40,7 @@ describe.skipIf(!verifyUrl)("position fills on the seeded database", () => {
 	let trades: typeof import("@/server/tradeActions");
 	let positions: typeof import("@/server/positionActions");
 	let calendar: typeof import("@/server/calendarActions");
+	let reads: typeof import("@/server/getTrades");
 	let history: typeof import("@/db/account-history");
 	let withRealizations: typeof import("@/db/positions").withRealizations;
 	let loadArchiveTables: typeof import("@/db/journal-archive").loadArchiveTables;
@@ -63,6 +65,7 @@ describe.skipIf(!verifyUrl)("position fills on the seeded database", () => {
 		trades = await import("@/server/tradeActions");
 		positions = await import("@/server/positionActions");
 		calendar = await import("@/server/calendarActions");
+		reads = await import("@/server/getTrades");
 		history = await import("@/db/account-history");
 		({ withRealizations } = await import("@/db/positions"));
 		({ loadArchiveTables } = await import("@/db/journal-archive"));
@@ -323,5 +326,52 @@ describe.skipIf(!verifyUrl)("position fills on the seeded database", () => {
 		expect(
 			afterPeriod["2026-09-04"]?.trades.some((trade) => trade.id === id),
 		).toBeFalsy();
+	});
+
+	it("hides a leg from list reads, reads it by id, and never shows it to another user", async () => {
+		const row = {
+			userId: BOB,
+			portfolioId: BOB_ACCOUNT,
+			symbol: "EURUSD",
+			side: TradeSide.Long,
+			status: TradeStatus.Closed,
+			entryDate: new Date(at(1)),
+			exitDate: new Date(at(2)),
+			netPnl: "10",
+		};
+		const [position] = await db
+			.insert(schema.trades)
+			.values(row)
+			.returning({ id: schema.trades.id });
+		const [leg] = await db
+			.insert(schema.trades)
+			.values({ ...row, groupedIntoId: position.id })
+			.returning({ id: schema.trades.id });
+		created.push(leg.id, position.id);
+		const listIds = async (portfolioId: number) =>
+			(
+				await reads.getTrades({
+					data: { portfolioId, page: 1, dateFrom: at(0), dateTo: at(3) },
+				})
+			).trades.map((trade) => trade.id);
+
+		session.userId = BOB;
+		const bobIds = await listIds(BOB_ACCOUNT);
+		const account = await history.loadAccountHistory(BOB, BOB_ACCOUNT);
+		const byId = await reads.getTradeById({
+			data: { portfolioId: BOB_ACCOUNT, id: leg.id },
+		});
+		session.userId = ALICE;
+		const aliceIds = await listIds(ALICE_ACCOUNT);
+		const asAlice = await reads.getTradeById({
+			data: { portfolioId: BOB_ACCOUNT, id: leg.id },
+		});
+
+		expect(bobIds).toContain(position.id);
+		expect(bobIds).not.toContain(leg.id);
+		expect(account.trades.map((trade) => trade.id)).not.toContain(leg.id);
+		expect(byId?.id).toBe(leg.id);
+		expect(aliceIds).not.toContain(leg.id);
+		expect(asAlice).toBeNull();
 	});
 });

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { requireOwnedPortfolio } from "@/db/portfolios";
 import { trades } from "@/db/schema";
+import { positionRow } from "@/db/trade-filter";
 import { realizedAt } from "@/lib/analytics";
 import { currentExecutionFingerprint } from "@/lib/review-execution-fingerprint";
 import { TradeStatus } from "@/lib/trade";
@@ -26,6 +27,7 @@ export const getReviewQueue = createServerFn({ method: "GET" })
 			.from(trades)
 			.where(
 				and(
+					positionRow,
 					eq(trades.userId, userId),
 					eq(trades.portfolioId, data.portfolioId),
 				),

@@ -28,11 +28,11 @@ try {
 	const queries = [
 		`SELECT id, portfolio_id, status, entry_date, exit_date, net_pnl, setup_id,
 			        side, entry_price, exit_price, return_percent, execution_count
-			   FROM trades`,
+			   FROM trades WHERE grouped_into_id IS NULL`,
 		"SELECT portfolio_id, occurred_at, amount, kind FROM cash_flows",
 		`SELECT portfolio_id, setup_id, COUNT(*)::int AS count,
 			        COALESCE(SUM(net_pnl), 0) AS pnl
-			   FROM trades WHERE status = 'CLOSED'
+			   FROM trades WHERE status = 'CLOSED' AND grouped_into_id IS NULL
 			  GROUP BY portfolio_id, setup_id`,
 		`SELECT portfolio_id, COALESCE(SUM(amount), 0) AS total
 		   FROM cash_flows GROUP BY portfolio_id`,
@@ -42,7 +42,7 @@ try {
 		        COUNT(e.id)::int AS fill_count,
 		        COALESCE(SUM(e.realized_pnl) FILTER (WHERE e.kind = 'exit'), 0) AS exit_pnl
 		   FROM trades t LEFT JOIN trade_executions e ON e.trade_id = t.id
-		  WHERE t.execution_count > 0
+		  WHERE t.execution_count > 0 AND t.grouped_into_id IS NULL
 		  GROUP BY t.id`,
 	];
 	const results = [];

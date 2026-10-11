@@ -17,6 +17,7 @@ export function undoClassificationSql(
  WHEN p->>'undoState' IN ('undone','none') THEN 'No remaining mutation.'
  WHEN p->'after'->>'kind'='trades' AND t.id IS NULL THEN 'Record is already absent.'
  WHEN p->'after'->>'kind'='adjustments' AND f.id IS NULL THEN 'Record is already absent.'
+ WHEN t.grouped_into_id IS NOT NULL THEN 'Trade is grouped into a position. Ungroup it first.'
  WHEN t.id IS NOT NULL AND t.edit_revision<>(p->>'afterRevision')::int THEN 'Trade changed after this import.'
  WHEN f.id IS NOT NULL AND f.edit_revision<>(p->>'afterRevision')::int THEN 'Account entry changed after this import.'
  WHEN t.id IS NOT NULL AND (COALESCE(jsonb_array_length(t.screenshots),0)>0 OR t.annotation_revision>0 OR t.reviewed_at IS NOT NULL OR t.reviewed_execution_fingerprint IS NOT NULL) THEN 'Trade has screenshots, annotations or review status.'
