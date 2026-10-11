@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { SectionHeading } from "@/components/app-page-header";
 import { RiskMetrics } from "@/components/dashboard/RiskMetrics";
+import { SizingFinding } from "@/components/dashboard/sizing-finding";
 import { TagFindings } from "@/components/dashboard/tag-findings";
 import { MetricCardSkeleton } from "@/components/metric-card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -88,6 +89,7 @@ export function RiskSection({
 						/>
 					</Suspense>
 					<TagFindings scope={data.findings.scope} tags={data.findings.tags} />
+					<SizingFinding sizing={data.findings.sizing} />
 				</>
 			) : (
 				<RiskSectionSkeleton />

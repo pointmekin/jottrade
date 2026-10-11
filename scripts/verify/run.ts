@@ -31,6 +31,7 @@ const DATABASE_TESTS = [
 	"src/test/review-positions.integration.test.ts",
 	"src/test/tag-insights.integration.test.ts",
 	"src/test/check-insights.integration.test.ts",
+	"src/test/sizing-insights.integration.test.ts",
 ];
 // Blank optional integrations, so a developer's .env never reaches the run.
 const BLANK_KEYS = [
