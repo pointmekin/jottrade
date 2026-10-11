@@ -19,6 +19,18 @@ export async function requireOwnedPortfolio(
 	return portfolio;
 }
 
+/** Does not throw: a foreign account has no trades for this user, so the currency does not matter. */
+export async function loadPortfolioCurrency(
+	userId: string,
+	portfolioId: number,
+) {
+	const [portfolio] = await db
+		.select({ currency: portfolios.currency })
+		.from(portfolios)
+		.where(and(eq(portfolios.id, portfolioId), eq(portfolios.userId, userId)));
+	return portfolio?.currency ?? DEFAULT_CURRENCY;
+}
+
 /** Serializes a trade write with deleteStrategy, which locks the same rows first. */
 export const lockPortfolio = (userId: string, portfolioId: number) =>
 	db.execute(
