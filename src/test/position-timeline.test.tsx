@@ -146,6 +146,22 @@ describe("PositionTimeline", () => {
 		expect(screen.getAllByRole("button", { name: /^Edit/ })).toHaveLength(3);
 	});
 
+	it("hides the fill actions after the full close, and keeps small prices", async () => {
+		mockGet.mockResolvedValue(
+			loaded([
+				fill(1, ExecutionKind.Entry, 1, "1", "0.0000001"),
+				fill(2, ExecutionKind.Exit, 2, "1", "0.0000002"),
+			]),
+		);
+		renderTimeline();
+
+		const rows = await screen.findAllByRole("listitem");
+		expect(rows[0].textContent).toContain("0.0000001");
+		expect(rows[1].textContent).toContain("Closed · realized");
+		expect(screen.queryByRole("button", { name: "Add entry" })).toBeNull();
+		expect(screen.queryByRole("button", { name: "Close part" })).toBeNull();
+	});
+
 	it("shows the notice and no actions for an imported trade", async () => {
 		mockGet.mockResolvedValue(
 			loaded([fill(undefined, ExecutionKind.Entry, 1, "1", "1.1")], false),

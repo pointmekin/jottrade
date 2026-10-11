@@ -44,7 +44,7 @@ const KIND_LABEL = {
 
 const formatPrice = (value: number) =>
 	value.toLocaleString("en-US", {
-		maximumFractionDigits: 6,
+		maximumFractionDigits: 12,
 		useGrouping: false,
 	});
 
@@ -84,7 +84,7 @@ export function PositionTimeline({ trade }: { trade: Trade }) {
 				<h2 id={`fills-${trade.id}`} className="text-sm font-medium">
 					Fills
 				</h2>
-				{!isImported && replay?.ok && (
+				{!isImported && open > 0 && (
 					<div className="flex gap-2">
 						<Button
 							type="button"
@@ -108,7 +108,7 @@ export function PositionTimeline({ trade }: { trade: Trade }) {
 									title: "Close part",
 									values: {
 										kind: ExecutionKind.Exit,
-										quantity: open > 0 ? String(open) : "",
+										quantity: String(open),
 									},
 								})
 							}
