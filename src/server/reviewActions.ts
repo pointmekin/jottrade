@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { reopenReview, saveReview } from "@/db/review-writes";
+import { appendNextAction, reopenReview, saveReview } from "@/db/review-writes";
 import { readReview } from "@/db/reviews";
 import { reviewFieldsSchema } from "@/lib/review";
 import { reviewScopeSchema } from "@/lib/review-period";
@@ -36,4 +36,15 @@ export const reopenReviewPeriod = createServerFn({ method: "POST" })
 			data.id,
 			data.expectedRevision,
 		),
+	);
+export const addReviewNextAction = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
+	.validator(
+		z.object({
+			portfolioId: z.number().int().positive(),
+			line: z.string().trim().min(1).max(1000),
+		}),
+	)
+	.handler(async ({ data, context }) =>
+		appendNextAction(context.userId, data.portfolioId, data.line),
 	);

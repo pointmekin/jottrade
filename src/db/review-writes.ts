@@ -1,8 +1,16 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
-import { type ReviewFields, type ReviewKind, ReviewStatus } from "@/lib/review";
+import { toDayKey } from "@/lib/date";
+import { appendReviewLine } from "@/lib/insight-review";
+import {
+	type ReviewFields,
+	ReviewKind,
+	ReviewStatus,
+	reviewFieldsSchema,
+} from "@/lib/review";
+import { reviewPeriod } from "@/lib/review-period";
 import { reviewSignatureCheck, reviewSourceWrites } from "./review-write-sql";
-import { readReview } from "./reviews";
+import { readReview, reviewAccount } from "./reviews";
 
 export async function saveReview(
 	userId: string,
@@ -69,4 +77,38 @@ export async function reopenReview(
 	if (!result[1].rows.length)
 		throw new Error("This review changed elsewhere. Reload before reopening.");
 	return { success: true };
+}
+export async function appendNextAction(
+	userId: string,
+	portfolioId: number,
+	line: string,
+) {
+	const account = await reviewAccount(userId, portfolioId);
+	const today = toDayKey(new Date(), account.reviewTimezone ?? undefined);
+	const scope = {
+		portfolioId,
+		kind: ReviewKind.Weekly,
+		start: reviewPeriod(today, ReviewKind.Weekly, account.reviewWeekStartsOn)
+			.periodStart,
+	};
+	const review = await readReview(userId, scope);
+	if (review.period?.status === ReviewStatus.Complete)
+		throw new Error(
+			"This week's review is complete. Reopen it to add the action.",
+		);
+	const nextAction = appendReviewLine(review.fields.nextAction, line);
+	if (nextAction === review.fields.nextAction)
+		return { start: scope.start, added: false };
+	const fields = reviewFieldsSchema.safeParse({ ...review.fields, nextAction });
+	if (!fields.success)
+		throw new Error(
+			"The next action of this week's review is too long. Shorten it in Reviews first.",
+		);
+	await saveReview(userId, {
+		...scope,
+		expectedRevision: review.revision,
+		fields: fields.data,
+		complete: false,
+	});
+	return { start: scope.start, added: true };
 }

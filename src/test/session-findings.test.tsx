@@ -6,6 +6,11 @@ import { describe, expect, it, vi } from "vitest";
 import { SessionFindings } from "@/components/dashboard/session-findings";
 import { INSIGHT_FOOTER, SESSION_WINDOWS } from "@/lib/insights";
 
+vi.mock("@/components/dashboard/add-to-review-button", () => ({
+	AddToReviewButton: ({ text }: { text: string }) => (
+		<button type="button">{text}</button>
+	),
+}));
 vi.mock("@/hooks/use-currency", () => ({ useCurrency: () => "USD" }));
 vi.mock("@tanstack/react-router", () => ({
 	Link: ({ children }: { children: ReactNode }) => (
@@ -39,6 +44,12 @@ describe("SessionFindings", () => {
 		expect(screen.getByText("Not enough trades (0 of 20)")).toBeTruthy();
 		expect(screen.getByRole("link", { name: "#100" })).toBeTruthy();
 		expect(screen.queryByText(/in Other/)).toBeNull();
+		expect(
+			screen.getAllByRole("button").map((button) => button.textContent),
+		).toEqual([
+			"Asia session: -$18.50 per trade against the scope avg (24 trades).",
+			"New York session: +$15.00 per trade against the scope avg (33 trades).",
+		]);
 		expect(screen.getByText(INSIGHT_FOOTER)).toBeTruthy();
 	});
 

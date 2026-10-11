@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
+import { AddToReviewButton } from "@/components/dashboard/add-to-review-button";
 import { useCurrency } from "@/hooks/use-currency";
 import { formatMoney } from "@/lib/currency";
+import { sizingFindingText } from "@/lib/insight-review";
 import {
 	FINDING_MIN_TRADES,
 	type SizingFinding as Finding,
@@ -72,17 +74,23 @@ export function SizingFinding({ sizing }: { sizing: Finding }) {
 				/>
 				<CohortLine label="Other" cohort={other} currency={currency} />
 			</div>
-			<p className="mt-2 text-sm">
+			<div className="mt-2 text-sm">
 				{change === null ? (
 					<span className="text-xs text-muted-foreground">
 						{`Not enough trades with initial risk (${smallest} of ${FINDING_MIN_TRADES})`}
 					</span>
 				) : (
-					<span className="font-mono tabular-nums">
-						{`${change > 0 ? "+" : ""}${change}% median risk after a loss`}
+					<span className="flex flex-wrap items-center gap-3">
+						<span className="font-mono tabular-nums">
+							{`${change > 0 ? "+" : ""}${change}% median risk after a loss`}
+						</span>
+						<AddToReviewButton
+							text={sizingFindingText({ ...sizing, change })}
+							search={{ status: TradeStatus.Closed }}
+						/>
 					</span>
 				)}
-			</p>
+			</div>
 			{afterLoss.tradeIds.length > 0 && (
 				<details className="mt-2 text-xs">
 					<summary className="cursor-pointer text-muted-foreground">

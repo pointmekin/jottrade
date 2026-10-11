@@ -1,7 +1,9 @@
 import { Link } from "@tanstack/react-router";
+import { AddToReviewButton } from "@/components/dashboard/add-to-review-button";
 import { useCurrency } from "@/hooks/use-currency";
 import { formatMoney } from "@/lib/currency";
 import { hourLabel } from "@/lib/date";
+import { sessionFindingText } from "@/lib/insight-review";
 import {
 	FINDING_MIN_TRADES,
 	INSIGHT_FOOTER,
@@ -38,13 +40,22 @@ function SessionRow({
 						{`Not enough trades (${session.count} of ${FINDING_MIN_TRADES})`}
 					</span>
 				) : (
-					<span
-						className={cn(
-							"font-mono tabular-nums",
-							session.difference < 0 ? "text-destructive" : "text-success",
-						)}
-					>
-						{`${formatMoney(session.difference, currency, { signed: true })} per trade`}
+					<span className="flex items-center gap-3">
+						<span
+							className={cn(
+								"font-mono tabular-nums",
+								session.difference < 0 ? "text-destructive" : "text-success",
+							)}
+						>
+							{`${formatMoney(session.difference, currency, { signed: true })} per trade`}
+						</span>
+						<AddToReviewButton
+							text={sessionFindingText(
+								{ ...session, difference: session.difference },
+								currency,
+							)}
+							search={{ status: TradeStatus.Closed }}
+						/>
 					</span>
 				)}
 			</div>

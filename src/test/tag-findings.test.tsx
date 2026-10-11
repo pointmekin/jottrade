@@ -6,6 +6,11 @@ import { describe, expect, it, vi } from "vitest";
 import { TagFindings } from "@/components/dashboard/tag-findings";
 import { INSIGHT_FOOTER } from "@/lib/insights";
 
+vi.mock("@/components/dashboard/add-to-review-button", () => ({
+	AddToReviewButton: ({ text }: { text: string }) => (
+		<button type="button">{text}</button>
+	),
+}));
 vi.mock("@/hooks/use-currency", () => ({ useCurrency: () => "USD" }));
 vi.mock("@tanstack/react-router", () => ({
 	Link: ({ children }: { children: ReactNode }) => (
@@ -37,6 +42,11 @@ describe("TagFindings", () => {
 		expect(screen.getByRole("link", { name: "24 trades" })).toBeTruthy();
 		expect(screen.getByText("-$18.50 per trade")).toBeTruthy();
 		expect(screen.getByText("Not enough trades (12 of 20)")).toBeTruthy();
+		expect(
+			screen.getAllByRole("button").map((button) => button.textContent),
+		).toEqual([
+			'Tag "FOMO": -$18.50 per trade against the scope avg (24 trades).',
+		]);
 		expect(screen.getByText(INSIGHT_FOOTER)).toBeTruthy();
 	});
 
