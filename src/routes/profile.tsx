@@ -4,6 +4,7 @@ import { AppPageHeader, SectionHeading } from "@/components/app-page-header";
 import { AccountDeletion } from "@/components/profile/account-deletion";
 import { PasswordSettings } from "@/components/profile/password-settings";
 import { SessionSettings } from "@/components/profile/session-settings";
+import { TwoFactorSettings } from "@/components/profile/two-factor-settings";
 import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "../lib/auth-client";
 
@@ -121,18 +122,11 @@ function Profile() {
 										</h3>
 										<PasswordSettings />
 									</div>
-									<div className="flex items-center justify-between gap-4 py-4">
-										<div>
-											<h3 className="text-sm font-medium text-foreground">
-												Two-Factor Authentication
-											</h3>
-											<p className="text-xs text-muted-foreground mt-0.5">
-												Add an extra layer of security to your account
-											</p>
-										</div>
-										<p className="shrink-0 text-xs text-muted-foreground">
-											Not available yet
-										</p>
+									<div className="grid gap-3 py-4">
+										<h3 className="text-sm font-medium text-foreground">
+											Two-Factor Authentication
+										</h3>
+										<TwoFactorSettings />
 									</div>
 								</div>
 							</section>

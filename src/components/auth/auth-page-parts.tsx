@@ -1,7 +1,7 @@
 import { Crosshair, type LucideIcon } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
-interface AuthAsideProps {
+export interface AuthAsideProps {
 	heading: string;
 	description: string;
 	steps: readonly string[];

@@ -21,6 +21,7 @@ const DATABASE_TESTS = [
 	"src/test/strategy-isolation.integration.test.ts",
 	"src/test/sign-up-provisioning.integration.test.ts",
 	"src/test/password-recovery.integration.test.ts",
+	"src/test/two-factor.integration.test.ts",
 	"src/test/session-revocation.integration.test.ts",
 	"src/test/account-deletion.integration.test.ts",
 	"src/test/trade-images.integration.test.ts",
