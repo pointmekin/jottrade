@@ -39,6 +39,14 @@ const hasRuleOutcome = (outcome: RuleOutcome) =>
 /** The worst outcome of the entry check. A check that could not read the rules stores a reason and is unknown. A trade with no check, or with no rule set, is not checked. */
 export const tradeRuleCheck = sql<RuleOutcome>`case when ${hasRuleOutcome(RuleOutcome.Violated)} then ${RuleOutcome.Violated} when ${hasRuleOutcome(RuleOutcome.Unknown)} or ${trades.ruleCheck}->>'reason' is not null then ${RuleOutcome.Unknown} when ${hasRuleOutcome(RuleOutcome.Pass)} then ${RuleOutcome.Pass} else ${RuleOutcome.NotSet} end`;
 
+/** The columns are UTC timestamps without a zone. */
+const zonedPart = (
+	part: "dow" | "hour",
+	column: SQLWrapper,
+	timeZone = "UTC",
+) =>
+	sql`extract(${sql.raw(part)} from ${column} at time zone 'UTC' at time zone ${timeZone})`;
+
 function setupCondition(setupId: TradeFilter["setupId"]) {
 	if (setupId === "none") return isNull(trades.setupId);
 	if (setupId === undefined) return undefined;
@@ -72,6 +80,15 @@ export function tradeConditions(userId: string, filter: TradeFilter) {
 			? inArray(trades.mistake, filter.mistake)
 			: undefined,
 		tagCondition(filter.tagIds, filter.tagMatch),
+		filter.weekday === undefined
+			? undefined
+			: eq(zonedPart("dow", tradeScopeDate, filter.timeZone), filter.weekday),
+		filter.entryHour === undefined
+			? undefined
+			: eq(
+					zonedPart("hour", trades.entryDate, filter.timeZone),
+					filter.entryHour,
+				),
 		filter.dateFrom
 			? gte(tradeScopeDate, scopeDateBound(filter.dateFrom))
 			: undefined,

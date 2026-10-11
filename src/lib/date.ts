@@ -89,6 +89,20 @@ export function isWeekdayKey(day: string): boolean {
 	return dayOfWeek !== 0 && dayOfWeek !== 6;
 }
 
+/** Indexed by `getUTCDay()` and by SQL `extract(dow ...)`: 0 is Sunday. */
+export const WEEKDAY_NAMES = [
+	"Sunday",
+	"Monday",
+	"Tuesday",
+	"Wednesday",
+	"Thursday",
+	"Friday",
+	"Saturday",
+] as const;
+
+export const hourLabel = (hour: number) =>
+	`${String(hour).padStart(2, "0")}:00`;
+
 export function zonedDayOfWeek(date: Date, timeZone: string): number {
 	return new Date(`${toDayKey(date, timeZone)}T00:00:00Z`).getUTCDay();
 }

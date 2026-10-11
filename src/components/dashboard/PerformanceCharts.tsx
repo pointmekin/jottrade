@@ -49,6 +49,8 @@ function DrillDownBar({
 		...prev,
 		...drillDownSearch(chartGroup, group.key),
 	});
+	// The weekday chart has a bar for each day, also with no trades in scope.
+	if (group.count === 0) return <Rectangle {...props} />;
 	return (
 		<Link
 			from="/dashboard"
@@ -192,8 +194,16 @@ export function PerformanceCharts({
 					drillDown={ChartGroup.RuleCheck}
 				/>
 			)}
-			<AvgPnlBar data={byDayOfWeek} title="Avg P&L by day of week" />
-			<AvgPnlBar data={byHour} title="Avg P&L by entry hour" />
+			<AvgPnlBar
+				data={byDayOfWeek}
+				title="Avg P&L by day of week"
+				drillDown={ChartGroup.Weekday}
+			/>
+			<AvgPnlBar
+				data={byHour}
+				title="Avg P&L by entry hour"
+				drillDown={ChartGroup.EntryHour}
+			/>
 		</div>
 	);
 }

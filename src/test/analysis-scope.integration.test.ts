@@ -423,6 +423,55 @@ describe.skipIf(!url)("one analysis scope on migrated PostgreSQL", () => {
 		}
 	});
 
+	it("opens the same closed count and net P&L as each weekday and entry hour bar across a DST change", async () => {
+		const timeZone = "America/New_York";
+		const march = {
+			dateFrom: "2026-03-01T05:00:00.000Z",
+			dateTo: "2026-04-01T03:59:59.999Z",
+		};
+		// New York moves to UTC-4 at 07:00 UTC on Sunday 8 March 2026.
+		const dstChange = Date.parse("2026-03-08T07:00:00.000Z");
+		for (let i = 0; i < 12; i++) {
+			const entryDate = new Date(dstChange + (i - 6) * 3 * HOUR);
+			await insertTrade(OWNER, {
+				portfolioId: 2,
+				symbol: SYMBOLS[i % 3],
+				side: TradeSide.Long,
+				status: TradeStatus.Closed,
+				entryDate,
+				exitDate: new Date(entryDate.getTime() + (i % 3) * 2 * HOUR),
+				netPnl: i * 10 - 55,
+				hasStrategy: false,
+				confidence: null,
+				mistake: null,
+				tagged: false,
+			});
+		}
+		const scope = { portfolioId: 2, timeZone, ...march };
+		const { byDayOfWeek, byHour } = await getAdvancedAnalytics({ data: scope });
+		const groups = [
+			...byDayOfWeek.map((group) => ({ chart: ChartGroup.Weekday, group })),
+			...byHour.map((group) => ({ chart: ChartGroup.EntryHour, group })),
+		];
+
+		expect(byDayOfWeek.filter((group) => group.count > 0)).toHaveLength(2);
+		expect(byHour.reduce((sum, group) => sum + group.count, 0)).toBe(12);
+		for (const { chart, group } of groups) {
+			const search = journalSearchSchema.parse(
+				drillDownSearch(chart, group.key),
+			);
+			const query = toTradeQuery(search, toDateRange(march));
+			const { closedSummary } = await getTrades({
+				data: { ...scope, ...query, timeZone },
+			});
+			expect(closedSummary.count, group.name).toBe(group.count);
+			expect(closedSummary.netPnl ?? 0, group.name).toBeCloseTo(
+				group.totalPnl,
+				2,
+			);
+		}
+	});
+
 	it("returns nothing from another user's account", async () => {
 		const scope = { portfolioId: 3, timeZone: "UTC", ...FEB };
 
