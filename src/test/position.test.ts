@@ -3,8 +3,13 @@ import { calculateManualPnl } from "@/lib/pnl-context";
 import {
 	ExecutionKind,
 	executionInputSchema,
+	formatQuantity,
 	PositionError,
 	type PositionFill,
+	partlyClosedLabel,
+	positionErrorMessage,
+	positionErrorOf,
+	positionSummary,
 	positionTotals,
 	replayPosition,
 } from "@/lib/position";
@@ -381,5 +386,88 @@ describe("executionInputSchema", () => {
 		expect(
 			executionInputSchema.safeParse({ ...fill, fees: "-1" }).success,
 		).toBe(false);
+	});
+});
+
+describe("positionSummary", () => {
+	it("gives the totals bar values after each fill", () => {
+		const steps = replaySteps(TradeSide.Long, [
+			entry(1, "1.0", "1.1000", "2"),
+			entry(2, "1.0", "1.0950", "2"),
+			exit(3, "0.5", "1.1050", "1"),
+		]);
+		const summary = positionSummary(steps);
+		expect(summary.averageEntryPrice).toBeCloseTo(1.0975, 10);
+		expect(summary).toEqual({
+			entered: 2,
+			closed: 0.5,
+			open: 1.5,
+			averageEntryPrice: summary.averageEntryPrice,
+			averageExitPrice: 1.105,
+			allocatedFees: 2,
+			unallocatedFees: 3,
+			realizedPnl: 373,
+		});
+	});
+
+	it("has no exit price before the first exit", () => {
+		const steps = replaySteps(TradeSide.Long, [entry(1, "1.0", "1.1000")]);
+		expect(positionSummary(steps)).toMatchObject({
+			open: 1,
+			closed: 0,
+			averageExitPrice: null,
+			realizedPnl: 0,
+		});
+	});
+});
+
+describe("partlyClosedLabel", () => {
+	it("shows the open part of an open position with exits", () => {
+		expect(
+			partlyClosedLabel({
+				status: TradeStatus.Open,
+				quantity: "1",
+				closedQuantity: "0.5",
+			}),
+		).toBe("Partly closed · 0.5 of 1.0 open");
+	});
+
+	it("gives nothing for a closed trade or an open trade with no exit", () => {
+		expect(
+			partlyClosedLabel({
+				status: TradeStatus.Closed,
+				quantity: "1",
+				closedQuantity: "1",
+			}),
+		).toBeNull();
+		expect(
+			partlyClosedLabel({
+				status: TradeStatus.Open,
+				quantity: "1",
+				closedQuantity: null,
+			}),
+		).toBeNull();
+	});
+});
+
+describe("positionErrorOf", () => {
+	it("finds the error kind of a server message", () => {
+		const replay = replayPosition(
+			TradeSide.Long,
+			[entry(1, "1.0", "1.1000"), exit(2, "1.5", "1.1000")],
+			USD_EURUSD,
+		);
+		if (replay.ok) throw new Error("Expected an over-close");
+		expect(positionErrorOf(positionErrorMessage(replay))).toBe(
+			PositionError.OverClose,
+		);
+		expect(
+			positionErrorOf("Trade changed. Reload before saving."),
+		).toBeUndefined();
+	});
+
+	it("formats a quantity with at least one decimal", () => {
+		expect(formatQuantity(2)).toBe("2.0");
+		expect(formatQuantity(0.125)).toBe("0.125");
 	});
 });

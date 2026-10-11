@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAccounts } from "@/hooks/use-accounts";
 import { formatMoney } from "@/lib/currency";
+import { formatQuantity } from "@/lib/position";
 import { QueryKey } from "@/lib/query-keys";
 import { type Trade, TradeStatus } from "@/lib/trade";
 import {
@@ -53,6 +54,7 @@ export function TradeRiskDetails({ trade }: { trade: Trade }) {
 				net P&L after fees by original stop-distance risk before costs.
 				Management changes preserve this plan.
 			</p>
+			{snapshot && <ScaleInNote trade={trade} snapshot={snapshot} />}
 			{snapshot && <SavedRiskInputs trade={trade} snapshot={snapshot} />}
 			{metrics.mismatch && (
 				<p role="alert" className="text-sm text-destructive">
@@ -111,6 +113,25 @@ function riskMetricValues(
 		planned: rr === null ? "Unavailable" : `1:${rr.toFixed(2)}`,
 		realized: realizedR === null ? unavailable : `${realizedR.toFixed(2)}R`,
 	};
+}
+
+function ScaleInNote({
+	trade,
+	snapshot,
+}: {
+	trade: Trade;
+	snapshot: NonNullable<Trade["initialRiskSnapshot"]>;
+}) {
+	const initial = Number(snapshot.quantity);
+	const current = Number(trade.quantity);
+	if (!trade.executionCount || current <= initial) return null;
+	const unit = snapshot.quantityUnit.toLowerCase();
+	return (
+		<p className="text-sm text-muted-foreground">
+			Size grew to {formatQuantity(current)} {unit} after the initial plan. R
+			uses the initial risk of {formatQuantity(initial)} {unit}.
+		</p>
+	);
 }
 
 function SavedRiskInputs({

@@ -1,11 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, count, eq, sum } from "drizzle-orm";
+import { and, count, eq, getTableColumns, sum } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { loadAccountHistory } from "@/db/account-history";
-import { trades } from "@/db/schema";
+import { tradeExecutions, trades } from "@/db/schema";
 import { tradeConditions, tradeOrder } from "@/db/trade-filter";
 import { loadTagsByTrade, withTags } from "@/db/trade-tags";
+import { ExecutionKind } from "@/lib/position";
 import { computeAccountReturn } from "@/lib/risk-metrics";
 import { TradeStatus } from "@/lib/trade";
 import { sortedTradeFilterSchema } from "@/lib/trade-sort";
@@ -24,11 +25,29 @@ export const getTrades = createServerFn({ method: "GET" })
 	.handler(async ({ data, context }) => {
 		const { userId } = context;
 		const where = tradeConditions(userId, data);
+		const exits = db
+			.select({
+				tradeId: tradeExecutions.tradeId,
+				closedQuantity: sum(tradeExecutions.quantity).as("closed_quantity"),
+			})
+			.from(tradeExecutions)
+			.where(
+				and(
+					eq(tradeExecutions.userId, userId),
+					eq(tradeExecutions.kind, ExecutionKind.Exit),
+				),
+			)
+			.groupBy(tradeExecutions.tradeId)
+			.as("exits");
 
 		const [rows, [{ total }], [closed]] = await Promise.all([
 			db
-				.select()
+				.select({
+					...getTableColumns(trades),
+					closedQuantity: exits.closedQuantity,
+				})
 				.from(trades)
+				.leftJoin(exits, eq(exits.tradeId, trades.id))
 				.where(where)
 				.orderBy(...tradeOrder(data))
 				.limit(PAGE_SIZE)

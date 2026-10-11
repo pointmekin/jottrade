@@ -5,10 +5,15 @@ import { TagList } from "@/components/tags/tag-chip";
 import type { AccountEntryRecord } from "@/lib/account-entry";
 import { type JournalEntry, JournalEntryKind } from "@/lib/journal-entries";
 import { formatEntryDate, toNumber } from "@/lib/journal-format";
-import { UNAVAILABLE } from "@/lib/metric";
 import type { Trade } from "@/lib/trade";
 import { TradeSortField } from "@/lib/trade-sort";
-import { AdjustmentPill, Dash, Money, SidePill } from "./journal-cells";
+import {
+	AdjustmentPill,
+	Dash,
+	Money,
+	SidePill,
+	TradeStatusText,
+} from "./journal-cells";
 
 export type JournalRow = JournalEntry<Trade>;
 
@@ -100,8 +105,8 @@ const buildColumns = (currency: string): JournalColumn[] => [
 		id: "status",
 		header: "Status",
 		trade: (trade) => (
-			<span className="text-xs uppercase text-muted-foreground">
-				{trade.status ?? UNAVAILABLE}
+			<span className="text-xs text-muted-foreground">
+				<TradeStatusText trade={trade} />
 			</span>
 		),
 	},
