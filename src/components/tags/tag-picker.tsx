@@ -13,7 +13,7 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
-import { useCreateTag, useTags } from "@/hooks/use-tags";
+import { isPendingTag, useCreateTag, useTags } from "@/hooks/use-tags";
 import {
 	normalizeTagName,
 	sameTagName,
@@ -52,16 +52,16 @@ export function TagPicker({
 	else if (isLoading) emptyText = "Loading tags…";
 	else if (tags.length) emptyText = "No matching tag.";
 
-	const createAndSelect = () =>
+	const createAndSelect = () => {
+		setQuery("");
 		create.mutate(name, {
-			onSuccess: (tag) => {
-				setQuery("");
-				onSelect(tag);
-			},
+			onSuccess: (tag) => onSelect(tag),
+			onError: () => setQuery((current) => current || name),
 		});
+	};
 
 	return (
-		<Popover onOpenChange={() => create.reset()}>
+		<Popover>
 			<PopoverTrigger asChild>{trigger}</PopoverTrigger>
 			<PopoverContent align={align} className="w-64 p-0">
 				<Command>
@@ -79,16 +79,23 @@ export function TagPicker({
 									<CommandItem
 										key={tag.id}
 										value={`${tag.name} ${tag.id}`}
+										disabled={isPendingTag(tag)}
 										onSelect={() => onSelect(tag)}
 									>
 										<TagDot color={tag.color} />
 										<span className="flex-1 truncate">{tag.name}</span>
-										<Check
-											className={cn(
-												"size-3.5",
-												selected.has(tag.id) ? "opacity-100" : "opacity-0",
-											)}
-										/>
+										{isPendingTag(tag) ? (
+											<span className="animate-pulse text-xs text-muted-foreground motion-reduce:animate-none">
+												Saving…
+											</span>
+										) : (
+											<Check
+												className={cn(
+													"size-3.5",
+													selected.has(tag.id) ? "opacity-100" : "opacity-0",
+												)}
+											/>
+										)}
 									</CommandItem>
 								))}
 							</CommandGroup>
@@ -109,14 +116,6 @@ export function TagPicker({
 							</CommandGroup>
 						)}
 					</CommandList>
-					{create.error && (
-						<p
-							role="alert"
-							className="border-t px-3 py-2 text-xs text-destructive"
-						>
-							{create.error.message}
-						</p>
-					)}
 				</Command>
 			</PopoverContent>
 		</Popover>
