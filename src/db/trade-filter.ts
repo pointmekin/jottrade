@@ -36,8 +36,8 @@ export const tradeAdherence = sql<PlanAdherence>`case when (${trades.playbookChe
 const hasRuleOutcome = (outcome: RuleOutcome) =>
 	sql`exists (select 1 from jsonb_array_elements(${trades.ruleCheck}->'outcomes') as item where item->>'outcome' = ${outcome})`;
 
-/** The worst outcome of the entry check. A trade with no check, or with no rule set, is not checked. */
-export const tradeRuleCheck = sql<RuleOutcome>`case when ${hasRuleOutcome(RuleOutcome.Violated)} then ${RuleOutcome.Violated} when ${hasRuleOutcome(RuleOutcome.Unknown)} then ${RuleOutcome.Unknown} when ${hasRuleOutcome(RuleOutcome.Pass)} then ${RuleOutcome.Pass} else ${RuleOutcome.NotSet} end`;
+/** The worst outcome of the entry check. A check that could not read the rules stores a reason and is unknown. A trade with no check, or with no rule set, is not checked. */
+export const tradeRuleCheck = sql<RuleOutcome>`case when ${hasRuleOutcome(RuleOutcome.Violated)} then ${RuleOutcome.Violated} when ${hasRuleOutcome(RuleOutcome.Unknown)} or ${trades.ruleCheck}->>'reason' is not null then ${RuleOutcome.Unknown} when ${hasRuleOutcome(RuleOutcome.Pass)} then ${RuleOutcome.Pass} else ${RuleOutcome.NotSet} end`;
 
 function setupCondition(setupId: TradeFilter["setupId"]) {
 	if (setupId === "none") return isNull(trades.setupId);

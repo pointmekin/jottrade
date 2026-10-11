@@ -9,6 +9,7 @@ import {
 import { PlanAdherence, type PlaybookCheck } from "@/lib/playbook-check";
 import {
 	RiskRuleKind,
+	RULES_UNREADABLE,
 	RuleOutcome,
 	type StoredRuleCheck,
 } from "@/lib/risk-rule-evaluation";
@@ -148,6 +149,9 @@ describe.skipIf(!verifyUrl)("check insights on the seeded database", () => {
 			ruleCheck: ruleCheck(RuleOutcome.Unknown, RuleOutcome.Pass),
 		});
 		await addTrade("7");
+		await addTrade("3", {
+			ruleCheck: { ...ruleCheck(), version: null, reason: RULES_UNREADABLE },
+		});
 		await addTrade("5", { ruleCheck: ruleCheck(RuleOutcome.NotSet) });
 		await addTrade("0", {
 			status: TradeStatus.Open,
@@ -175,7 +179,7 @@ describe.skipIf(!verifyUrl)("check insights on the seeded database", () => {
 		expect(byAdherence.map(({ key, count }) => ({ key, count }))).toEqual([
 			{ key: PlanAdherence.Followed, count: 1 },
 			{ key: PlanAdherence.Broken, count: 1 },
-			{ key: PlanAdherence.Unchecked, count: 3 },
+			{ key: PlanAdherence.Unchecked, count: 4 },
 		]);
 		for (const group of byAdherence) {
 			const totals = await groupTotals(ChartGroup.Adherence, group.key);
@@ -193,7 +197,7 @@ describe.skipIf(!verifyUrl)("check insights on the seeded database", () => {
 		expect(byRuleCheck.map(({ key, count }) => ({ key, count }))).toEqual([
 			{ key: RuleOutcome.Pass, count: 1 },
 			{ key: RuleOutcome.Violated, count: 1 },
-			{ key: RuleOutcome.Unknown, count: 1 },
+			{ key: RuleOutcome.Unknown, count: 2 },
 			{ key: RuleOutcome.NotSet, count: 2 },
 		]);
 		for (const group of byRuleCheck) {
