@@ -14,7 +14,13 @@ import {
 	realizedAt,
 	summarizeTrades,
 } from "@/lib/analytics";
-import { toDayKey, zonedDayOfWeek, zonedHour } from "@/lib/date";
+import {
+	hourLabel,
+	toDayKey,
+	WEEKDAY_NAMES,
+	zonedDayOfWeek,
+	zonedHour,
+} from "@/lib/date";
 import {
 	summarizeCheckGroups,
 	summarizeGroup,
@@ -33,15 +39,6 @@ import { RuleOutcome } from "@/lib/risk-rule-evaluation";
 import { RULE_CHECK_GROUP_TEXT } from "@/lib/rule-check-text";
 import { authMiddleware } from "./auth-middleware";
 
-const DAY_NAMES = [
-	"Sunday",
-	"Monday",
-	"Tuesday",
-	"Wednesday",
-	"Thursday",
-	"Friday",
-	"Saturday",
-];
 const MONDAY_FIRST = [1, 2, 3, 4, 5, 6, 0];
 const TOP_GROUPS = 10;
 
@@ -103,8 +100,8 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" })
 			pnlOf,
 		);
 		const byDayOfWeek = MONDAY_FIRST.map((day) => ({
-			key: DAY_NAMES[day],
-			name: DAY_NAMES[day],
+			key: String(day),
+			name: WEEKDAY_NAMES[day],
 			...(dayGroups.get(day) ?? summarizeGroup([])),
 		}));
 
@@ -116,10 +113,11 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" })
 			),
 		)
 			.sort(([a], [b]) => a - b)
-			.map(([hour, summary]) => {
-				const name = `${String(hour).padStart(2, "0")}:00`;
-				return { key: name, name, ...summary };
-			});
+			.map(([hour, summary]) => ({
+				key: String(hour),
+				name: hourLabel(hour),
+				...summary,
+			}));
 
 		// Under a tag filter, a tag bar would not open the same trades as its drill-down.
 		const tagsByTrade = data.tagIds?.length

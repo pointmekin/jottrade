@@ -242,6 +242,17 @@ describe("FilterBar", () => {
 		);
 	});
 
+	it("shows and clears the Sunday and midnight filters of a chart link", () => {
+		const { onFiltersChange } = renderFilterBar({ weekday: 0, entryHour: 0 });
+
+		expect(screen.getByText("Day: Sunday")).toBeTruthy();
+		expect(screen.getByText("Entry hour: 00:00")).toBeTruthy();
+		fireEvent.click(screen.getByRole("button", { name: "Clear day filter" }));
+		expect(onFiltersChange).toHaveBeenCalledWith(
+			expect.objectContaining({ weekday: undefined, entryHour: 0 }),
+		);
+	});
+
 	it("shows an exact symbol from a chart and drops the exact match when the user types", () => {
 		vi.useFakeTimers();
 		const { onFiltersChange } = renderFilterBar({

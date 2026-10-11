@@ -36,6 +36,8 @@ describe("journal search", () => {
 			"mistake",
 			"tags",
 			"tagMatch",
+			"weekday",
+			"entryHour",
 			"period",
 			"dateFrom",
 			"dateTo",
@@ -105,6 +107,8 @@ describe("chart drill-down search", () => {
 			RuleOutcome.Violated,
 			{ ruleCheck: RuleOutcome.Violated },
 		],
+		[ChartGroup.Weekday, "0", { weekday: 0 }],
+		[ChartGroup.EntryHour, "9", { entryHour: 9 }],
 	])("maps the %s group %s to closed trades", (group, key, filter) => {
 		expect(drillDownSearch(group, key)).toEqual({
 			...filter,
@@ -131,5 +135,28 @@ describe("chart drill-down search", () => {
 				{ from: null, to: null },
 			).setupId,
 		).toBe(NO_STRATEGY);
+	});
+
+	it("sends the weekday, the entry hour and the browser timezone", () => {
+		const search = journalSearchSchema.parse({
+			weekday: 0,
+			entryHour: 23,
+		});
+
+		expect(toTradeQuery(search, { from: null, to: null })).toMatchObject({
+			weekday: 0,
+			entryHour: 23,
+			timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+		});
+	});
+
+	it.each([
+		{ weekday: 7 },
+		{ entryHour: 24 },
+		{ weekday: "x" },
+	])("drops an invalid group %o from the URL", (bad) => {
+		const search = journalSearchSchema.parse(bad);
+		expect(search.weekday).toBeUndefined();
+		expect(search.entryHour).toBeUndefined();
 	});
 });

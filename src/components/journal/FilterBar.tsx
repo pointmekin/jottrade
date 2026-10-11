@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useAppliedView } from "@/hooks/use-saved-views";
 import { useTags } from "@/hooks/use-tags";
 import { SymbolMatch } from "@/lib/analysis-scope";
+import { hourLabel, WEEKDAY_NAMES } from "@/lib/date";
 import { CLEARED_TRADE_FILTERS, NO_STRATEGY } from "@/lib/journal-search";
 import { describePeriod, PeriodPreset } from "@/lib/period";
 import { strategyLabel } from "@/lib/playbook";
@@ -38,6 +39,8 @@ export type JournalFilters = {
 	/** Comma-separated tag ids. */
 	tags?: string;
 	tagMatch?: TagMatch;
+	weekday?: number;
+	entryHour?: number;
 	period?: PeriodPreset;
 	dateFrom?: string;
 	dateTo?: string;
@@ -239,6 +242,22 @@ function FilterChips({
 					Rules: {RULE_CHECK_GROUP_TEXT[filters.ruleCheck]}
 				</FilterChip>
 			)}
+			{filters.weekday !== undefined && (
+				<FilterChip
+					clearLabel="Clear day filter"
+					onClear={() => update({ weekday: undefined })}
+				>
+					Day: {WEEKDAY_NAMES[filters.weekday]}
+				</FilterChip>
+			)}
+			{filters.entryHour !== undefined && (
+				<FilterChip
+					clearLabel="Clear entry hour filter"
+					onClear={() => update({ entryHour: undefined })}
+				>
+					Entry hour: {hourLabel(filters.entryHour)}
+				</FilterChip>
+			)}
 			{filters.confidence && (
 				<FilterChip
 					clearLabel="Clear confidence filter"
@@ -293,6 +312,8 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 		filters.confidence,
 		filters.mistake,
 		filters.tags,
+		filters.weekday !== undefined,
+		filters.entryHour !== undefined,
 	].filter(Boolean).length;
 	const { view: appliedView } = useAppliedView(filters);
 	const clearAll = () => {

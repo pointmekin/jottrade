@@ -13,6 +13,10 @@ export const SymbolMatch = {
 
 export type SymbolMatch = (typeof SymbolMatch)[keyof typeof SymbolMatch];
 
+const timeZoneSchema = z
+	.string()
+	.refine(isValidTimeZone, "Invalid IANA timezone");
+
 /**
  * The client resolves a period preset against its own clock, then sends
  * absolute bounds. That keeps "this month" aligned with the user's timezone.
@@ -30,17 +34,18 @@ export const tradeFilterSchema = z.object({
 	mistake: z.array(z.string()).optional(),
 	tagIds: z.array(z.number().int().positive()).max(TAG_FILTER_LIMIT).optional(),
 	tagMatch: z.enum(TagMatch).optional(),
+	/** 0 is Sunday. Closed trades by exit, other trades by entry, in `timeZone`. */
+	weekday: z.number().int().min(0).max(6).optional(),
+	entryHour: z.number().int().min(0).max(23).optional(),
 	dateFrom: z.iso.datetime().optional(),
 	dateTo: z.iso.datetime().optional(),
+	timeZone: timeZoneSchema.optional(),
 });
 
 export type TradeFilter = z.infer<typeof tradeFilterSchema>;
 
 export const analysisScopeSchema = tradeFilterSchema.extend({
-	timeZone: z
-		.string()
-		.refine(isValidTimeZone, "Invalid IANA timezone")
-		.default("UTC"),
+	timeZone: timeZoneSchema.default("UTC"),
 });
 
 export type AnalysisScope = z.infer<typeof analysisScopeSchema>;
@@ -56,7 +61,9 @@ export function isTradeAttributeFiltered(filter: TradeFilter) {
 			filter.ruleCheck ||
 			filter.confidence?.length ||
 			filter.mistake?.length ||
-			filter.tagIds?.length,
+			filter.tagIds?.length ||
+			filter.weekday !== undefined ||
+			filter.entryHour !== undefined,
 	);
 }
 

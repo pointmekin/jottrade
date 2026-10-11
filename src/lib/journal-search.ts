@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AccountEntryRecord } from "./account-entry";
-import { SymbolMatch } from "./analysis-scope";
+import { SymbolMatch, tradeFilterSchema } from "./analysis-scope";
 import { PeriodPreset } from "./period";
 import { PlanAdherence } from "./playbook-check";
 import { RuleOutcome } from "./risk-rule-evaluation";
@@ -34,6 +34,8 @@ export const scopeSearchSchema = z.object({
 	mistake: z.string().optional(),
 	tags: z.string().optional(),
 	tagMatch: z.enum(TagMatch).optional(),
+	weekday: tradeFilterSchema.shape.weekday.catch(undefined),
+	entryHour: tradeFilterSchema.shape.entryHour.catch(undefined),
 	period: z.enum(PeriodPreset).default(PeriodPreset.All),
 	dateFrom: z.string().optional(),
 	dateTo: z.string().optional(),
@@ -57,6 +59,8 @@ export const CLEARED_TRADE_FILTERS = {
 	mistake: undefined,
 	tags: undefined,
 	tagMatch: undefined,
+	weekday: undefined,
+	entryHour: undefined,
 } satisfies Partial<ScopeSearch>;
 
 export const journalSearchSchema = scopeSearchSchema.extend({
@@ -108,8 +112,11 @@ export function toTradeQuery(
 		mistake: splitList(search.mistake),
 		tagIds: parseTagIds(search.tags),
 		tagMatch: search.tagMatch,
+		weekday: search.weekday,
+		entryHour: search.entryHour,
 		dateFrom: range.from?.toISOString(),
 		dateTo: range.to?.toISOString(),
+		timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 		page: search.page,
 		sort: search.sort,
 		dir: search.dir,
@@ -122,6 +129,8 @@ export const ChartGroup = {
 	Tag: "tag",
 	Adherence: "adherence",
 	RuleCheck: "ruleCheck",
+	Weekday: "weekday",
+	EntryHour: "entryHour",
 } as const;
 
 export type ChartGroup = (typeof ChartGroup)[keyof typeof ChartGroup];
@@ -143,6 +152,10 @@ function groupFilter(group: ChartGroup, key: string) {
 			return { adherence: z.enum(PlanAdherence).parse(key) };
 		case ChartGroup.RuleCheck:
 			return { ruleCheck: z.enum(RuleOutcome).parse(key) };
+		case ChartGroup.Weekday:
+			return { weekday: Number(key) };
+		case ChartGroup.EntryHour:
+			return { entryHour: Number(key) };
 	}
 }
 

@@ -192,8 +192,16 @@ export function PerformanceCharts({
 					drillDown={ChartGroup.RuleCheck}
 				/>
 			)}
-			<AvgPnlBar data={byDayOfWeek} title="Avg P&L by day of week" />
-			<AvgPnlBar data={byHour} title="Avg P&L by entry hour" />
+			<AvgPnlBar
+				data={byDayOfWeek}
+				title="Avg P&L by day of week"
+				drillDown={ChartGroup.Weekday}
+			/>
+			<AvgPnlBar
+				data={byHour}
+				title="Avg P&L by entry hour"
+				drillDown={ChartGroup.EntryHour}
+			/>
 		</div>
 	);
 }
