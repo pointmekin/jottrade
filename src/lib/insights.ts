@@ -1,6 +1,6 @@
 import { realizedAt, type TradeRecord } from "./analytics";
 import { roundCents } from "./currency";
-import type { GroupSummary } from "./group-summary";
+import { type GroupSummary, summarizeGroup } from "./group-summary";
 import { TradeStatus } from "./trade";
 
 export const INSIGHT_FOOTER =
@@ -117,4 +117,64 @@ export function sizingAfterLoss(
 			? Math.round((afterLoss.medianRisk / other.medianRisk - 1) * 100)
 			: null;
 	return { afterLoss, other, change };
+}
+
+export const TradingSession = {
+	Asia: "ASIA",
+	London: "LONDON",
+	NewYork: "NEW_YORK",
+	Other: "OTHER",
+} as const;
+
+export type TradingSession =
+	(typeof TradingSession)[keyof typeof TradingSession];
+
+/** Fixed UTC windows by entry time (owner decision Q6). A window includes fromHour and excludes toHour. */
+export const SESSION_WINDOWS = [
+	{ session: TradingSession.Asia, name: "Asia", fromHour: 0, toHour: 8 },
+	{ session: TradingSession.London, name: "London", fromHour: 8, toHour: 13 },
+	{
+		session: TradingSession.NewYork,
+		name: "New York",
+		fromHour: 13,
+		toHour: 21,
+	},
+	{ session: TradingSession.Other, name: "Other", fromHour: 21, toHour: 24 },
+];
+
+export function sessionOf(entryDate: Date): TradingSession {
+	const hour = entryDate.getUTCHours();
+	const window = SESSION_WINDOWS.find(
+		(w) => hour >= w.fromHour && hour < w.toHour,
+	);
+	return window?.session ?? TradingSession.Other;
+}
+
+export type SessionFinding = (typeof SESSION_WINDOWS)[number] & {
+	tradeIds: number[];
+	count: number;
+	avgPnl: number;
+	/** Null when the session has fewer than FINDING_MIN_TRADES closed trades. */
+	difference: number | null;
+};
+
+/** Each session against the whole scope, as tagFindings. */
+export function sessionFindings(
+	closed: { id: number; entryDate: Date; netPnl: number }[],
+	scope: GroupSummary,
+): SessionFinding[] {
+	return SESSION_WINDOWS.map((window) => {
+		const trades = closed.filter(
+			(trade) => sessionOf(trade.entryDate) === window.session,
+		);
+		const { count, avgPnl } = summarizeGroup(trades.map((t) => t.netPnl));
+		return {
+			...window,
+			tradeIds: trades.map((trade) => trade.id),
+			count,
+			avgPnl,
+			difference:
+				count >= FINDING_MIN_TRADES ? roundCents(avgPnl - scope.avgPnl) : null,
+		};
+	});
 }

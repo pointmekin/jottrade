@@ -30,7 +30,7 @@ import {
 	summarizeGroups,
 	summarizeTagGroups,
 } from "@/lib/group-summary";
-import { sizingAfterLoss, tagFindings } from "@/lib/insights";
+import { sessionFindings, sizingAfterLoss, tagFindings } from "@/lib/insights";
 import { NO_STRATEGY } from "@/lib/journal-search";
 import { PLAN_ADHERENCE_LABEL, PlanAdherence } from "@/lib/playbook-check";
 import {
@@ -164,6 +164,7 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" })
 			scope: { count: scopeSummary.count, avgPnl: scopeSummary.avgPnl },
 			tags: tagFindings(byTag, scopeSummary),
 			sizing: sizingAfterLoss(history.trades, closed, currency),
+			sessions: sessionFindings(closed, scopeSummary),
 		};
 
 		return {
