@@ -12,7 +12,6 @@ const DECLARATION = /\n(?:export |async |function |const )/g;
 const ALLOWED_FILES: Record<string, string> = {
 	"src/db/import-records.ts": "Import matching compares the leg rows.",
 	"src/db/journal-archive.ts": "The archive exports every row.",
-	"src/db/reviews.ts": "Slice F of #17 adds legs to the review window rule.",
 	"src/server/onboardingActions.ts": "Checks only that a trade exists.",
 };
 

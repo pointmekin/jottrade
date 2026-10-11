@@ -10,6 +10,7 @@ import {
 import type { ComponentProps, ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ReviewEditor } from "@/components/reviews/review-editor";
+import { ExecutionKind } from "@/lib/position";
 import {
 	EMPTY_REVIEW_FIELDS,
 	ReviewKind,
@@ -261,4 +262,31 @@ describe("rule violations in the review", () => {
 			"/dashboard?period=custom&dateFrom=2026-10-05T04%3A00%3A00.000Z&dateTo=2026-10-12T03%3A59%3A59.999Z#rule-compliance",
 		);
 	});
+});
+
+it("shows each fill of a position in the window in its source row", () => {
+	const open = openReview(DAY);
+	const trades = [
+		{
+			id: 7,
+			symbol: "EURUSD",
+			fills: [
+				{
+					kind: ExecutionKind.Exit,
+					executedAt: "2026-10-09T15:00:00.000Z",
+					price: "1.1",
+					quantity: "0.5",
+					fees: "0",
+					realizedPnl: "120.40",
+					closesPosition: false,
+				},
+			],
+		},
+	] as unknown as typeof open.sources.trades;
+	const review = { ...open, sources: { ...open.sources, trades } };
+	vi.mocked(getRuleCompliance).mockResolvedValue(null);
+	renderEditor(review);
+	expect(
+		screen.getByText("Partial exit 0.5 lots · +$120.40 · position still open"),
+	).toBeTruthy();
 });

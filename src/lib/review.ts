@@ -4,6 +4,7 @@ import { AccountEntryKind } from "./account-entry";
 import { realizedAt } from "./analytics";
 import { toDayKey } from "./date";
 import { winRateOf } from "./group-summary";
+import { ExecutionKind } from "./position";
 import type {
 	ReviewExecutionFacts,
 	ReviewSemanticValues,
@@ -55,6 +56,19 @@ export type ReviewTradeSnapshot = {
 	notes: string | null;
 	executionFacts: ReviewExecutionFacts;
 	executionFingerprint: string;
+	fills?: ReviewFillSnapshot[];
+};
+export type ReviewFillSnapshot = {
+	kind: ExecutionKind;
+	executedAt: string;
+	price: string;
+	quantity: string;
+	fees: string;
+	realizedPnl: string | null;
+	closesPosition: boolean;
+};
+type StoredFill = Omit<ReviewFillSnapshot, "executedAt" | "closesPosition"> & {
+	executedAt: Date;
 };
 export type ReviewCashFlowSnapshot = {
 	id: number;
@@ -78,10 +92,42 @@ export type ReviewResultSnapshot = {
 export function isReviewDay(day: string, window: ReviewWindow) {
 	return day >= window.periodStart && day < window.periodEndExclusive;
 }
+/** The fills of a position in the window. The last exit of a closed position takes the rounding rest, as in `toRealizations`. */
+export function reviewFills(
+	trade: { status: string | null; netPnl: string | null },
+	fills: StoredFill[],
+	window: ReviewWindow,
+): ReviewFillSnapshot[] {
+	const exits = fills.filter((f) => f.kind === ExecutionKind.Exit);
+	const finalExit =
+		trade.status === TradeStatus.Closed ? exits.at(-1) : undefined;
+	const earlier = exits
+		.filter((f) => f !== finalExit)
+		.reduce((sum, f) => sum.plus(f.realizedPnl ?? 0), new Decimal(0));
+	return fills
+		.filter((f) =>
+			isReviewDay(toDayKey(f.executedAt, window.timezoneSnapshot), window),
+		)
+		.map((f) => ({
+			kind: f.kind,
+			executedAt: f.executedAt.toISOString(),
+			price: f.price,
+			quantity: f.quantity,
+			fees: f.fees,
+			realizedPnl:
+				f === finalExit && trade.netPnl !== null
+					? new Decimal(trade.netPnl).minus(earlier).toFixed(2)
+					: f.realizedPnl,
+			closesPosition: f === finalExit,
+		}));
+}
+/** A position with fills is in the window when one of its fills is; `fills` are its fills in the window. */
 export function tradeInReview(
 	trade: { status: string | null; entryDate: Date; exitDate: Date | null },
 	window: ReviewWindow,
+	fills?: ReviewFillSnapshot[],
 ) {
+	if (fills) return fills.length > 0;
 	const at =
 		trade.status === TradeStatus.Closed ? realizedAt(trade) : trade.entryDate;
 	return isReviewDay(toDayKey(at, window.timezoneSnapshot), window);
@@ -90,9 +136,22 @@ export function summarizeReview(
 	trades: ReviewTradeSnapshot[],
 	flows: ReviewCashFlowSnapshot[],
 ): ReviewResultSnapshot {
-	const closed = trades.filter((t) => t.status === TradeStatus.Closed);
+	const closed = trades.filter((t) =>
+		t.fills
+			? t.fills.some((f) => f.closesPosition)
+			: t.status === TradeStatus.Closed,
+	);
 	const known = closed.flatMap((t) => (t.netPnl === null ? [] : [t.netPnl]));
-	const amounts = [...known, ...flows.map((f) => f.amount)];
+	const cash = trades.flatMap((t) => {
+		if (!t.fills)
+			return t.status === TradeStatus.Closed && t.netPnl !== null
+				? [t.netPnl]
+				: [];
+		return t.fills.flatMap((f) =>
+			f.realizedPnl === null ? [] : [f.realizedPnl],
+		);
+	});
+	const amounts = [...known, ...cash, ...flows.map((f) => f.amount)];
 	const integerDigits = amounts.reduce(
 		(digits, value) => Math.max(digits, value.split(".")[0].length),
 		1,
@@ -110,7 +169,7 @@ export function summarizeReview(
 	const wins = known.filter((value) => new Exact(value).gt(0));
 	const losses = known.filter((value) => new Exact(value).lt(0));
 	const missingPnlCount = closed.length - known.length;
-	const tradePnl = missingPnlCount ? null : sum(known).toFixed();
+	const tradePnl = missingPnlCount ? null : sum(cash).toFixed();
 	const adjustmentPnl = sum(
 		flows
 			.filter((f) => f.kind === AccountEntryKind.Adjustment)
