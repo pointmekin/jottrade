@@ -204,6 +204,38 @@ describe("evaluateCompliance", () => {
 		expect(result.timezones).toEqual(["America/New_York"]);
 	});
 
+	it("puts each partial exit on its own loss day", () => {
+		const position = closed("2026-03-03T15:00:00Z", -700, {
+			entryDate: new Date("2026-03-02T08:00:00Z"),
+			realizations: [
+				{ at: new Date("2026-03-02T09:00:00Z"), amount: -300 },
+				{ at: new Date("2026-03-02T10:00:00Z"), amount: -250 },
+				{ at: new Date("2026-03-03T15:00:00Z"), amount: -150 },
+			],
+		});
+		const result = evaluateCompliance(
+			history({
+				versions: [
+					version({ dailyLoss: { unit: DailyLossUnit.Amount, value: "500" } }),
+				],
+				trades: [position],
+			}),
+			ALL,
+		);
+
+		expect(tallyOf(result, RiskRuleKind.DailyLoss)).toMatchObject({
+			pass: 1,
+			violated: 1,
+		});
+		expect(result.violations).toEqual([
+			expect.objectContaining({
+				dayKey: "2026-03-02",
+				actual: 550,
+				sourceTradeIds: [position.id],
+			}),
+		]);
+	});
+
 	it("gives Unknown, not Pass, for a day with a closed trade with no P&L", () => {
 		const result = evaluateCompliance(
 			history({

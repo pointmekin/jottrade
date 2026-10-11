@@ -105,7 +105,7 @@ describe("reconcileAccount", () => {
 			netPnl: 100,
 			executionCount: 4,
 			fillCount: 4,
-			exitPnl: 100.01,
+			exitPnl: 100,
 		};
 		const partial = {
 			...position,
@@ -138,7 +138,7 @@ describe("reconcileAccount", () => {
 				{
 					...sql,
 					positions: [
-						{ ...position, exitPnl: 90 },
+						{ ...position, exitPnl: 100.01 },
 						{ ...partial, fillCount: 1 },
 					],
 				},

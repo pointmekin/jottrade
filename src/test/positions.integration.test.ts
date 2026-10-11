@@ -309,5 +309,19 @@ describe.skipIf(!verifyUrl)("position fills on the seeded database", () => {
 		expect(
 			days["2026-09-04"].trades.find((trade) => trade.id === id),
 		).toMatchObject({ netPnl: 200, isPartialExit: true });
+		const afterPeriod = await calendar.getCalendarData({
+			data: {
+				portfolioId: ALICE_ACCOUNT,
+				timeZone: "UTC",
+				year: 2026,
+				month: 9,
+				from: "2026-09-04T00:00:00.000Z",
+				to: "2026-09-05T00:00:00.000Z",
+				dateTo: "2026-09-04T09:59:59.999Z",
+			},
+		});
+		expect(
+			afterPeriod["2026-09-04"]?.trades.some((trade) => trade.id === id),
+		).toBeFalsy();
 	});
 });

@@ -119,14 +119,11 @@ function strategyDiscrepancies(
 	return found;
 }
 
-/** Each exit P&L is rounded to the cent, so the sum can drift by up to half a cent per fill. */
 function positionMatchesFills(position: SqlPosition): boolean {
 	if (position.fillCount !== position.executionCount) return false;
 	if (position.status !== TradeStatus.Closed) return position.netPnl === null;
 	return (
-		position.netPnl !== null &&
-		Math.abs(position.exitPnl - position.netPnl) <=
-			(CENT / 2) * position.fillCount
+		position.netPnl !== null && !differs(position.exitPnl, position.netPnl)
 	);
 }
 

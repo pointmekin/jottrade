@@ -1,6 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { requireOwnedPortfolio } from "@/db/portfolios";
+import { withRealizations } from "@/db/positions";
 import { cashFlows, riskRuleVersions, trades } from "@/db/schema";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import type { ComplianceHistory } from "@/lib/risk-rule-compliance";
@@ -41,6 +42,7 @@ export async function loadComplianceHistory(
 		db
 			.select({
 				id: trades.id,
+				executionCount: trades.executionCount,
 				status: trades.status,
 				entryDate: trades.entryDate,
 				exitDate: trades.exitDate,
@@ -72,24 +74,27 @@ export async function loadComplianceHistory(
 			...row,
 			rules: storedRiskRulesSchema.parse(row.rules),
 		})),
-		trades: tradeRows.map(
-			({
-				riskCurrency,
-				riskReason,
-				initialRiskAmount,
-				initialRiskPercent,
-				...trade
-			}) => ({
-				...trade,
-				netPnl: toNumber(trade.netPnl),
-				plan: {
+		trades: await withRealizations(
+			userId,
+			tradeRows.map(
+				({
+					riskCurrency,
+					riskReason,
 					initialRiskAmount,
 					initialRiskPercent,
-					initialRiskSnapshot: riskCurrency
-						? { accountCurrency: riskCurrency, unavailableReason: riskReason }
-						: null,
-				},
-			}),
+					...trade
+				}) => ({
+					...trade,
+					netPnl: toNumber(trade.netPnl),
+					plan: {
+						initialRiskAmount,
+						initialRiskPercent,
+						initialRiskSnapshot: riskCurrency
+							? { accountCurrency: riskCurrency, unavailableReason: riskReason }
+							: null,
+					},
+				}),
+			),
 		),
 		cashFlows: flowRows.map((flow) => ({
 			...flow,
