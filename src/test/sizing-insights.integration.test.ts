@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { TradeSide, TradeStatus } from "@/lib/trade";
+import type { InitialRiskSnapshot } from "@/lib/trade-risk-schema";
 import { checkTarget } from "../../scripts/db/target";
 
 // Runs in `npm run verify` on the seeded database, as tag-insights.integration.test.ts.
@@ -32,6 +34,7 @@ describe.skipIf(!verifyUrl)(
 			entryHour: number,
 			netPnl: string,
 			initialRiskAmount: string | null,
+			accountCurrency = DEFAULT_CURRENCY,
 		) => {
 			const [row] = await db
 				.insert(schema.trades)
@@ -45,6 +48,7 @@ describe.skipIf(!verifyUrl)(
 					exitDate: new Date(Date.UTC(2026, 2, 2, entryHour, 30)),
 					netPnl,
 					initialRiskAmount,
+					initialRiskSnapshot: { accountCurrency } as InitialRiskSnapshot,
 				})
 				.returning({ id: schema.trades.id });
 			return row.id;
@@ -77,6 +81,7 @@ describe.skipIf(!verifyUrl)(
 			ids.afterLoss = await addTrade(ALICE, 3, "40", null);
 			await addTrade(BOB, 4, "-10", "999");
 			ids.win = await addTrade(ALICE, 5, "20", "80");
+			ids.euro = await addTrade(ALICE, 7, "15", "500", "EUR");
 		});
 
 		afterAll(async () => {
@@ -94,13 +99,13 @@ describe.skipIf(!verifyUrl)(
 			expect(findings.sizing).toEqual({
 				afterLoss: { tradeIds: [ids.afterLoss], withRisk: 0, medianRisk: null },
 				other: {
-					tradeIds: expect.arrayContaining([ids.loss, ids.win]),
+					tradeIds: expect.arrayContaining([ids.loss, ids.win, ids.euro]),
 					withRisk: 2,
 					medianRisk: 90,
 				},
 				change: null,
 			});
-			expect(findings.sizing.other.tradeIds).toHaveLength(2);
+			expect(findings.sizing.other.tradeIds).toHaveLength(3);
 		});
 
 		it("gives another user none of the user's trades", async () => {
@@ -115,6 +120,7 @@ describe.skipIf(!verifyUrl)(
 			expect(seen).not.toContain(ids.loss);
 			expect(seen).not.toContain(ids.afterLoss);
 			expect(seen).not.toContain(ids.win);
+			expect(seen).not.toContain(ids.euro);
 		});
 	},
 );

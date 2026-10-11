@@ -6,6 +6,7 @@ import {
 	loadMatchingTrades,
 	loadTradeChecks,
 } from "@/db/account-history";
+import { loadPortfolioCurrency } from "@/db/portfolios";
 import { strategies } from "@/db/schema";
 import { loadTagsByTrade } from "@/db/trade-tags";
 import { analysisScopeSchema, toDateRange } from "@/lib/analysis-scope";
@@ -51,12 +52,14 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" })
 	.handler(async ({ data, context }) => {
 		const { userId } = context;
 		const range = toDateRange(data);
-		const [history, matching, userStrategies, checks] = await Promise.all([
-			loadAccountHistory(userId, data.portfolioId),
-			loadMatchingTrades(userId, data),
-			db.select().from(strategies).where(eq(strategies.userId, userId)),
-			loadTradeChecks(userId, data.portfolioId),
-		]);
+		const [history, matching, userStrategies, checks, currency] =
+			await Promise.all([
+				loadAccountHistory(userId, data.portfolioId),
+				loadMatchingTrades(userId, data),
+				db.select().from(strategies).where(eq(strategies.userId, userId)),
+				loadTradeChecks(userId, data.portfolioId),
+				loadPortfolioCurrency(userId, data.portfolioId),
+			]);
 
 		const closed = closedTradesInRange(matching ?? history.trades, range);
 		const pnlOf = (trade: (typeof closed)[number]) => trade.netPnl;
@@ -160,7 +163,7 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" })
 		const findings = {
 			scope: { count: scopeSummary.count, avgPnl: scopeSummary.avgPnl },
 			tags: tagFindings(byTag, scopeSummary),
-			sizing: sizingAfterLoss(history.trades, closed),
+			sizing: sizingAfterLoss(history.trades, closed, currency),
 		};
 
 		return {

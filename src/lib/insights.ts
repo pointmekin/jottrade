@@ -36,11 +36,12 @@ export function tagFindings(
 type SizingTrade = TradeRecord & {
 	id: number;
 	initialRiskAmount: string | null;
+	initialRiskSnapshot: { accountCurrency: string } | null;
 };
 
 export type RiskCohort = {
 	tradeIds: number[];
-	/** Trades with an initial risk. The others are unknown and stay in tradeIds. */
+	/** Trades with an initial risk in the account currency. The others are unknown and stay in tradeIds. */
 	withRisk: number;
 	medianRisk: number | null;
 };
@@ -60,8 +61,9 @@ function median(values: number[]): number | null {
 	return (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
-function riskCohort(trades: SizingTrade[]): RiskCohort {
+function riskCohort(trades: SizingTrade[], currency: string): RiskCohort {
 	const risks = trades
+		.filter((trade) => trade.initialRiskSnapshot?.accountCurrency === currency)
 		.map((trade) => Number(trade.initialRiskAmount))
 		.filter((risk) => risk > 0);
 	const medianRisk = median(risks);
@@ -96,10 +98,17 @@ export function tradesAfterLoss(history: SizingTrade[]): Set<number> {
 export function sizingAfterLoss(
 	history: SizingTrade[],
 	closed: SizingTrade[],
+	currency: string,
 ): SizingFinding {
 	const afterLossIds = tradesAfterLoss(history);
-	const afterLoss = riskCohort(closed.filter((t) => afterLossIds.has(t.id)));
-	const other = riskCohort(closed.filter((t) => !afterLossIds.has(t.id)));
+	const afterLoss = riskCohort(
+		closed.filter((t) => afterLossIds.has(t.id)),
+		currency,
+	);
+	const other = riskCohort(
+		closed.filter((t) => !afterLossIds.has(t.id)),
+		currency,
+	);
 	const isEnough =
 		afterLoss.withRisk >= FINDING_MIN_TRADES &&
 		other.withRisk >= FINDING_MIN_TRADES;

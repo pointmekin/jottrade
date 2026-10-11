@@ -61,6 +61,7 @@ describe("sizingAfterLoss", () => {
 		entryDate: new Date(start + id * 2 * HOUR),
 		exitDate: new Date(start + (id * 2 + 1) * HOUR),
 		initialRiskAmount: risk === null ? null : String(risk),
+		initialRiskSnapshot: { accountCurrency: "USD" },
 	});
 	/** Alternates a loss and a win: each win is the first entry after a loss. */
 	const pattern = (pairs: number, afterLossRisk: number | null) =>
@@ -82,7 +83,7 @@ describe("sizingAfterLoss", () => {
 
 	it("returns the change of the median risk after a loss", () => {
 		const history = pattern(FINDING_MIN_TRADES, 150);
-		const finding = sizingAfterLoss(history, history);
+		const finding = sizingAfterLoss(history, history, "USD");
 		expect(finding.afterLoss).toMatchObject({
 			withRisk: FINDING_MIN_TRADES,
 			medianRisk: 150,
@@ -96,19 +97,19 @@ describe("sizingAfterLoss", () => {
 
 	it("returns no change for data with no pattern", () => {
 		const history = pattern(FINDING_MIN_TRADES, 100);
-		expect(sizingAfterLoss(history, history).change).toBe(0);
+		expect(sizingAfterLoss(history, history, "USD").change).toBe(0);
 	});
 
 	it("returns no finding below the minimum sample", () => {
 		const history = pattern(FINDING_MIN_TRADES - 1, 150);
-		const finding = sizingAfterLoss(history, history);
+		const finding = sizingAfterLoss(history, history, "USD");
 		expect(finding.afterLoss.tradeIds).toHaveLength(FINDING_MIN_TRADES - 1);
 		expect(finding.change).toBeNull();
 	});
 
 	it("counts trades without initial risk as unknown", () => {
 		const history = pattern(FINDING_MIN_TRADES, null);
-		const finding = sizingAfterLoss(history, history);
+		const finding = sizingAfterLoss(history, history, "USD");
 		expect(finding.afterLoss).toEqual({
 			tradeIds: expect.any(Array),
 			withRisk: 0,
@@ -118,9 +119,17 @@ describe("sizingAfterLoss", () => {
 		expect(finding.change).toBeNull();
 	});
 
+	it("counts a risk in another currency as unknown", () => {
+		const history = pattern(FINDING_MIN_TRADES, 150);
+		const finding = sizingAfterLoss(history, history, "EUR");
+		expect(finding.afterLoss.withRisk).toBe(0);
+		expect(finding.other.withRisk).toBe(0);
+		expect(finding.change).toBeNull();
+	});
+
 	it("keeps only the closed trades in scope in the cohorts", () => {
 		const history = pattern(3, 150);
-		const finding = sizingAfterLoss(history, history.slice(0, 2));
+		const finding = sizingAfterLoss(history, history.slice(0, 2), "USD");
 		expect(finding.afterLoss.tradeIds).toEqual([1]);
 		expect(finding.other.tradeIds).toEqual([0]);
 	});
