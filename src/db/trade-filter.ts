@@ -44,8 +44,12 @@ function symbolCondition({ symbol, symbolMatch }: TradeFilter) {
 	return like(trades.symbol, `%${symbol.replaceAll(/[\\%_]/g, "\\$&")}%`);
 }
 
+/** A leg is a broker row grouped into a position. Only by-id reads return it. */
+export const positionRow = isNull(trades.groupedIntoId);
+
 export function tradeConditions(userId: string, filter: TradeFilter) {
 	return and(
+		positionRow,
 		eq(trades.userId, userId),
 		eq(trades.portfolioId, filter.portfolioId),
 		symbolCondition(filter),

@@ -282,6 +282,24 @@ describe.skipIf(!fixtureUrl)(
 				(await pool.query("SELECT count(*)::int n FROM trades")).rows[0].n,
 			).toBe(1);
 		});
+		it("protects a leg that is grouped into a position", async () => {
+			const batch = await stage();
+			await apply(batch);
+			await pool.query(
+				"INSERT INTO trades(user_id,portfolio_id,symbol,side,entry_date) SELECT user_id,portfolio_id,symbol,side,entry_date FROM trades WHERE id=1; UPDATE trades SET grouped_into_id=2 WHERE id=1",
+			);
+			await undo(batch);
+			const [{ state, outcomes }] = (
+				await pool.query("SELECT state,outcomes FROM import_batches")
+			).rows;
+			expect(state).toBe("partially-undone");
+			expect(outcomes[0].undoReason).toBe(
+				"Trade is grouped into a position. Ungroup it first.",
+			);
+			expect(
+				(await pool.query("SELECT count(*)::int n FROM trades")).rows[0].n,
+			).toBe(2);
+		});
 		it("adjustment batches retain exact signs and review protection", async () => {
 			const batch = await stage(ImportKind.Adjustments, 1, adjustmentCsv);
 			await apply(batch);

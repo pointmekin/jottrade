@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { requireOwnedPortfolio } from "@/db/portfolios";
 import { withRealizations } from "@/db/positions";
 import { cashFlows, riskRuleVersions, trades } from "@/db/schema";
+import { positionRow } from "@/db/trade-filter";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { buildRuleContext } from "@/lib/risk-rule-evaluation";
 import { storedRiskRulesSchema } from "@/lib/risk-rules";
@@ -51,7 +52,7 @@ export async function loadRuleContext(
 				netPnl: trades.netPnl,
 			})
 			.from(trades)
-			.where(owned(trades)),
+			.where(and(positionRow, owned(trades))),
 		db
 			.select({
 				occurredAt: cashFlows.occurredAt,

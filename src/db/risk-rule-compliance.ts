@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { requireOwnedPortfolio } from "@/db/portfolios";
 import { withRealizations } from "@/db/positions";
 import { cashFlows, riskRuleVersions, trades } from "@/db/schema";
+import { positionRow } from "@/db/trade-filter";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import type { ComplianceHistory } from "@/lib/risk-rule-compliance";
 import { storedRiskRulesSchema } from "@/lib/risk-rules";
@@ -58,7 +59,7 @@ export async function loadComplianceHistory(
 				imported: sql<boolean>`${trades.importHash} is not null`,
 			})
 			.from(trades)
-			.where(owned(trades)),
+			.where(and(positionRow, owned(trades))),
 		db
 			.select({
 				occurredAt: cashFlows.occurredAt,

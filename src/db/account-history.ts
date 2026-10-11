@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { withRealizations } from "@/db/positions";
 import { cashFlows, trades } from "@/db/schema";
-import { tradeConditions } from "@/db/trade-filter";
+import { positionRow, tradeConditions } from "@/db/trade-filter";
 import {
 	isTradeAttributeFiltered,
 	type TradeFilter,
@@ -19,7 +19,11 @@ export async function loadAccountHistory(userId: string, portfolioId: number) {
 			.select()
 			.from(trades)
 			.where(
-				and(eq(trades.userId, userId), eq(trades.portfolioId, portfolioId)),
+				and(
+					positionRow,
+					eq(trades.userId, userId),
+					eq(trades.portfolioId, portfolioId),
+				),
 			),
 		db
 			.select({
