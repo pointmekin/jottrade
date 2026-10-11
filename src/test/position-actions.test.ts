@@ -8,6 +8,7 @@ import {
 	getPositionExecutions,
 } from "@/server/positionActions";
 import { updateTrade } from "@/server/tradeActions";
+import { correctTradeInitialRisk } from "@/server/tradeRiskActions";
 
 const mocks = vi.hoisted(() => ({
 	rows: vi.fn(),
@@ -276,5 +277,26 @@ describe("updateTrade on a trade with fills", () => {
 
 		expect(mocks.set.mock.calls[0][0]).toMatchObject({ mistake: "Late entry" });
 		expect(mocks.set.mock.calls[0][0]).not.toHaveProperty("netPnl");
+	});
+
+	it("rejects an execution correction of the original plan", async () => {
+		mocks.rows.mockReturnValueOnce([multiFill()]);
+
+		await expect(
+			correctTradeInitialRisk({
+				data: {
+					id: 2,
+					expectedRevision: 3,
+					reason: "Wrong side",
+					correctExecutionInputs: true,
+					symbol: "EURUSD",
+					side: TradeSide.Short,
+					entryDate: at(1).toISOString(),
+					entryPrice: "1.0975",
+					quantity: "2",
+				},
+			}),
+		).rejects.toThrow("Edit the fills instead.");
+		expect(mocks.set).not.toHaveBeenCalled();
 	});
 });
