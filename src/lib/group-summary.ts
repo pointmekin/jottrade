@@ -1,5 +1,6 @@
 import { roundCents } from "./currency";
 import { PlanAdherence } from "./playbook-check";
+import type { TradeTag } from "./trade-tag";
 
 export type GroupSummary = {
 	count: number;
@@ -46,6 +47,32 @@ export function summarizeGroups<T, K>(
 	}
 	return new Map(
 		Array.from(pnlsByKey, ([key, pnls]) => [key, summarizeGroup(pnls)]),
+	);
+}
+
+/** A trade with several tags is in each of their groups, so the groups can add up to more than the scope. */
+export function summarizeTagGroups(
+	trades: { id: number; netPnl: number }[],
+	tagsByTrade: Map<number, TradeTag[]>,
+) {
+	const tagged = trades.flatMap((trade) =>
+		(tagsByTrade.get(trade.id) ?? []).map((tag) => ({
+			tag,
+			netPnl: trade.netPnl,
+		})),
+	);
+	const names = new Map(tagged.map(({ tag }) => [tag.id, tag.name]));
+	return Array.from(
+		summarizeGroups(
+			tagged,
+			({ tag }) => tag.id,
+			({ netPnl }) => netPnl,
+		),
+		([id, summary]) => ({
+			key: String(id),
+			name: names.get(id) ?? "",
+			...summary,
+		}),
 	);
 }
 

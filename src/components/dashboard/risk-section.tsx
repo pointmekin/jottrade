@@ -77,6 +77,7 @@ export function RiskSection({
 						<PerformanceCharts
 							byStrategy={data.byStrategy}
 							bySymbol={data.bySymbol}
+							byTag={data.byTag}
 							byDayOfWeek={data.byDayOfWeek}
 							byHour={data.byHour}
 						/>

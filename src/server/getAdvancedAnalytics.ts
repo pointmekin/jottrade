@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { loadAccountHistory, loadMatchingTrades } from "@/db/account-history";
 import { strategies } from "@/db/schema";
+import { loadTagsByTrade } from "@/db/trade-tags";
 import { analysisScopeSchema, toDateRange } from "@/lib/analysis-scope";
 import {
 	closedTradesInRange,
@@ -10,7 +11,11 @@ import {
 	summarizeTrades,
 } from "@/lib/analytics";
 import { toDayKey, zonedDayOfWeek, zonedHour } from "@/lib/date";
-import { summarizeGroup, summarizeGroups } from "@/lib/group-summary";
+import {
+	summarizeGroup,
+	summarizeGroups,
+	summarizeTagGroups,
+} from "@/lib/group-summary";
 import { NO_STRATEGY } from "@/lib/journal-search";
 import {
 	computeAvgHoldTime,
@@ -30,7 +35,7 @@ const DAY_NAMES = [
 	"Saturday",
 ];
 const MONDAY_FIRST = [1, 2, 3, 4, 5, 6, 0];
-const TOP_SYMBOLS = 10;
+const TOP_GROUPS = 10;
 
 export const getAdvancedAnalytics = createServerFn({ method: "GET" })
 	.middleware([authMiddleware])
@@ -81,7 +86,7 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" })
 			([name, summary]) => ({ key: name, name, ...summary }),
 		)
 			.sort((a, b) => b.count - a.count)
-			.slice(0, TOP_SYMBOLS);
+			.slice(0, TOP_GROUPS);
 
 		const dayGroups = summarizeGroups(
 			closed,
@@ -107,5 +112,16 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" })
 				return { key: name, name, ...summary };
 			});
 
-		return { riskMetrics, byStrategy, bySymbol, byDayOfWeek, byHour };
+		// Under a tag filter, a tag bar would not open the same trades as its drill-down.
+		const tagsByTrade = data.tagIds?.length
+			? new Map()
+			: await loadTagsByTrade(
+					userId,
+					closed.map((trade) => trade.id),
+				);
+		const byTag = summarizeTagGroups(closed, tagsByTrade)
+			.sort((a, b) => b.count - a.count)
+			.slice(0, TOP_GROUPS);
+
+		return { riskMetrics, byStrategy, bySymbol, byTag, byDayOfWeek, byHour };
 	});

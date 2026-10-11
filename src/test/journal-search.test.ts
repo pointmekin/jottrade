@@ -92,6 +92,7 @@ describe("chart drill-down search", () => {
 			"EURUSD",
 			{ symbol: "EURUSD", symbolMatch: SymbolMatch.Exact },
 		],
+		[ChartGroup.Tag, "3", { tags: "3" }],
 	])("maps the %s group %s to closed trades", (group, key, filter) => {
 		expect(drillDownSearch(group, key)).toEqual({
 			...filter,

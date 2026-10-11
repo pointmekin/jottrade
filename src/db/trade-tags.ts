@@ -13,15 +13,26 @@ export function listTags(userId: string): Promise<TradeTag[]> {
 		.orderBy(asc(sql`lower(${tags.name})`));
 }
 
-export async function loadTagsByTrade(userId: string, tradeIds: number[]) {
-	const byTrade = new Map<number, TradeTag[]>();
-	if (!tradeIds.length) return byTrade;
-	const rows = await db
+// PostgreSQL accepts at most 65,535 bind parameters in one query.
+const TRADE_ID_BATCH = 10_000;
+
+function loadTagRows(userId: string, tradeIds: number[]) {
+	return db
 		.select({ tradeId: tradeTags.tradeId, ...tagColumns })
 		.from(tradeTags)
 		.innerJoin(tags, eq(tags.id, tradeTags.tagId))
 		.where(and(eq(tags.userId, userId), inArray(tradeTags.tradeId, tradeIds)))
 		.orderBy(asc(sql`lower(${tags.name})`));
+}
+
+export async function loadTagsByTrade(userId: string, tradeIds: number[]) {
+	const byTrade = new Map<number, TradeTag[]>();
+	const batches = [];
+	for (let start = 0; start < tradeIds.length; start += TRADE_ID_BATCH)
+		batches.push(tradeIds.slice(start, start + TRADE_ID_BATCH));
+	const rows = (
+		await Promise.all(batches.map((ids) => loadTagRows(userId, ids)))
+	).flat();
 	for (const { tradeId, ...tag } of rows)
 		byTrade.set(tradeId, [...(byTrade.get(tradeId) ?? []), tag]);
 	return byTrade;

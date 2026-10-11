@@ -112,17 +112,28 @@ export function toTradeQuery(
 	};
 }
 
-export const ChartGroup = { Strategy: "strategy", Symbol: "symbol" } as const;
+export const ChartGroup = {
+	Strategy: "strategy",
+	Symbol: "symbol",
+	Tag: "tag",
+} as const;
 
 export type ChartGroup = (typeof ChartGroup)[keyof typeof ChartGroup];
 
 /** Opens only closed trades, because the chart groups count closed trades. */
 export function drillDownSearch(group: ChartGroup, key: string) {
-	const filter =
-		group === ChartGroup.Strategy
-			? { setupId: key }
-			: { symbol: key, symbolMatch: SymbolMatch.Exact };
-	return { ...filter, status: TradeStatus.Closed };
+	return { ...groupFilter(group, key), status: TradeStatus.Closed };
+}
+
+function groupFilter(group: ChartGroup, key: string) {
+	switch (group) {
+		case ChartGroup.Strategy:
+			return { setupId: key };
+		case ChartGroup.Symbol:
+			return { symbol: key, symbolMatch: SymbolMatch.Exact };
+		case ChartGroup.Tag:
+			return { tags: key };
+	}
 }
 
 const isBetween = (date: Date, from?: Date | null, to?: Date | null) =>
