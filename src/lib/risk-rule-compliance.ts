@@ -342,7 +342,7 @@ export function evaluateCompliance(
 	if (history.versions.length === 0) return tally.result();
 	const sorted = {
 		entered: [...history.trades].sort(
-			(a, b) => a.entryDate.getTime() - b.entryDate.getTime(),
+			(a, b) => a.entryDate.getTime() - b.entryDate.getTime() || a.id - b.id,
 		),
 		closed: history.trades
 			.filter(isClosed)

@@ -248,7 +248,7 @@ describe.skipIf(!verifyUrl)("risk rules on the seeded database", () => {
 		});
 	});
 
-	it("checks a trade logged in the same minute as the save with that version", async () => {
+	it("checks a trade logged in the same minute as the save with that version, and not with a later save in that minute", async () => {
 		session.userId = ALICE;
 		const [account] = await db
 			.insert(schema.portfolios)
@@ -278,6 +278,13 @@ describe.skipIf(!verifyUrl)("risk rules on the seeded database", () => {
 			}),
 		).rejects.toThrow("Account not found.");
 		session.userId = ALICE;
+		await server.saveRiskRules({
+			data: { portfolioId: account.id, rules: { maxTradesPerDay: 1 } },
+		});
+		const later = await server.getTradeRuleCheckNow({
+			data: { portfolioId: account.id, tradeId: logged.id },
+		});
+		expect(later).toMatchObject({ version: 1 });
 		await accounts.deleteAccount({
 			data: { id: account.id, confirmName: "Same minute" },
 		});

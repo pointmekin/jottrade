@@ -136,6 +136,22 @@ describe("evaluateCompliance", () => {
 		]);
 	});
 
+	it("orders trades with the same entry minute by id", () => {
+		const first = trade("2026-03-02T10:00:00Z");
+		const second = trade("2026-03-02T10:00:00Z");
+		const result = evaluateCompliance(
+			history({
+				versions: [version({ maxTradesPerDay: 1 })],
+				trades: [second, first],
+			}),
+			ALL,
+		);
+
+		expect(result.violations).toEqual([
+			expect.objectContaining({ sourceTradeIds: [second.id] }),
+		]);
+	});
+
 	it("counts the trades entered before the rules on the same day", () => {
 		const versions = [
 			version({ maxTradesPerDay: 1 }, "UTC", new Date("2026-03-02T12:00Z")),

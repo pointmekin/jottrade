@@ -46,7 +46,9 @@ export async function loadRiskRules(userId: string, portfolioId: number) {
 /**
  * Inserts the next version under the account lock. A version starts at the
  * start of its save minute, because entry dates have minute precision: a trade
- * logged in the save minute uses the new version. It writes nothing when the
+ * logged in the save minute uses the new version. A second save in the same
+ * minute starts at the save instant, so a trade logged between the two saves
+ * keeps the earlier version. It writes nothing when the
  * rules and the review timezone equal the latest version, or when the account
  * has no version and the rules are empty.
  */
@@ -64,7 +66,11 @@ export async function appendRiskRuleVersion(
 			INSERT INTO risk_rule_versions (user_id, portfolio_id, version, rules, timezone, effective_from)
 			SELECT p.user_id, p.id,
 				coalesce((SELECT max(r.version) FROM risk_rule_versions r WHERE r.portfolio_id = p.id), 0) + 1,
-				${rulesJson}::jsonb, p.review_timezone, date_trunc('minute', now())
+				${rulesJson}::jsonb, p.review_timezone,
+				CASE WHEN EXISTS (
+					SELECT 1 FROM risk_rule_versions r
+					WHERE r.portfolio_id = p.id AND r.effective_from >= date_trunc('minute', now())
+				) THEN now() ELSE date_trunc('minute', now()) END
 			FROM portfolios p
 			WHERE p.id = ${portfolioId} AND p.user_id = ${userId} AND p.review_timezone IS NOT NULL
 				AND NOT coalesce((
