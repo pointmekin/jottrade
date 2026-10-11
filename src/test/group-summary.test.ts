@@ -8,9 +8,11 @@ import {
 	summarizeAdherence,
 	summarizeGroup,
 	summarizeGroups,
+	summarizeTagGroups,
 } from "@/lib/group-summary";
 import { PlanAdherence } from "@/lib/playbook-check";
 import { TradeStatus } from "@/lib/trade";
+import { TagColor } from "@/lib/trade-tag";
 
 describe("summarizeGroup", () => {
 	it("excludes breakeven trades from the win rate, like the headline", () => {
@@ -122,5 +124,31 @@ describe("strategy reconciliation fixture", () => {
 		expect(sum((group) => group.wins)).toBe(stats.winningTrades);
 		expect(sum((group) => group.losses)).toBe(stats.losingTrades);
 		expect(sum((group) => group.breakeven)).toBe(stats.breakevenTrades);
+	});
+});
+
+describe("summarizeTagGroups", () => {
+	const late = { id: 1, name: "Late entry", color: TagColor.Amber };
+	const fomo = { id: 2, name: "FOMO", color: TagColor.Pink };
+
+	it("counts a trade in each of its tags and leaves out untagged trades", () => {
+		const tagsByTrade = new Map([
+			[10, [late, fomo]],
+			[11, [late]],
+		]);
+		const trades = [
+			{ id: 10, netPnl: -40 },
+			{ id: 11, netPnl: 100 },
+			{ id: 12, netPnl: 500 },
+		];
+
+		expect(summarizeTagGroups(trades, tagsByTrade)).toEqual([
+			{ key: "1", name: "Late entry", ...summarizeGroup([-40, 100]) },
+			{ key: "2", name: "FOMO", ...summarizeGroup([-40]) },
+		]);
+	});
+
+	it("returns no group when no trade has a tag", () => {
+		expect(summarizeTagGroups([{ id: 1, netPnl: 5 }], new Map())).toEqual([]);
 	});
 });

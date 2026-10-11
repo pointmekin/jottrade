@@ -61,6 +61,8 @@ The **balance at entry** is every deposit, withdrawal, adjustment and closed tra
 
 The dashboard strategy chart and the strategy page use one aggregation, `summarizeGroup`. The strategy page reads every closed trade of the strategy on the server, so it does not depend on journal pages. With the dashboard period set to "All time", both screens show the same trade count, average P&L and win rate. The test "strategy reconciliation fixture" in `src/test/group-summary.test.ts` checks this on 80 trades.
 
+The dashboard tag chart ("Avg P&L by tag") uses the same aggregation over the closed trades in scope, grouped by tag (`summarizeTagGroups`). A trade with 2 tags is in both groups, so the groups can add up to more than the scope. Trades with no tag are in no group. The chart shows the 10 tags with the most trades. Under a tag filter, the chart is hidden, because a tag bar would not open the same trades. The difference between groups is an association in the journal, not a cause.
+
 The strategy page also splits the same closed trades by plan adherence (`summarizeAdherence`). The bucket of a trade comes from `tradeAdherence` in `src/db/trade-filter.ts`:
 
 - "Followed" or "Broke": the result of the saved playbook check, when the check `strategyId` equals the trade `setup_id`.

@@ -32,6 +32,7 @@ type GroupStats = GroupSummary & { key: string; name: string };
 interface PerformanceChartsProps {
 	byStrategy: GroupStats[];
 	bySymbol: GroupStats[];
+	byTag: GroupStats[];
 	byDayOfWeek: GroupStats[];
 	byHour: GroupStats[];
 }
@@ -150,6 +151,7 @@ function AvgPnlBar({
 export function PerformanceCharts({
 	byStrategy,
 	bySymbol,
+	byTag,
 	byDayOfWeek,
 	byHour,
 }: PerformanceChartsProps) {
@@ -165,6 +167,13 @@ export function PerformanceCharts({
 				title="Avg P&L by symbol (top 10)"
 				drillDown={ChartGroup.Symbol}
 			/>
+			{byTag.length > 0 && (
+				<AvgPnlBar
+					data={byTag}
+					title="Avg P&L by tag (top 10)"
+					drillDown={ChartGroup.Tag}
+				/>
+			)}
 			<AvgPnlBar data={byDayOfWeek} title="Avg P&L by day of week" />
 			<AvgPnlBar data={byHour} title="Avg P&L by entry hour" />
 		</div>
