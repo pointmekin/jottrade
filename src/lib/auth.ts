@@ -6,6 +6,7 @@ import {
 	createAuthMiddleware,
 	getSessionFromCtx,
 } from "better-auth/api";
+import { twoFactor } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -115,7 +116,7 @@ export const auth = betterAuth({
 		},
 	},
 	// tanstackStartCookies must stay the last plugin.
-	plugins: [tanstackStartCookies()],
+	plugins: [twoFactor({ issuer: "JotTrade" }), tanstackStartCookies()],
 });
 
 export async function requireUserId(): Promise<string> {

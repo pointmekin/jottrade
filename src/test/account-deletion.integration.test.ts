@@ -150,6 +150,12 @@ async function seedUser() {
 		.insert(schema.userOnboarding)
 		.values({ userId })
 		.onConflictDoNothing();
+	await db.insert(schema.twoFactor).values({
+		id: `fixture-${userId}`,
+		userId,
+		secret: "fixture",
+		backupCodes: "fixture",
+	});
 
 	return { userId, cookie, tradeId: trade.id, reviewId: review.id };
 }

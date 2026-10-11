@@ -113,6 +113,13 @@
       "when": 1791652634870,
       "tag": "0015_trade_executions",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791740042864,
+      "tag": "0016_two_factor",
+      "breakpoints": true
     }
   ]
 }

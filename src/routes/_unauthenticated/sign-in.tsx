@@ -40,8 +40,10 @@ function SignIn() {
 					password,
 				},
 				{
-					onSuccess: () => {
-						router.navigate({ to: "/dashboard" });
+					onSuccess: (ctx) => {
+						router.navigate({
+							to: ctx.data?.twoFactorRedirect ? "/two-factor" : "/dashboard",
+						});
 					},
 					onError: (ctx) => {
 						setError(ctx.error.message);

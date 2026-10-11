@@ -22,6 +22,7 @@ import { Route as UnauthenticatedForgotPasswordRouteImport } from './routes/_una
 import { Route as UnauthenticatedResetPasswordRouteImport } from './routes/_unauthenticated/reset-password'
 import { Route as UnauthenticatedSignInRouteImport } from './routes/_unauthenticated/sign-in'
 import { Route as UnauthenticatedSignUpRouteImport } from './routes/_unauthenticated/sign-up'
+import { Route as UnauthenticatedTwoFactorRouteImport } from './routes/_unauthenticated/two-factor'
 import { Route as AuthenticatedJournalTradeIdRouteImport } from './routes/_authenticated/journal_.$tradeId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
@@ -91,6 +92,12 @@ const UnauthenticatedSignUpRoute = UnauthenticatedSignUpRouteImport.update({
   path: '/sign-up',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UnauthenticatedTwoFactorRoute =
+  UnauthenticatedTwoFactorRouteImport.update({
+    id: '/_unauthenticated/two-factor',
+    path: '/two-factor',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedJournalTradeIdRoute =
   AuthenticatedJournalTradeIdRouteImport.update({
     id: '/journal_/$tradeId',
@@ -116,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof UnauthenticatedResetPasswordRoute
   '/sign-in': typeof UnauthenticatedSignInRoute
   '/sign-up': typeof UnauthenticatedSignUpRoute
+  '/two-factor': typeof UnauthenticatedTwoFactorRoute
   '/journal/$tradeId': typeof AuthenticatedJournalTradeIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
@@ -132,6 +140,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof UnauthenticatedResetPasswordRoute
   '/sign-in': typeof UnauthenticatedSignInRoute
   '/sign-up': typeof UnauthenticatedSignUpRoute
+  '/two-factor': typeof UnauthenticatedTwoFactorRoute
   '/journal/$tradeId': typeof AuthenticatedJournalTradeIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
@@ -150,6 +159,7 @@ export interface FileRoutesById {
   '/_unauthenticated/reset-password': typeof UnauthenticatedResetPasswordRoute
   '/_unauthenticated/sign-in': typeof UnauthenticatedSignInRoute
   '/_unauthenticated/sign-up': typeof UnauthenticatedSignUpRoute
+  '/_unauthenticated/two-factor': typeof UnauthenticatedTwoFactorRoute
   '/_authenticated/journal_/$tradeId': typeof AuthenticatedJournalTradeIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
@@ -168,6 +178,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/sign-in'
     | '/sign-up'
+    | '/two-factor'
     | '/journal/$tradeId'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
@@ -184,6 +195,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/sign-in'
     | '/sign-up'
+    | '/two-factor'
     | '/journal/$tradeId'
     | '/api/auth/$'
   id:
@@ -201,6 +213,7 @@ export interface FileRouteTypes {
     | '/_unauthenticated/reset-password'
     | '/_unauthenticated/sign-in'
     | '/_unauthenticated/sign-up'
+    | '/_unauthenticated/two-factor'
     | '/_authenticated/journal_/$tradeId'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
@@ -213,6 +226,7 @@ export interface RootRouteChildren {
   UnauthenticatedResetPasswordRoute: typeof UnauthenticatedResetPasswordRoute
   UnauthenticatedSignInRoute: typeof UnauthenticatedSignInRoute
   UnauthenticatedSignUpRoute: typeof UnauthenticatedSignUpRoute
+  UnauthenticatedTwoFactorRoute: typeof UnauthenticatedTwoFactorRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -309,6 +323,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UnauthenticatedSignUpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_unauthenticated/two-factor': {
+      id: '/_unauthenticated/two-factor'
+      path: '/two-factor'
+      fullPath: '/two-factor'
+      preLoaderRoute: typeof UnauthenticatedTwoFactorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/journal_/$tradeId': {
       id: '/_authenticated/journal_/$tradeId'
       path: '/journal/$tradeId'
@@ -357,6 +378,7 @@ const rootRouteChildren: RootRouteChildren = {
   UnauthenticatedResetPasswordRoute: UnauthenticatedResetPasswordRoute,
   UnauthenticatedSignInRoute: UnauthenticatedSignInRoute,
   UnauthenticatedSignUpRoute: UnauthenticatedSignUpRoute,
+  UnauthenticatedTwoFactorRoute: UnauthenticatedTwoFactorRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport

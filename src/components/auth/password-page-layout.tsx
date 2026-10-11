@@ -1,26 +1,33 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
-import { AuthAside } from "@/components/auth/auth-page-parts";
+import {
+	AuthAside,
+	type AuthAsideProps,
+} from "@/components/auth/auth-page-parts";
+
+const PASSWORD_ASIDE: AuthAsideProps = {
+	heading: "Get back to your trading record.",
+	description: "Set a new password, then continue where you stopped.",
+	steps: ["Request", "Reset", "Sign in"],
+};
 
 interface PasswordPageLayoutProps {
 	title: string;
 	description: string;
 	children: ReactNode;
+	aside?: AuthAsideProps;
 }
 
 export function PasswordPageLayout({
 	title,
 	description,
 	children,
+	aside = PASSWORD_ASIDE,
 }: PasswordPageLayoutProps) {
 	return (
 		<div className="grid min-h-screen overflow-hidden lg:grid-cols-[minmax(0,1fr)_30rem]">
-			<AuthAside
-				heading="Get back to your trading record."
-				description="Set a new password, then continue where you stopped."
-				steps={["Request", "Reset", "Sign in"]}
-			/>
+			<AuthAside {...aside} />
 			<main className="flex items-center justify-center px-6 py-10">
 				<div className="w-full max-w-[380px] border-y border-border py-7">
 					<div className="mb-6">
