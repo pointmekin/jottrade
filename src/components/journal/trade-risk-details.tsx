@@ -1,13 +1,16 @@
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAccounts } from "@/hooks/use-accounts";
 import { formatMoney } from "@/lib/currency";
+import { QueryKey } from "@/lib/query-keys";
 import { type Trade, TradeStatus } from "@/lib/trade";
 import {
 	calculatePlannedRewardRisk,
 	calculateRealizedR,
 } from "@/lib/trade-risk";
 import { RiskUnavailableReason } from "@/lib/trade-risk-schema";
+import { getTradeRuleCheckNow } from "@/server/riskRuleActions";
 import { TradeRiskCorrectionForm } from "./trade-risk-correction-form";
 import { TradeRuleCheck } from "./trade-rule-check";
 
@@ -18,6 +21,12 @@ export function TradeRiskDetails({ trade }: { trade: Trade }) {
 	const snapshot = trade.initialRiskSnapshot;
 	const currency = snapshot?.accountCurrency ?? account?.currency ?? "USD";
 	const metrics = riskMetricValues(trade, currency, account?.currency);
+	const ruleIds = { portfolioId: trade.portfolioId ?? 0, tradeId: trade.id };
+	const ruleNow = useQuery({
+		queryKey: [QueryKey.RuleCompliance, ruleIds],
+		queryFn: () => getTradeRuleCheckNow({ data: ruleIds }),
+		enabled: Boolean(trade.ruleCheck && trade.portfolioId),
+	});
 	return (
 		<section className="space-y-3" aria-label="Initial risk and R">
 			<h2 className="text-sm font-medium">Original risk plan</h2>
@@ -66,7 +75,11 @@ export function TradeRiskDetails({ trade }: { trade: Trade }) {
 				/>
 			)}
 			<RiskCorrectionHistory trade={trade} />
-			<TradeRuleCheck check={trade.ruleCheck} currency={currency} />
+			<TradeRuleCheck
+				check={trade.ruleCheck}
+				now={ruleNow.data}
+				currency={currency}
+			/>
 		</section>
 	);
 }

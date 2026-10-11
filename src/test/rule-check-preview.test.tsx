@@ -120,8 +120,8 @@ describe("rule check preview", () => {
 
 		expect(command).toBe(manual);
 		expect(manual).toContain("Risk per trade: $1,000.00 of $500.00 · Violated");
-		expect(manual).toContain("Loss today: $100.00 of $300.00 · Pass");
-		expect(manual).toContain("Trades today: 4 of 3 · Violated");
+		expect(manual).toContain("Daily loss: $100.00 of $300.00 · Pass");
+		expect(manual).toContain("Trades per day: 4 of 3 · Violated");
 		expect(manual).toContain(
 			"Cooldown: after 1 loss: wait until 10:15 · Violated",
 		);
@@ -215,7 +215,7 @@ describe("rule check preview", () => {
 		setup(<TradeEntryForm />);
 		fill("Symbol", "EURUSD");
 
-		expect((await ruleCheck()).textContent).toContain("Trades today: 1 of 3");
+		expect((await ruleCheck()).textContent).toContain("Trades per day: 1 of 3");
 		expect(
 			screen.queryByLabelText("Why did you take it? (optional)"),
 		).toBeNull();
@@ -259,7 +259,7 @@ describe("rule check preview", () => {
 		await waitFor(() =>
 			expect(toast.warning).toHaveBeenCalledWith(
 				"The saved rule check is different from the preview.",
-				{ description: "Trades today: 5 of 3 · Violated" },
+				{ description: "Trades per day: 5 of 3 · Violated" },
 			),
 		);
 	});

@@ -1,14 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { expect, open, SEED_PASSWORD, test } from "./support";
 
-const VIOLATED = "Trades today: 4 of 3 · Violated";
+const VIOLATED = "Trades per day: 4 of 3 · Violated";
 const NOTE = "Planned breakout before the open.";
 
 test.use({ viewport: { width: 375, height: 812 } });
 
-test("the 4th trade over a 3 trades per day rule shows Violated in both paths, and the trade keeps the check and the note", async ({
+test("the 4th trade over a 3 trades per day rule shows Violated in both paths, the trade keeps the check and the note, and the daily review links the violation", async ({
 	page,
 }) => {
+	// Settings, five forms, the trade page and the review take longer than one default test.
+	test.slow();
 	// A new user, so no other spec reads or writes these trades.
 	const email = `rule-check-${randomUUID()}@jottrade.test`;
 	const signUp = await page.request.post("/api/auth/sign-up/email", {
@@ -23,8 +25,6 @@ test("the 4th trade over a 3 trades per day rule shows Violated in both paths, a
 	await page.getByRole("button", { name: "Save rules" }).click();
 	await expect(page.getByText(/^Version 1 · since/)).toBeVisible();
 
-	// Entry dates have minute precision. A later minute keeps each entry after the version start.
-	await page.clock.setFixedTime(new Date(Date.now() + 2 * 60_000));
 	await open(page, "/journal");
 	const form = page.getByRole("dialog", { name: "Log New Trade" });
 	const fillForm = async (symbol: string) => {
@@ -72,4 +72,17 @@ test("the 4th trade over a 3 trades per day rule shows Violated in both paths, a
 	await expect(stored).toContainText(VIOLATED);
 	await expect(stored).toContainText(NOTE);
 	await expect(stored).toContainText(/Rules v1 · .+, UTC/);
+	await expect(stored).not.toContainText("Now:");
+	const tradeUrl = page.url();
+
+	await open(page, "/reviews");
+	const violations = page.getByRole("region", { name: "Rule violations" });
+	await expect(violations).toContainText("Rule violations this day (1)");
+	await expect(violations).toContainText("Trades per day: 4 of 3");
+	const source = violations.getByRole("link", { name: /^Open trade #/ });
+	await source.scrollIntoViewIfNeeded();
+	const box = await source.boundingBox();
+	expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+	await source.click();
+	await expect(page).toHaveURL(tradeUrl);
 });

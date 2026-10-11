@@ -7,8 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useRuleCheck } from "@/hooks/use-rule-check";
 import { hasViolation } from "@/lib/risk-rule-evaluation";
+import { formatRuleDay } from "@/lib/risk-rule-format";
 import { RULES_DISCLAIMER } from "@/lib/risk-rules";
-import { formatDay } from "@/lib/rule-check-text";
 import type { TradeCaptureValues } from "@/lib/trade-capture";
 import { RuleOutcomeList } from "./rule-check-outcomes";
 
@@ -82,7 +82,7 @@ export function RuleCheckPreview({
 				</div>
 			)}
 			<p className="text-xs text-muted-foreground">
-				{`${account?.name ?? "Account"} · ${formatDay(check.dayKey)}, ${timezone} · Rules v${check.version}`}
+				{`${account?.name ?? "Account"} · ${formatRuleDay(check.dayKey)}, ${timezone} · Rules v${check.version}`}
 			</p>
 			<p role="note" className="text-xs text-muted-foreground">
 				{RULES_DISCLAIMER}
