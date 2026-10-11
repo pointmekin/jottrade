@@ -49,6 +49,8 @@ function DrillDownBar({
 		...prev,
 		...drillDownSearch(chartGroup, group.key),
 	});
+	// The weekday chart has a bar for each day, also with no trades in scope.
+	if (group.count === 0) return <Rectangle {...props} />;
 	return (
 		<Link
 			from="/dashboard"
