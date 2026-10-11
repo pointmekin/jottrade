@@ -33,10 +33,7 @@ function setTags(
 	queryClient: QueryClient,
 	change: (tags: TradeTag[]) => TradeTag[],
 ) {
-	queryClient.setQueryData<TradeTag[]>(
-		TAGS_KEY,
-		(tags) => tags && change(tags),
-	);
+	queryClient.setQueryData<TradeTag[]>(TAGS_KEY, (tags) => change(tags ?? []));
 }
 
 /** Refetch only after the last tag mutation, so a refetch does not hide another pending change. */
@@ -81,13 +78,45 @@ export function useCreateTag() {
 	});
 }
 
-function useTagChange<Variables>(
+type TagChanges = { name?: string; color?: TagColor };
+
+const patchTag = (
+	tags: TradeTag[],
+	id: number,
+	patch: (tag: TradeTag) => TradeTag,
+) => sortTags(tags.map((t) => (t.id === id ? patch(t) : t)));
+
+/** Copy only the fields that one update changed, so overlapping updates keep each other's fields. */
+const withFields = (
+	tag: TradeTag,
+	source: TradeTag,
+	changes: TagChanges,
+): TradeTag => ({
+	...tag,
+	...(changes.name === undefined ? {} : { name: source.name }),
+	...(changes.color === undefined ? {} : { color: source.color }),
+});
+
+function useTagChange<Variables, Result>(
 	tag: TradeTag,
 	failure: string,
-	run: (variables: Variables) => Promise<unknown>,
-	change: (tags: TradeTag[], variables: Variables) => TradeTag[],
+	run: (variables: Variables) => Promise<Result>,
+	tagCache: {
+		change: (tags: TradeTag[], variables: Variables) => TradeTag[];
+		revert: (
+			tags: TradeTag[],
+			previous: TradeTag,
+			variables: Variables,
+		) => TradeTag[];
+		reconcile?: (
+			tags: TradeTag[],
+			result: Result,
+			variables: Variables,
+		) => TradeTag[];
+	},
 ) {
 	const queryClient = useQueryClient();
+	const { change, revert, reconcile } = tagCache;
 	return useMutation({
 		mutationKey: TAGS_KEY,
 		mutationFn: run,
@@ -98,10 +127,16 @@ function useTagChange<Variables>(
 			setTags(queryClient, (current) => change(current, variables));
 			return { previous };
 		},
-		onSuccess: () => invalidateTradeQueries(queryClient),
-		onError: (error, _variables, context) => {
+		onSuccess: (result, variables) => {
+			if (reconcile)
+				setTags(queryClient, (tags) => reconcile(tags, result, variables));
+			return invalidateTradeQueries(queryClient);
+		},
+		onError: (error, variables, context) => {
 			if (context)
-				setTags(queryClient, (tags) => putTag(tags, context.previous));
+				setTags(queryClient, (tags) =>
+					revert(tags, context.previous, variables),
+				);
 			toast.error(failure, { description: error.message });
 		},
 		onSettled: () => settleTags(queryClient),
@@ -112,10 +147,15 @@ export function useUpdateTag(tag: TradeTag) {
 	return useTagChange(
 		tag,
 		"The tag was not saved.",
-		(changes: { name?: string; color?: TagColor }) =>
-			updateTag({ data: { id: tag.id, ...changes } }),
-		(tags, changes) =>
-			sortTags(tags.map((t) => (t.id === tag.id ? { ...t, ...changes } : t))),
+		(changes: TagChanges) => updateTag({ data: { id: tag.id, ...changes } }),
+		{
+			change: (tags, changes) =>
+				patchTag(tags, tag.id, (t) => ({ ...t, ...changes })),
+			revert: (tags, previous, changes) =>
+				patchTag(tags, tag.id, (t) => withFields(t, previous, changes)),
+			reconcile: (tags, saved, changes) =>
+				patchTag(tags, tag.id, (t) => withFields(t, saved, changes)),
+		},
 	);
 }
 
@@ -124,6 +164,9 @@ export function useDeleteTag(tag: TradeTag) {
 		tag,
 		"The tag was not deleted.",
 		() => deleteTag({ data: { id: tag.id } }),
-		(tags) => tags.filter((t) => t.id !== tag.id),
+		{
+			change: (tags) => tags.filter((t) => t.id !== tag.id),
+			revert: (tags, previous) => putTag(tags, previous),
+		},
 	);
 }

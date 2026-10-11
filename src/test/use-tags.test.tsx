@@ -76,6 +76,18 @@ describe("useCreateTag", () => {
 		await waitFor(() => expect(cached()).toEqual([saved, late]));
 	});
 
+	it("shows the new tag when the tags have not loaded yet", async () => {
+		mocks.createTag.mockReturnValue(new Promise(() => undefined));
+		const { result, cached, queryClient } = setup(() => useCreateTag());
+		queryClient.removeQueries({ queryKey: [QueryKey.Tags] });
+
+		act(() => result.current.mutate("Breakout"));
+
+		await waitFor(() =>
+			expect(cached().map((tag) => tag.name)).toEqual(["Breakout"]),
+		);
+	});
+
 	it("removes the pending tag and shows an error when the request fails", async () => {
 		mocks.createTag.mockRejectedValue(new Error("Network error."));
 		const { result, cached } = setup(() => useCreateTag());
@@ -145,6 +157,30 @@ describe("useUpdateTag", () => {
 		expect(mocks.toastError).toHaveBeenCalledWith("The tag was not saved.", {
 			description: "A tag with this name already exists.",
 		});
+	});
+});
+
+describe("overlapping tag updates", () => {
+	it("keeps a recolor when an earlier rename of the same tag fails", async () => {
+		const rename = deferred<TradeTag>();
+		mocks.updateTag
+			.mockReturnValueOnce(rename.promise)
+			.mockResolvedValueOnce({ ...late, color: TagColor.Teal });
+		const { result, cached } = setup(
+			() => [useUpdateTag(late), useUpdateTag(late)] as const,
+		);
+
+		act(() => result.current[0].mutate({ name: "Early exit" }));
+		await act(async () => {
+			await result.current[1].mutateAsync({ color: TagColor.Teal });
+		});
+		expect(cached()).toEqual([
+			{ id: 1, name: "Early exit", color: TagColor.Teal },
+		]);
+
+		await act(async () => rename.reject(new Error("Failed.")));
+
+		expect(cached()).toEqual([{ ...late, color: TagColor.Teal }]);
 	});
 });
 
