@@ -22,6 +22,8 @@ import {
 	zonedHour,
 } from "@/lib/date";
 import {
+	countChecked,
+	countTagged,
 	summarizeCheckGroups,
 	summarizeGroup,
 	summarizeGroups,
@@ -143,8 +145,19 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" })
 			RuleOutcome.NotSet,
 		);
 
+		const insightCoverage = {
+			tagged: data.tagIds?.length ? null : countTagged(closed, tagsByTrade),
+			planChecked: countChecked(
+				closed,
+				checks.adherence,
+				PlanAdherence.Unchecked,
+			),
+			ruleChecked: countChecked(closed, checks.ruleCheck, RuleOutcome.NotSet),
+		};
+
 		return {
 			riskMetrics,
+			insightCoverage,
 			byStrategy,
 			bySymbol,
 			byTag,

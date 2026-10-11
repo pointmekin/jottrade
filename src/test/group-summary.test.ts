@@ -5,6 +5,8 @@ import {
 	type TradeRecord,
 } from "@/lib/analytics";
 import {
+	countChecked,
+	countTagged,
 	summarizeAdherence,
 	summarizeCheckGroups,
 	summarizeGroup,
@@ -183,5 +185,28 @@ describe("summarizeCheckGroups", () => {
 
 	it("returns no group when no trade is checked", () => {
 		expect(summarize(new Map([[1, PlanAdherence.Unchecked]]))).toEqual([]);
+	});
+});
+
+describe("insight coverage", () => {
+	const trades = [{ id: 1 }, { id: 2 }, { id: 3 }];
+
+	it("counts each tagged trade once and leaves out trades with no tag", () => {
+		const tag = { id: 1, name: "FOMO", color: TagColor.Pink };
+		const tagsByTrade = new Map([
+			[1, [tag, { ...tag, id: 2 }]],
+			[2, []],
+		]);
+
+		expect(countTagged(trades, tagsByTrade)).toBe(1);
+	});
+
+	it("counts the checked trades and leaves out unchecked and unknown ids", () => {
+		const bucketOf = new Map([
+			[1, PlanAdherence.Followed],
+			[2, PlanAdherence.Unchecked],
+		]);
+
+		expect(countChecked(trades, bucketOf, PlanAdherence.Unchecked)).toBe(1);
 	});
 });

@@ -114,8 +114,11 @@ describe.skipIf(!verifyUrl)("tag insights on the seeded database", () => {
 
 	it("opens the same closed count and net P&L as each tag bar", async () => {
 		session.userId = ALICE;
-		const { byTag } = await analytics.getAdvancedAnalytics({ data: scope() });
+		const { byTag, insightCoverage, riskMetrics } =
+			await analytics.getAdvancedAnalytics({ data: scope() });
 
+		expect(insightCoverage.tagged).toBe(2);
+		expect(riskMetrics.closedTrades).toBe(3);
 		expect(byTag.map(({ name, count }) => ({ name, count }))).toEqual([
 			{ name: "Insight late entry", count: 2 },
 			{ name: "Insight FOMO", count: 1 },
@@ -135,9 +138,10 @@ describe.skipIf(!verifyUrl)("tag insights on the seeded database", () => {
 
 	it("returns no tag groups under a tag filter", async () => {
 		session.userId = ALICE;
-		const { byTag } = await analytics.getAdvancedAnalytics({
+		const { byTag, insightCoverage } = await analytics.getAdvancedAnalytics({
 			data: { ...scope(), tagIds: [tagIds[0]] },
 		});
 		expect(byTag).toEqual([]);
+		expect(insightCoverage.tagged).toBeNull();
 	});
 });
