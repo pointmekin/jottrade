@@ -29,6 +29,7 @@ import {
 	summarizeGroups,
 	summarizeTagGroups,
 } from "@/lib/group-summary";
+import { tagFindings } from "@/lib/insights";
 import { NO_STRATEGY } from "@/lib/journal-search";
 import { PLAN_ADHERENCE_LABEL, PlanAdherence } from "@/lib/playbook-check";
 import {
@@ -155,9 +156,16 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" })
 			ruleChecked: countChecked(closed, checks.ruleCheck, RuleOutcome.NotSet),
 		};
 
+		const scopeSummary = summarizeGroup(closed.map(pnlOf));
+		const findings = {
+			scope: { count: scopeSummary.count, avgPnl: scopeSummary.avgPnl },
+			tags: tagFindings(byTag, scopeSummary),
+		};
+
 		return {
 			riskMetrics,
 			insightCoverage,
+			findings,
 			byStrategy,
 			bySymbol,
 			byTag,

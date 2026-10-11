@@ -74,6 +74,8 @@ The dashboard chart "Avg P&L by plan adherence" uses the same buckets for all cl
 
 Each of these 3 insight charts shows its annotated share: the closed trades in scope with at least one tag, with a plan check (not "Not checked"), or with a rule check (not "Not checked"), out of all closed trades in scope (`countTagged`, `countChecked`). A trade with 2 tags counts once. The share shows how much of the scope the groups describe; trades with no annotation can differ from the others. The footer "Association in your journal. Not a cause and not a prediction." shows on each insight chart. There are no p-values or confidence numbers.
 
+"Tag findings" under the charts (`tagFindings` in `src/lib/insights.ts`) lists the same top 10 tags. For a tag with at least 20 closed trades (`FINDING_MIN_TRADES`), it shows the difference: the tag average net P&L per closed trade minus the average of all closed trades in scope. Each average is rounded to cents first. The comparison is the whole scope, so it includes the tag trades. A tag with fewer trades shows "Not enough trades (N of 20)". 20 is a convention, not a statistical test. The difference is not a cost and not a recoverable profit. Both cohorts are links to the journal.
+
 `scripts/reconcile-metrics.ts` runs the same check on a real database. It reads every account in one read-only transaction and compares the headline and the strategy chart with SQL totals. It also counts the closed trades whose stored `return_percent` is not the price return.
 
 ## Rule compliance

@@ -114,7 +114,7 @@ describe.skipIf(!verifyUrl)("tag insights on the seeded database", () => {
 
 	it("opens the same closed count and net P&L as each tag bar", async () => {
 		session.userId = ALICE;
-		const { byTag, insightCoverage, riskMetrics } =
+		const { byTag, findings, insightCoverage, riskMetrics } =
 			await analytics.getAdvancedAnalytics({ data: scope() });
 
 		expect(insightCoverage.tagged).toBe(2);
@@ -134,14 +134,23 @@ describe.skipIf(!verifyUrl)("tag insights on the seeded database", () => {
 			expect(closedSummary.count, group.name).toBe(group.count);
 			expect(closedSummary.netPnl, group.name).toBeCloseTo(group.totalPnl, 2);
 		}
+		expect(findings.scope).toEqual({ count: 3, avgPnl: 186.67 });
+		expect(
+			findings.tags.map(({ name, difference }) => ({ name, difference })),
+		).toEqual([
+			{ name: "Insight late entry", difference: null },
+			{ name: "Insight FOMO", difference: null },
+		]);
 	});
 
 	it("returns no tag groups under a tag filter", async () => {
 		session.userId = ALICE;
-		const { byTag, insightCoverage } = await analytics.getAdvancedAnalytics({
-			data: { ...scope(), tagIds: [tagIds[0]] },
-		});
+		const { byTag, findings, insightCoverage } =
+			await analytics.getAdvancedAnalytics({
+				data: { ...scope(), tagIds: [tagIds[0]] },
+			});
 		expect(byTag).toEqual([]);
+		expect(findings.tags).toEqual([]);
 		expect(insightCoverage.tagged).toBeNull();
 	});
 });
