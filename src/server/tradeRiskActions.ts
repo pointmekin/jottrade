@@ -50,6 +50,8 @@ export const correctTradeInitialRisk = createServerFn({ method: "POST" })
 			throw new Error(
 				"Imported execution corrections must use import reconciliation. Correct the original risk plan separately.",
 			);
+		if (data.correctExecutionInputs && existing.executionCount > 0)
+			throw new Error("This trade has fills. Edit the fills instead.");
 		if (existing.editRevision !== data.expectedRevision)
 			throw new Error(
 				"Trade changed. Reload before correcting the original plan.",

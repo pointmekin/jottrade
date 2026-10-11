@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { AccountEntryKind } from "@/lib/account-entry";
+import { ExecutionKind } from "@/lib/position";
 import { ReviewKind } from "@/lib/review";
 import { TradeSide } from "@/lib/trade";
 
@@ -105,6 +106,16 @@ async function seedUser() {
 		portfolioId,
 		name: "Fixture view",
 		scope: {},
+	});
+	await db.insert(schema.tradeExecutions).values({
+		userId,
+		portfolioId,
+		tradeId: trade.id,
+		kind: ExecutionKind.Entry,
+		executedAt: new Date("2026-10-01T09:00:00Z"),
+		price: "1.1",
+		quantity: "1",
+		sequence: 1,
 	});
 	await db.insert(schema.riskRuleVersions).values({
 		userId,

@@ -10,6 +10,7 @@ import {
 	savedViews,
 	strategies,
 	tags,
+	tradeExecutions,
 	trades,
 	tradeTags,
 } from "@/db/schema";
@@ -36,6 +37,7 @@ export async function loadArchiveTables(userId: string) {
 		tradeTagRows,
 		savedViewRows,
 		riskRuleVersionRows,
+		tradeExecutionRows,
 	] = await Promise.all([
 		db.select().from(portfolios).where(eq(portfolios.userId, userId)),
 		db.select().from(trades).where(eq(trades.userId, userId)),
@@ -69,6 +71,7 @@ export async function loadArchiveTables(userId: string) {
 			.select()
 			.from(riskRuleVersions)
 			.where(eq(riskRuleVersions.userId, userId)),
+		db.select().from(tradeExecutions).where(eq(tradeExecutions.userId, userId)),
 	]);
 	return {
 		accounts: accountRows.map(withoutUserId),
@@ -84,5 +87,6 @@ export async function loadArchiveTables(userId: string) {
 		tradeTags: tradeTagRows.map((row) => row.link),
 		savedViews: savedViewRows.map(withoutUserId),
 		riskRuleVersions: riskRuleVersionRows.map(withoutUserId),
+		tradeExecutions: tradeExecutionRows.map(withoutUserId),
 	};
 }

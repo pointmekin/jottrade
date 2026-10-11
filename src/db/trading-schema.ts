@@ -1,5 +1,6 @@
 import { relations, sql } from "drizzle-orm";
 import {
+	type AnyPgColumn,
 	boolean,
 	check,
 	index,
@@ -234,6 +235,10 @@ export const trades = pgTable(
 		clientDraftId: uuid("client_draft_id"),
 		// Reserved for the entry rule check of issue #19; no code writes it yet.
 		ruleCheck: jsonb("rule_check").$type<StoredRuleCheck>(),
+		executionCount: integer("execution_count").default(0).notNull(),
+		groupedIntoId: integer("grouped_into_id").references(
+			(): AnyPgColumn => trades.id,
+		),
 	},
 	(t) => [
 		index("idx_trades_user").on(t.userId),

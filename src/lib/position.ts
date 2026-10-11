@@ -219,3 +219,21 @@ export function positionTotals(side: TradeSide, steps: PositionStep[]) {
 		status: isClosed ? TradeStatus.Closed : TradeStatus.Open,
 	};
 }
+
+const POSITION_ERROR_MESSAGES: Record<PositionError, string> = {
+	[PositionError.InvalidQuantity]: "Quantity must be more than zero.",
+	[PositionError.InvalidPrice]: "Price must be more than zero.",
+	[PositionError.InvalidFee]: "Fees must be zero or more.",
+	[PositionError.ExitBeforeEntry]:
+		"An exit cannot come before the first entry.",
+	[PositionError.OverClose]: "This exit closes more than was open.",
+	[PositionError.Reopen]: "This position is closed. Log a new trade.",
+};
+
+export function positionErrorMessage(
+	failure: Extract<PositionReplay, { ok: false }>,
+): string {
+	if (failure.error === PositionError.OverClose)
+		return `${POSITION_ERROR_MESSAGES[failure.error]} You can close up to ${failure.remainingQty}.`;
+	return POSITION_ERROR_MESSAGES[failure.error];
+}
