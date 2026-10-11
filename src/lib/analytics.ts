@@ -2,6 +2,7 @@ import { AccountEntryKind } from "./account-entry";
 import { roundCents } from "./currency";
 import { previousDayKey, toDayKey } from "./date";
 import { summarizeGroup } from "./group-summary";
+import type { Realization } from "./position";
 import { TradeStatus } from "./trade";
 
 /** A deposit is positive and a withdrawal is negative. */
@@ -22,6 +23,8 @@ export type TradeRecord = {
 	entryDate: Date;
 	exitDate: Date | null;
 	netPnl: number;
+	/** The exit fills of a position with fills. Absent for a single-fill trade. */
+	realizations?: Realization[];
 };
 
 /** `balance` is cash. `performance` is trading P&L since the window opened, without deposits and withdrawals. */
@@ -68,6 +71,13 @@ export function realizedAt(
 	trade: Pick<TradeRecord, "entryDate" | "exitDate">,
 ): Date {
 	return trade.exitDate ?? trade.entryDate;
+}
+
+/** The cash P&L of a trade: each exit fill on its own time, or the net P&L at the close. */
+export function cashRealizations(trade: TradeRecord): Realization[] {
+	if (trade.realizations) return trade.realizations;
+	if (trade.status !== TradeStatus.Closed) return [];
+	return [{ at: realizedAt(trade), amount: trade.netPnl }];
 }
 
 export function closedTradesInRange<T extends TradeRecord>(
@@ -164,23 +174,19 @@ export function summarizeTrades(
 	const flows = bucketCashFlows(cashFlows, range, timeZone);
 	const inRange = closedTradesInRange(records, range);
 	const pnls = inRange.map((trade) => finite(trade.netPnl));
+	const realizations = records.flatMap(cashRealizations);
 	const carriedPnl = sum(
-		records
-			.filter(
-				(trade) =>
-					trade.status === TradeStatus.Closed &&
-					isBefore(realizedAt(trade), range.from),
-			)
-			.map((trade) => finite(trade.netPnl)),
+		realizations
+			.filter((item) => isBefore(item.at, range.from))
+			.map((item) => finite(item.amount)),
+	);
+	const cashInRange = realizations.filter(
+		(item) => !isBefore(item.at, range.from) && !isAfter(item.at, range.to),
 	);
 
 	const tradePnlByDay: DailyAmounts = new Map();
-	for (const trade of inRange) {
-		addToDay(
-			tradePnlByDay,
-			toDayKey(realizedAt(trade), timeZone),
-			finite(trade.netPnl),
-		);
+	for (const item of cashInRange) {
+		addToDay(tradePnlByDay, toDayKey(item.at, timeZone), finite(item.amount));
 	}
 
 	const openingBalance = flows.carried + carriedPnl;
@@ -203,7 +209,9 @@ export function summarizeTrades(
 			openingBalance: roundCents(openingBalance),
 			netDeposits: roundCents(flows.netDeposits),
 			totalBalance: equityCurve.at(-1)?.balance ?? roundCents(openingBalance),
-			totalPnL: roundCents(sum(pnls) + flows.adjustments),
+			totalPnL: roundCents(
+				sum(cashInRange.map((item) => finite(item.amount))) + flows.adjustments,
+			),
 			activeTrades,
 			winRate: group.winRate,
 			profitFactor: grossLoss > 0 ? grossProfit / grossLoss : null,

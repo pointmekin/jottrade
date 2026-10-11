@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/drawer";
 import { useCurrency } from "@/hooks/use-currency";
 import { useIsMobile } from "@/hooks/use-mobile";
-import type { CalendarDay } from "@/lib/calendar-days";
+import { type CalendarDay, dayActivityLabel } from "@/lib/calendar-days";
 import { formatMoney } from "@/lib/currency";
 import { ReviewKind } from "@/lib/review";
 import { TradeSide } from "@/lib/trade";
@@ -49,7 +49,7 @@ function TradeList({
 
 				return (
 					<Link
-						key={trade.id}
+						key={`${trade.id}-${trade.isPartialExit ? "partial" : "trade"}`}
 						to="/journal/$tradeId"
 						params={{ tradeId: String(trade.id) }}
 						onClick={onTradeClick}
@@ -64,9 +64,15 @@ function TradeList({
 							>
 								{trade.side}
 							</Badge>
-							<span className="hidden shrink-0 text-xs uppercase text-muted-foreground sm:inline">
-								{trade.status}
-							</span>
+							{trade.isPartialExit ? (
+								<span className="shrink-0 text-xs text-muted-foreground">
+									Partial exit
+								</span>
+							) : (
+								<span className="hidden shrink-0 text-xs uppercase text-muted-foreground sm:inline">
+									{trade.status}
+								</span>
+							)}
 						</div>
 						<span
 							className={`shrink-0 font-data text-xs font-medium ${pnlClass}`}
@@ -121,7 +127,7 @@ export function DayTradesPopover({
 				>
 					<DrawerTitle>{formatDate(date)}</DrawerTitle>
 					<DrawerDescription>
-						{`${day.tradeCount} trade${day.tradeCount === 1 ? "" : "s"} · net P&L `}
+						{`${dayActivityLabel(day)} · net P&L `}
 						<span className={pnlTextClass(day.netPnl)}>
 							{formatMoney(day.netPnl, currency, { signed: true })}
 						</span>

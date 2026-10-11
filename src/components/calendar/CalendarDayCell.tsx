@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { format, parseISO } from "date-fns";
 import { useCurrency } from "@/hooks/use-currency";
-import type { CalendarDay } from "@/lib/calendar-days";
+import { type CalendarDay, dayActivityLabel } from "@/lib/calendar-days";
 import { formatMoney } from "@/lib/currency";
 import { ReviewKind } from "@/lib/review";
 
@@ -44,7 +44,7 @@ export function CalendarDayCell({
 }: CalendarDayCellProps) {
 	const currency = useCurrency();
 	const dayNum = parseInt(date.slice(8, 10), 10);
-	const hasTrades = !!day && day.tradeCount > 0;
+	const hasTrades = !!day && day.trades.length > 0;
 	const isProfit = hasTrades && day.netPnl > 0;
 	const isLoss = hasTrades && day.netPnl < 0;
 	const fullPnlLabel = hasTrades
@@ -81,7 +81,7 @@ export function CalendarDayCell({
 		<button
 			type="button"
 			className={`w-full ${cellClassName}`}
-			aria-label={`${accessibleDate}, ${day.tradeCount} trade${day.tradeCount !== 1 ? "s" : ""}, net P&L ${fullPnlLabel}`}
+			aria-label={`${accessibleDate}, ${dayActivityLabel(day)}, net P&L ${fullPnlLabel}`}
 			onClick={() => onClick?.(date)}
 		>
 			<p className="font-data text-xs leading-tight text-muted-foreground">
@@ -98,7 +98,7 @@ export function CalendarDayCell({
 					<span className="hidden sm:inline">{fullPnlLabel}</span>
 				</p>
 				<p className="mt-1 hidden truncate text-xs text-muted-foreground sm:block">
-					{day.tradeCount} trade{day.tradeCount !== 1 ? "s" : ""}
+					{dayActivityLabel(day)}
 				</p>
 			</div>
 		</button>

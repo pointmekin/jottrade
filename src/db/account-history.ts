@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
+import { withRealizations } from "@/db/positions";
 import { cashFlows, trades } from "@/db/schema";
 import { tradeConditions } from "@/db/trade-filter";
 import {
@@ -35,7 +36,7 @@ export async function loadAccountHistory(userId: string, portfolioId: number) {
 			),
 	]);
 	return {
-		trades: tradeRows.map(toTradeRecord),
+		trades: await withRealizations(userId, tradeRows.map(toTradeRecord)),
 		cashFlows: flowRows.map((flow) => ({
 			...flow,
 			amount: Number(flow.amount),
@@ -60,5 +61,5 @@ export async function loadMatchingTrades(userId: string, filter: TradeFilter) {
 				dateTo: undefined,
 			}),
 		);
-	return rows.map(toTradeRecord);
+	return withRealizations(userId, rows.map(toTradeRecord));
 }

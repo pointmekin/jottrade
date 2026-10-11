@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { lockPortfolio, requireOwnedPortfolio } from "@/db/portfolios";
 import { tradeExecutions, trades } from "@/db/schema";
@@ -9,7 +9,9 @@ import {
 	type PositionInstrument,
 	positionErrorMessage,
 	positionTotals,
+	type Realization,
 	replayPosition,
+	toRealizations,
 } from "@/lib/position";
 import { TradeStatus } from "@/lib/trade";
 import { savedUnitQuote } from "@/lib/trade-update";
@@ -199,4 +201,49 @@ export async function writePositionFills(
 			throw new Error(STALE_MESSAGE);
 		throw error;
 	}
+}
+
+type CashRow = {
+	id: number;
+	executionCount: number;
+	status: string | null;
+	netPnl: number | null;
+};
+
+/** Adds the exit fills to each trade with fills. A trade without fills gets no `realizations`. */
+export async function withRealizations<T extends CashRow>(
+	userId: string,
+	rows: T[],
+): Promise<(T & { realizations?: Realization[] })[]> {
+	const ids = rows.filter((row) => row.executionCount > 0).map((row) => row.id);
+	if (ids.length === 0) return rows;
+	const exits = await db
+		.select({
+			tradeId: tradeExecutions.tradeId,
+			executedAt: tradeExecutions.executedAt,
+			realizedPnl: tradeExecutions.realizedPnl,
+		})
+		.from(tradeExecutions)
+		.where(
+			and(
+				eq(tradeExecutions.userId, userId),
+				eq(tradeExecutions.kind, ExecutionKind.Exit),
+				inArray(tradeExecutions.tradeId, ids),
+			),
+		)
+		.orderBy(asc(tradeExecutions.executedAt), asc(tradeExecutions.sequence));
+	const byTrade = new Map<number, typeof exits>();
+	for (const exit of exits)
+		byTrade.set(exit.tradeId, [...(byTrade.get(exit.tradeId) ?? []), exit]);
+	return rows.map((row) =>
+		row.executionCount > 0
+			? {
+					...row,
+					realizations: toRealizations(
+						byTrade.get(row.id) ?? [],
+						row.status === TradeStatus.Closed ? row.netPnl : null,
+					),
+				}
+			: row,
+	);
 }

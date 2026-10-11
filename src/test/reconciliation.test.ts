@@ -44,12 +44,14 @@ const sql: SqlTotals = {
 		{ setupId: null, count: 1, pnl: 55.5 },
 	],
 	cashFlowTotal: 4987.75,
+	positions: [],
 };
 
 describe("reconcileAccount", () => {
 	it("finds no discrepancy when every screen agrees with the database", () => {
 		expect(reconcileAccount(trades, flows, sql)).toEqual({
 			closedTrades: 4,
+			positions: { total: 0, matching: 0 },
 			discrepancies: [],
 			legacyReturnRows: 0,
 		});
@@ -94,5 +96,58 @@ describe("reconcileAccount", () => {
 		);
 		expect(legacyReturnRows).toBe(1);
 		expect(discrepancies).toEqual([]);
+	});
+
+	describe("positions with fills", () => {
+		const position = {
+			tradeId: 9,
+			status: "CLOSED",
+			netPnl: 100,
+			executionCount: 4,
+			fillCount: 4,
+			exitPnl: 100.01,
+		};
+		const partial = {
+			...position,
+			tradeId: 10,
+			status: "OPEN",
+			netPnl: null,
+			executionCount: 2,
+			fillCount: 2,
+			exitPnl: 40,
+		};
+		const openWithExit = trade(1, 0, {
+			status: "OPEN",
+			exitDate: null,
+			realizations: [{ at: new Date("2025-01-06T12:00:00Z"), amount: 40 }],
+		});
+
+		it("adds the partial exits of open positions to the balance", () => {
+			const result = reconcileAccount([...trades, openWithExit], flows, {
+				...sql,
+				positions: [position, partial],
+			});
+			expect(result.positions).toEqual({ total: 2, matching: 2 });
+			expect(result.discrepancies).toEqual([]);
+		});
+
+		it("reports fill rows that do not match the stored totals", () => {
+			const { positions, discrepancies } = reconcileAccount(
+				[...trades, openWithExit],
+				flows,
+				{
+					...sql,
+					positions: [
+						{ ...position, exitPnl: 90 },
+						{ ...partial, fillCount: 1 },
+					],
+				},
+			);
+			expect(positions).toEqual({ total: 2, matching: 0 });
+			expect(discrepancies.map((d) => d.check)).toEqual([
+				"position-fills",
+				"position-fills",
+			]);
+		});
 	});
 });

@@ -237,3 +237,22 @@ export function positionErrorMessage(
 		return `${POSITION_ERROR_MESSAGES[failure.error]} You can close up to ${failure.remainingQty}.`;
 	return POSITION_ERROR_MESSAGES[failure.error];
 }
+
+export type Realization = { at: Date; amount: number };
+
+/** The P&L of each exit fill. The last exit of a closed position takes the rounding rest, so the sum is its net P&L. */
+export function toRealizations(
+	exits: { executedAt: Date; realizedPnl: string | null }[],
+	netPnl: number | null,
+): Realization[] {
+	const result = exits.map((exit) => ({
+		at: exit.executedAt,
+		amount: Number(exit.realizedPnl ?? 0),
+	}));
+	const last = result.at(-1);
+	if (netPnl === null || !last) return result;
+	const earlier = result
+		.slice(0, -1)
+		.reduce((sum, item) => sum + item.amount, 0);
+	return [...result.slice(0, -1), { ...last, amount: netPnl - earlier }];
+}

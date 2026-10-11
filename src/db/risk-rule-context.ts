@@ -1,6 +1,7 @@
 import { and, eq, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { requireOwnedPortfolio } from "@/db/portfolios";
+import { withRealizations } from "@/db/positions";
 import { cashFlows, riskRuleVersions, trades } from "@/db/schema";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { buildRuleContext } from "@/lib/risk-rule-evaluation";
@@ -42,6 +43,8 @@ export async function loadRuleContext(
 	const [tradeRows, flowRows] = await Promise.all([
 		db
 			.select({
+				id: trades.id,
+				executionCount: trades.executionCount,
 				status: trades.status,
 				entryDate: trades.entryDate,
 				exitDate: trades.exitDate,
@@ -62,10 +65,13 @@ export async function loadRuleContext(
 		{
 			versions,
 			currency,
-			trades: tradeRows.map((trade) => ({
-				...trade,
-				netPnl: trade.netPnl === null ? null : Number(trade.netPnl),
-			})),
+			trades: await withRealizations(
+				userId,
+				tradeRows.map((trade) => ({
+					...trade,
+					netPnl: trade.netPnl === null ? null : Number(trade.netPnl),
+				})),
+			),
 			cashFlows: flowRows.map((flow) => ({
 				...flow,
 				amount: Number(flow.amount),

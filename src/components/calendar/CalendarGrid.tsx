@@ -50,7 +50,7 @@ export function CalendarGrid({ year, month, data }: CalendarGridProps) {
 					const day = data[date];
 					const isSelected = selectedDate === date;
 
-					if (day && day.tradeCount > 0) {
+					if (day && day.trades.length > 0) {
 						return (
 							<DayTradesPopover
 								key={date}
