@@ -1,7 +1,5 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { type FormEvent, useState } from "react";
-import { toast } from "sonner";
 import { SectionHeading } from "@/components/app-page-header";
 import { TagDot } from "@/components/tags/tag-chip";
 import {
@@ -23,42 +21,26 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { useCreateTag, useTags } from "@/hooks/use-tags";
-import { invalidateTradeQueries, QueryKey } from "@/lib/query-keys";
+import {
+	isPendingTag,
+	useCreateTag,
+	useDeleteTag,
+	useTags,
+	useUpdateTag,
+} from "@/hooks/use-tags";
 import {
 	normalizeTagName,
 	TAG_NAME_MAX_LENGTH,
 	TagColor,
 	type TradeTag,
 } from "@/lib/trade-tag";
-import { deleteTag, updateTag } from "@/server/tagActions";
-
-function useTagChange<Variables>(
-	failure: string,
-	run: (variables: Variables) => Promise<unknown>,
-) {
-	const queryClient = useQueryClient();
-	return useMutation({
-		mutationFn: run,
-		onSuccess: () =>
-			Promise.all([
-				queryClient.invalidateQueries({ queryKey: [QueryKey.Tags] }),
-				invalidateTradeQueries(queryClient),
-			]),
-		onError: (error) => toast.error(failure, { description: error.message }),
-	});
-}
+import { cn } from "@/lib/utils";
 
 function TagRow({ tag }: { tag: TradeTag }) {
 	const [name, setName] = useState(tag.name);
-	const update = useTagChange(
-		"The tag was not saved.",
-		(changes: { name?: string; color?: TagColor }) =>
-			updateTag({ data: { id: tag.id, ...changes } }),
-	);
-	const remove = useTagChange("The tag was not deleted.", () =>
-		deleteTag({ data: { id: tag.id } }),
-	);
+	const update = useUpdateTag(tag);
+	const remove = useDeleteTag(tag);
+	const isPending = isPendingTag(tag);
 	const rename = () => {
 		const next = normalizeTagName(name);
 		if (!next || next === tag.name) {
@@ -69,13 +51,20 @@ function TagRow({ tag }: { tag: TradeTag }) {
 	};
 
 	return (
-		<li className="flex items-center gap-2 py-1.5">
+		<li
+			aria-busy={isPending}
+			className={cn(
+				"flex items-center gap-2 py-1.5",
+				isPending && "animate-pulse motion-reduce:animate-none",
+			)}
+		>
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<Button
 						variant="ghost"
 						size="icon"
 						className="size-8"
+						disabled={isPending}
 						aria-label={`Change color of ${tag.name}`}
 					>
 						<span className="flex size-3 items-center justify-center">
@@ -98,6 +87,7 @@ function TagRow({ tag }: { tag: TradeTag }) {
 			<Input
 				value={name}
 				maxLength={TAG_NAME_MAX_LENGTH}
+				disabled={isPending}
 				aria-label={`Rename ${tag.name}`}
 				className="h-8 bg-background text-sm"
 				onChange={(event) => setName(event.target.value)}
@@ -113,6 +103,7 @@ function TagRow({ tag }: { tag: TradeTag }) {
 						variant="ghost"
 						size="icon"
 						className="size-8 text-muted-foreground hover:text-destructive"
+						disabled={isPending}
 						aria-label={`Delete ${tag.name}`}
 					>
 						<Trash2 className="size-3.5" />
@@ -144,7 +135,10 @@ export function TagSettings() {
 	const submit = (event: FormEvent) => {
 		event.preventDefault();
 		if (!normalizeTagName(name)) return;
-		create.mutate(name, { onSuccess: () => setName("") });
+		setName("");
+		create.mutate(name, {
+			onError: () => setName((current) => current || name),
+		});
 	};
 
 	return (
@@ -163,15 +157,10 @@ export function TagSettings() {
 					className="h-9 bg-background text-sm"
 					onChange={(event) => setName(event.target.value)}
 				/>
-				<Button type="submit" variant="outline" disabled={create.isPending}>
+				<Button type="submit" variant="outline">
 					Add tag
 				</Button>
 			</form>
-			{create.error && (
-				<p role="alert" className="text-sm text-destructive">
-					{create.error.message}
-				</p>
-			)}
 			{isError && (
 				<div role="alert" className="flex items-center gap-3 text-sm">
 					<span className="text-destructive">Your tags did not load.</span>

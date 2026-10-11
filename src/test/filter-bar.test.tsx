@@ -23,7 +23,8 @@ vi.mock("@/hooks/use-tags", () => ({
 			{ id: 4, name: "News", color: "blue" },
 		],
 	}),
-	useCreateTag: () => ({ mutate: vi.fn(), reset: vi.fn() }),
+	useCreateTag: () => ({ mutate: vi.fn() }),
+	isPendingTag: () => false,
 }));
 
 vi.mock("@/components/journal/saved-views-menu", () => ({
