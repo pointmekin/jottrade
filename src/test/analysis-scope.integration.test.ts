@@ -454,7 +454,7 @@ describe.skipIf(!url)("one analysis scope on migrated PostgreSQL", () => {
 			...byHour.map((group) => ({ chart: ChartGroup.EntryHour, group })),
 		];
 
-		expect(byDayOfWeek.filter((group) => group.count > 0).length).toBe(2);
+		expect(byDayOfWeek.filter((group) => group.count > 0)).toHaveLength(2);
 		expect(byHour.reduce((sum, group) => sum + group.count, 0)).toBe(12);
 		for (const { chart, group } of groups) {
 			const search = journalSearchSchema.parse(
