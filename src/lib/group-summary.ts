@@ -95,6 +95,19 @@ export function summarizeCheckGroups<B extends string>(
 	});
 }
 
+export const countTagged = (
+	trades: { id: number }[],
+	tagsByTrade: Map<number, TradeTag[]>,
+) => trades.filter((trade) => tagsByTrade.get(trade.id)?.length).length;
+
+export const countChecked = <B extends string>(
+	trades: { id: number }[],
+	bucketOf: Map<number, B>,
+	unchecked: B,
+) =>
+	trades.filter((trade) => (bucketOf.get(trade.id) ?? unchecked) !== unchecked)
+		.length;
+
 export function summarizeAdherence(
 	rows: { netPnl: number; adherence: PlanAdherence }[],
 ) {

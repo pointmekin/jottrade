@@ -75,6 +75,8 @@ export function RiskSection({
 					/>
 					<Suspense fallback={<ChartsSkeleton />}>
 						<PerformanceCharts
+							closedTrades={data.riskMetrics.closedTrades}
+							insightCoverage={data.insightCoverage}
 							byStrategy={data.byStrategy}
 							bySymbol={data.bySymbol}
 							byTag={data.byTag}

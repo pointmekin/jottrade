@@ -172,9 +172,10 @@ describe.skipIf(!verifyUrl)("check insights on the seeded database", () => {
 
 	it("opens the same closed count and net P&L as each plan adherence bar", async () => {
 		session.userId = ALICE;
-		const { byAdherence } = await analytics.getAdvancedAnalytics({
-			data: scope(),
-		});
+		const { byAdherence, insightCoverage } =
+			await analytics.getAdvancedAnalytics({ data: scope() });
+
+		expect(insightCoverage.planChecked).toBe(2);
 
 		expect(byAdherence.map(({ key, count }) => ({ key, count }))).toEqual([
 			{ key: PlanAdherence.Followed, count: 1 },
@@ -190,9 +191,10 @@ describe.skipIf(!verifyUrl)("check insights on the seeded database", () => {
 
 	it("opens the same closed count and net P&L as each rule check bar", async () => {
 		session.userId = ALICE;
-		const { byRuleCheck } = await analytics.getAdvancedAnalytics({
-			data: scope(),
-		});
+		const { byRuleCheck, insightCoverage } =
+			await analytics.getAdvancedAnalytics({ data: scope() });
+
+		expect(insightCoverage.ruleChecked).toBe(4);
 
 		expect(byRuleCheck.map(({ key, count }) => ({ key, count }))).toEqual([
 			{ key: RuleOutcome.Pass, count: 1 },
@@ -209,10 +211,14 @@ describe.skipIf(!verifyUrl)("check insights on the seeded database", () => {
 
 	it("does not show the groups of another user", async () => {
 		session.userId = BOB;
-		const { byAdherence, byRuleCheck } = await analytics.getAdvancedAnalytics({
-			data: scope(),
-		});
+		const { byAdherence, byRuleCheck, insightCoverage } =
+			await analytics.getAdvancedAnalytics({ data: scope() });
 		expect(byAdherence).toEqual([]);
 		expect(byRuleCheck).toEqual([]);
+		expect(insightCoverage).toEqual({
+			tagged: 0,
+			planChecked: 0,
+			ruleChecked: 0,
+		});
 	});
 });
