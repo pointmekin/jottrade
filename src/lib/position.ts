@@ -230,12 +230,54 @@ const POSITION_ERROR_MESSAGES: Record<PositionError, string> = {
 	[PositionError.Reopen]: "This position is closed. Log a new trade.",
 };
 
+export function positionErrorOf(message: string): PositionError | undefined {
+	return Object.values(PositionError).find((error) =>
+		message.startsWith(POSITION_ERROR_MESSAGES[error]),
+	);
+}
+
 export function positionErrorMessage(
 	failure: Extract<PositionReplay, { ok: false }>,
 ): string {
 	if (failure.error === PositionError.OverClose)
 		return `${POSITION_ERROR_MESSAGES[failure.error]} You can close up to ${failure.remainingQty}.`;
 	return POSITION_ERROR_MESSAGES[failure.error];
+}
+
+export function positionSummary(steps: PositionStep[]) {
+	const entries = steps.filter((s) => s.fill.kind === ExecutionKind.Entry);
+	const exits = steps.filter((s) => s.fill.kind === ExecutionKind.Exit);
+	const last = steps.at(-1);
+	return {
+		entered: roundQuantity(weightedPrice(entries).quantity),
+		closed: roundQuantity(weightedPrice(exits).quantity),
+		open: last?.remainingQty ?? 0,
+		averageEntryPrice: entries.length ? weightedPrice(entries).price : null,
+		averageExitPrice: exits.length ? weightedPrice(exits).price : null,
+		allocatedFees: exits.reduce(
+			(sum, s) => sum + feeOf(s.fill) + s.allocatedEntryFees,
+			0,
+		),
+		unallocatedFees: last?.unallocatedFees ?? 0,
+		realizedPnl: last?.cumulativeRealizedPnl ?? 0,
+	};
+}
+
+export const formatQuantity = (value: number) =>
+	value.toLocaleString("en-US", {
+		minimumFractionDigits: 1,
+		maximumFractionDigits: 8,
+	});
+
+export function partlyClosedLabel(trade: {
+	status: string | null;
+	quantity: string | null;
+	closedQuantity?: string | null;
+}): string | null {
+	const closed = Number(trade.closedQuantity ?? 0);
+	if (trade.status !== TradeStatus.Open || closed <= 0) return null;
+	const total = Number(trade.quantity);
+	return `Partly closed · ${formatQuantity(roundQuantity(total - closed))} of ${formatQuantity(total)} open`;
 }
 
 export type Realization = { at: Date; amount: number };

@@ -31,6 +31,8 @@ export type Trade = {
 	id: number;
 	portfolioId?: number;
 	editRevision?: number;
+	executionCount?: number;
+	closedQuantity?: string | null;
 	importHash?: string | null;
 	initialStopPrice?: string | null;
 	initialTargetPrice?: string | null;

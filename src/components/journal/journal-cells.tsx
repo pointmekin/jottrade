@@ -1,7 +1,8 @@
 import { SlidersHorizontal } from "lucide-react";
 import { formatMoney } from "@/lib/currency";
 import { UNAVAILABLE } from "@/lib/metric";
-import { TradeSide } from "@/lib/trade";
+import { partlyClosedLabel } from "@/lib/position";
+import { type Trade, TradeSide } from "@/lib/trade";
 import { cn } from "@/lib/utils";
 
 export function Dash() {
@@ -21,6 +22,14 @@ export function SidePill({ side }: { side: TradeSide }) {
 			{side}
 		</span>
 	);
+}
+
+export function TradeStatusText({
+	trade,
+}: {
+	trade: Pick<Trade, "status" | "quantity" | "closedQuantity">;
+}) {
+	return <>{partlyClosedLabel(trade) ?? trade.status ?? UNAVAILABLE}</>;
 }
 
 export function AdjustmentPill() {

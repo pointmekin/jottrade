@@ -6,7 +6,12 @@ import { formatEntryDate, toNumber } from "@/lib/journal-format";
 import { UNAVAILABLE } from "@/lib/metric";
 import type { Trade } from "@/lib/trade";
 import { cn } from "@/lib/utils";
-import { AdjustmentPill, Money, SidePill } from "./journal-cells";
+import {
+	AdjustmentPill,
+	Money,
+	SidePill,
+	TradeStatusText,
+} from "./journal-cells";
 
 function PriceField({
 	label,
@@ -52,7 +57,7 @@ export function TradeCard({
 						</span>
 						<SidePill side={trade.side} />
 						<span className="status-pill bg-muted text-muted-foreground">
-							{trade.status ?? UNAVAILABLE}
+							<TradeStatusText trade={trade} />
 						</span>
 					</div>
 					<p className="mt-1 text-xs text-muted-foreground">{entryDate}</p>
