@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { summarizeGroup } from "@/lib/group-summary";
 import {
 	FINDING_MIN_TRADES,
+	sessionFindings,
+	sessionOf,
 	sizingAfterLoss,
+	TradingSession,
 	tagFindings,
 	tradesAfterLoss,
 } from "@/lib/insights";
@@ -132,5 +135,60 @@ describe("sizingAfterLoss", () => {
 		const finding = sizingAfterLoss(history, history.slice(0, 2), "USD");
 		expect(finding.afterLoss.tradeIds).toEqual([1]);
 		expect(finding.other.tradeIds).toEqual([0]);
+	});
+});
+
+describe("sessionFindings", () => {
+	const at = (id: number, hour: number, minute: number, netPnl: number) => ({
+		id,
+		netPnl,
+		entryDate: new Date(Date.UTC(2026, 0, 5, hour, minute)),
+	});
+	const many = (from: number, hour: number, pnl: number, count: number) =>
+		Array.from({ length: count }, (_, i) => at(from + i, hour, 0, pnl));
+	const scopeOf = (trades: { netPnl: number }[]) =>
+		summarizeGroup(trades.map((t) => t.netPnl));
+
+	it("puts an entry at 07:59 UTC in Asia and at 08:00 UTC in London", () => {
+		expect(sessionOf(at(1, 7, 59, 0).entryDate)).toBe(TradingSession.Asia);
+		expect(sessionOf(at(1, 8, 0, 0).entryDate)).toBe(TradingSession.London);
+		expect(sessionOf(at(1, 20, 59, 0).entryDate)).toBe(TradingSession.NewYork);
+		expect(sessionOf(at(1, 21, 0, 0).entryDate)).toBe(TradingSession.Other);
+	});
+
+	it("returns the difference from the scope average for each session", () => {
+		const closed = [...many(0, 3, -10, 20), ...many(100, 14, 30, 20)];
+		const findings = sessionFindings(closed, scopeOf(closed));
+		expect(findings.map((f) => f.session)).toEqual([
+			TradingSession.Asia,
+			TradingSession.London,
+			TradingSession.NewYork,
+			TradingSession.Other,
+		]);
+		expect(findings[0]).toMatchObject({
+			count: 20,
+			avgPnl: -10,
+			difference: -20,
+		});
+		expect(findings[0].tradeIds).toHaveLength(20);
+		expect(findings[2]).toMatchObject({
+			count: 20,
+			avgPnl: 30,
+			difference: 20,
+		});
+		expect(findings[1]).toMatchObject({ count: 0, difference: null });
+	});
+
+	it("returns no difference for data with no pattern", () => {
+		const closed = [...many(0, 3, 25, 20), ...many(100, 3, -25, 20)];
+		const [asia] = sessionFindings(closed, scopeOf(closed));
+		expect(asia.difference).toBe(0);
+	});
+
+	it("returns no finding below the minimum sample", () => {
+		const closed = [...many(0, 9, 50, 19), ...many(100, 3, -10, 30)];
+		const london = sessionFindings(closed, scopeOf(closed))[1];
+		expect(london.count).toBe(FINDING_MIN_TRADES - 1);
+		expect(london.difference).toBeNull();
 	});
 });
