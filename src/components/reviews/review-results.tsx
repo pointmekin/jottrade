@@ -18,7 +18,7 @@ export function ReviewResults({
 			<h2 className="font-semibold">{label}</h2>
 			<dl className="grid grid-cols-2 gap-3 text-sm">
 				<div>
-					<dt className="text-muted-foreground">Closed trade P&L</dt>
+					<dt className="text-muted-foreground">Realized trade P&L</dt>
 					<dd>{money(results.tradePnl)}</dd>
 				</div>
 				<div>
