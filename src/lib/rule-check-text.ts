@@ -13,6 +13,12 @@ export const RULE_STATUS_TEXT: Record<RuleOutcome, string> = {
 	[RuleOutcome.NotSet]: "Not set",
 };
 
+/** A trade with no check, or with no rule set, has no rule outcome to show. */
+export const RULE_CHECK_GROUP_TEXT: Record<RuleOutcome, string> = {
+	...RULE_STATUS_TEXT,
+	[RuleOutcome.NotSet]: "Not checked",
+};
+
 export const lowerFirst = (text: string) =>
 	text.charAt(0).toLowerCase() + text.slice(1);
 

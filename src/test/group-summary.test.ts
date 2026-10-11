@@ -6,11 +6,12 @@ import {
 } from "@/lib/analytics";
 import {
 	summarizeAdherence,
+	summarizeCheckGroups,
 	summarizeGroup,
 	summarizeGroups,
 	summarizeTagGroups,
 } from "@/lib/group-summary";
-import { PlanAdherence } from "@/lib/playbook-check";
+import { PLAN_ADHERENCE_LABEL, PlanAdherence } from "@/lib/playbook-check";
 import { TradeStatus } from "@/lib/trade";
 import { TagColor } from "@/lib/trade-tag";
 
@@ -150,5 +151,37 @@ describe("summarizeTagGroups", () => {
 
 	it("returns no group when no trade has a tag", () => {
 		expect(summarizeTagGroups([{ id: 1, netPnl: 5 }], new Map())).toEqual([]);
+	});
+});
+
+describe("summarizeCheckGroups", () => {
+	const summarize = (bucketOf: Map<number, PlanAdherence>) =>
+		summarizeCheckGroups(
+			[
+				{ id: 1, netPnl: 100 },
+				{ id: 2, netPnl: -40 },
+				{ id: 3, netPnl: 20 },
+			],
+			bucketOf,
+			PLAN_ADHERENCE_LABEL,
+			PlanAdherence.Unchecked,
+		);
+
+	it("puts each trade in one bucket, in label order, without empty buckets", () => {
+		const groups = summarize(
+			new Map([
+				[1, PlanAdherence.Unchecked],
+				[2, PlanAdherence.Broken],
+			]),
+		);
+
+		expect(groups).toEqual([
+			{ key: "broken", name: "Broke", ...summarizeGroup([-40]) },
+			{ key: "unchecked", name: "Not checked", ...summarizeGroup([100, 20]) },
+		]);
+	});
+
+	it("returns no group when no trade is checked", () => {
+		expect(summarize(new Map([[1, PlanAdherence.Unchecked]]))).toEqual([]);
 	});
 });

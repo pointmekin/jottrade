@@ -11,6 +11,7 @@ import {
 } from "@/lib/journal-search";
 import { PeriodPreset } from "@/lib/period";
 import { PlanAdherence } from "@/lib/playbook-check";
+import { RuleOutcome } from "@/lib/risk-rule-evaluation";
 import { TradeStatus } from "@/lib/trade";
 
 describe("journal search", () => {
@@ -30,6 +31,7 @@ describe("journal search", () => {
 			"status",
 			"setupId",
 			"adherence",
+			"ruleCheck",
 			"confidence",
 			"mistake",
 			"tags",
@@ -93,6 +95,16 @@ describe("chart drill-down search", () => {
 			{ symbol: "EURUSD", symbolMatch: SymbolMatch.Exact },
 		],
 		[ChartGroup.Tag, "3", { tags: "3" }],
+		[
+			ChartGroup.Adherence,
+			PlanAdherence.Broken,
+			{ adherence: PlanAdherence.Broken },
+		],
+		[
+			ChartGroup.RuleCheck,
+			RuleOutcome.Violated,
+			{ ruleCheck: RuleOutcome.Violated },
+		],
 	])("maps the %s group %s to closed trades", (group, key, filter) => {
 		expect(drillDownSearch(group, key)).toEqual({
 			...filter,

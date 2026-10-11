@@ -2,7 +2,12 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { withRealizations } from "@/db/positions";
 import { cashFlows, trades } from "@/db/schema";
-import { positionRow, tradeConditions } from "@/db/trade-filter";
+import {
+	positionRow,
+	tradeAdherence,
+	tradeConditions,
+	tradeRuleCheck,
+} from "@/db/trade-filter";
 import {
 	isTradeAttributeFiltered,
 	type TradeFilter,
@@ -66,4 +71,25 @@ export async function loadMatchingTrades(userId: string, filter: TradeFilter) {
 			}),
 		);
 	return withRealizations(userId, rows.map(toTradeRecord));
+}
+
+export async function loadTradeChecks(userId: string, portfolioId: number) {
+	const rows = await db
+		.select({
+			id: trades.id,
+			adherence: tradeAdherence,
+			ruleCheck: tradeRuleCheck,
+		})
+		.from(trades)
+		.where(
+			and(
+				positionRow,
+				eq(trades.userId, userId),
+				eq(trades.portfolioId, portfolioId),
+			),
+		);
+	return {
+		adherence: new Map(rows.map((row) => [row.id, row.adherence])),
+		ruleCheck: new Map(rows.map((row) => [row.id, row.ruleCheck])),
+	};
 }

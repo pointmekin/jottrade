@@ -12,6 +12,8 @@ import { describePeriod, PeriodPreset } from "@/lib/period";
 import { strategyLabel } from "@/lib/playbook";
 import { PLAN_ADHERENCE_LABEL, type PlanAdherence } from "@/lib/playbook-check";
 import { QueryKey } from "@/lib/query-keys";
+import type { RuleOutcome } from "@/lib/risk-rule-evaluation";
+import { RULE_CHECK_GROUP_TEXT } from "@/lib/rule-check-text";
 import { type TradeSide, TradeStatus } from "@/lib/trade";
 import { parseTagIds, TagMatch } from "@/lib/trade-tag";
 import { getStrategies } from "@/server/strategyActions";
@@ -29,6 +31,7 @@ export type JournalFilters = {
 	/** A strategy id, or "none". */
 	setupId?: string;
 	adherence?: PlanAdherence;
+	ruleCheck?: RuleOutcome;
 	/** Comma-separated confidence levels. */
 	confidence?: string;
 	mistake?: string;
@@ -228,6 +231,14 @@ function FilterChips({
 					Plan: {PLAN_ADHERENCE_LABEL[filters.adherence]}
 				</FilterChip>
 			)}
+			{filters.ruleCheck && (
+				<FilterChip
+					clearLabel="Clear rule check filter"
+					onClear={() => update({ ruleCheck: undefined })}
+				>
+					Rules: {RULE_CHECK_GROUP_TEXT[filters.ruleCheck]}
+				</FilterChip>
+			)}
 			{filters.confidence && (
 				<FilterChip
 					clearLabel="Clear confidence filter"
@@ -278,6 +289,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 		filters.status,
 		filters.setupId,
 		filters.adherence,
+		filters.ruleCheck,
 		filters.confidence,
 		filters.mistake,
 		filters.tags,

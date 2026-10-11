@@ -3,6 +3,7 @@ import type { AccountEntryRecord } from "./account-entry";
 import { SymbolMatch } from "./analysis-scope";
 import { PeriodPreset } from "./period";
 import { PlanAdherence } from "./playbook-check";
+import { RuleOutcome } from "./risk-rule-evaluation";
 import { TradeConfidence, TradeSide, TradeStatus } from "./trade";
 import { SortDirection, TradeSortField } from "./trade-sort";
 import { parseTagIds, TagMatch } from "./trade-tag";
@@ -28,6 +29,7 @@ export const scopeSearchSchema = z.object({
 	status: z.enum(TradeStatus).optional(),
 	setupId: z.string().optional(),
 	adherence: z.enum(PlanAdherence).optional(),
+	ruleCheck: z.enum(RuleOutcome).optional(),
 	confidence: z.string().optional(),
 	mistake: z.string().optional(),
 	tags: z.string().optional(),
@@ -50,6 +52,7 @@ export const CLEARED_TRADE_FILTERS = {
 	status: undefined,
 	setupId: undefined,
 	adherence: undefined,
+	ruleCheck: undefined,
 	confidence: undefined,
 	mistake: undefined,
 	tags: undefined,
@@ -100,6 +103,7 @@ export function toTradeQuery(
 		status: search.status,
 		setupId: toSetupFilter(search.setupId),
 		adherence: search.adherence,
+		ruleCheck: search.ruleCheck,
 		confidence,
 		mistake: splitList(search.mistake),
 		tagIds: parseTagIds(search.tags),
@@ -116,6 +120,8 @@ export const ChartGroup = {
 	Strategy: "strategy",
 	Symbol: "symbol",
 	Tag: "tag",
+	Adherence: "adherence",
+	RuleCheck: "ruleCheck",
 } as const;
 
 export type ChartGroup = (typeof ChartGroup)[keyof typeof ChartGroup];
@@ -133,6 +139,10 @@ function groupFilter(group: ChartGroup, key: string) {
 			return { symbol: key, symbolMatch: SymbolMatch.Exact };
 		case ChartGroup.Tag:
 			return { tags: key };
+		case ChartGroup.Adherence:
+			return { adherence: z.enum(PlanAdherence).parse(key) };
+		case ChartGroup.RuleCheck:
+			return { ruleCheck: z.enum(RuleOutcome).parse(key) };
 	}
 }
 
