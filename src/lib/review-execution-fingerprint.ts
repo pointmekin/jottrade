@@ -136,8 +136,25 @@ export function reviewCashFlowFacts(flow: object) {
 		"amountDecimal",
 	]);
 }
-export async function currentExecutionFingerprint(trade: object) {
-	return `review-v2:${await sha256Hex(JSON.stringify(reviewExecutionFacts(trade)))}`;
+const FILL_KEYS = [
+	"kind",
+	"executedAt",
+	"price",
+	"quantity",
+	"fees",
+	"exitQuoteToAccountRate",
+	"realizedPnl",
+];
+/** Pass `fills` only for a trade with fill rows, so a legacy trade keeps its fingerprint. */
+export async function currentExecutionFingerprint(
+	trade: object,
+	fills?: object[],
+) {
+	const facts = reviewExecutionFacts(trade);
+	const value = fills
+		? [facts, fills.map((fill) => project(fill, FILL_KEYS))]
+		: facts;
+	return `review-v2:${await sha256Hex(JSON.stringify(value))}`;
 }
 export async function currentCashFlowFingerprint(flow: object) {
 	return `flow-v2:${await sha256Hex(JSON.stringify([project(flow, ["kind", "occurredAt", "amount"]), reviewCashFlowFacts(flow)]))}`;

@@ -1,4 +1,13 @@
-import { and, desc, eq, getTableColumns, lte, sql } from "drizzle-orm";
+import {
+	and,
+	asc,
+	desc,
+	eq,
+	getTableColumns,
+	inArray,
+	lte,
+	sql,
+} from "drizzle-orm";
 import { db } from "@/db";
 import { toDayKey } from "@/lib/date";
 import {
@@ -7,6 +16,7 @@ import {
 	ReviewKind,
 	ReviewStatus,
 	type ReviewWindow,
+	reviewFills,
 	summarizeReview,
 	tradeInReview,
 } from "@/lib/review";
@@ -24,8 +34,29 @@ import {
 	reviewPeriods,
 	reviewSourceCashFlows,
 	reviewSourceTrades,
+	tradeExecutions,
 	trades,
 } from "./schema";
+import { positionRow } from "./trade-filter";
+
+type StoredExecution = typeof tradeExecutions.$inferSelect;
+async function fillsByTrade(userId: string, tradeIds: number[]) {
+	const byTrade = new Map<number, StoredExecution[]>();
+	if (tradeIds.length === 0) return byTrade;
+	const rows = await db
+		.select()
+		.from(tradeExecutions)
+		.where(
+			and(
+				eq(tradeExecutions.userId, userId),
+				inArray(tradeExecutions.tradeId, tradeIds),
+			),
+		)
+		.orderBy(asc(tradeExecutions.executedAt), asc(tradeExecutions.sequence));
+	for (const row of rows)
+		byTrade.set(row.tradeId, [...(byTrade.get(row.tradeId) ?? []), row]);
+	return byTrade;
+}
 
 export async function reviewAccount(userId: string, portfolioId: number) {
 	const [account] = await db
@@ -50,7 +81,11 @@ export async function loadReviewSources(
 			})
 			.from(trades)
 			.where(
-				and(eq(trades.userId, userId), eq(trades.portfolioId, portfolioId)),
+				and(
+					positionRow,
+					eq(trades.userId, userId),
+					eq(trades.portfolioId, portfolioId),
+				),
 			)
 			.orderBy(trades.id),
 		db
@@ -67,9 +102,17 @@ export async function loadReviewSources(
 			)
 			.orderBy(cashFlows.id),
 	]);
-	const selectedTrades = tradeRows.filter((trade) =>
-		tradeInReview(trade, window),
+	const allFills = await fillsByTrade(
+		userId,
+		tradeRows.filter((t) => t.executionCount > 0).map((t) => t.id),
 	);
+	const selectedTrades = tradeRows.flatMap((trade) => {
+		const stored = allFills.get(trade.id);
+		const fills = stored && reviewFills(trade, stored, window);
+		return tradeInReview(trade, window, fills)
+			? [{ ...trade, stored, fills }]
+			: [];
+	});
 	const selectedFlows = flowRows.filter((flow) =>
 		isReviewDay(toDayKey(flow.occurredAt, window.timezoneSnapshot), window),
 	);
@@ -84,7 +127,11 @@ export async function loadReviewSources(
 			netPnl: trade.netPnl,
 			notes: trade.notes,
 			executionFacts: reviewExecutionFacts(trade),
-			executionFingerprint: await currentExecutionFingerprint(trade),
+			executionFingerprint: await currentExecutionFingerprint(
+				trade,
+				trade.stored,
+			),
+			...(trade.fills && { fills: trade.fills }),
 		})),
 	);
 	const flowSnapshotsPromise = Promise.all(

@@ -22,6 +22,7 @@ import { ReviewImportChanges } from "./review-import-changes";
 import { ReviewResults } from "./review-results";
 import { ReviewRuleViolations } from "./review-rule-violations";
 import { ReviewSaveStatus } from "./review-save-status";
+import { ReviewSourceFills } from "./review-source-fills";
 
 type Review = Awaited<ReturnType<typeof getReviewPeriod>>;
 const PROMPTS: Record<keyof ReviewFields, string> = {
@@ -305,6 +306,13 @@ function ReviewSources({
 						>
 							{trade.symbol} · Trade #{trade.id}
 						</Link>
+						{trade.fills && (
+							<ReviewSourceFills
+								symbol={trade.symbol}
+								fills={trade.fills}
+								currency={completed ? review.currency : review.liveCurrency}
+							/>
+						)}
 						{trade.executionFacts && (
 							<details className="text-xs">
 								<summary>Execution facts</summary>

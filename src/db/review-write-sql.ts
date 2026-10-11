@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { type SQL, sql } from "drizzle-orm";
 import { TradeStatus } from "@/lib/trade";
 import type { readReview } from "./reviews";
 
@@ -10,9 +10,13 @@ export function reviewSignatureCheck(
 ) {
 	const { window, sources } = review;
 	const tradeDay = sql`((case when trades.status = ${TradeStatus.Closed} then coalesce(trades.exit_date,trades.entry_date) else trades.entry_date end) at time zone 'UTC' at time zone ${window.timezoneSnapshot})::date`;
+	const fillDay = sql`(trade_executions.executed_at at time zone 'UTC' at time zone ${window.timezoneSnapshot})::date`;
 	const flowDay = sql`(cash_flows.occurred_at at time zone 'UTC' at time zone ${window.timezoneSnapshot})::date`;
-	return sql`coalesce((select jsonb_agg(jsonb_build_array(id,md5(to_jsonb(trades)::text)) order by id) from trades where user_id = ${userId} and portfolio_id = ${portfolioId} and ${tradeDay} >= ${window.periodStart}::date and ${tradeDay} < ${window.periodEndExclusive}::date),'[]'::jsonb) = ${JSON.stringify(sources.tradeSignatures)}::jsonb
- and coalesce((select jsonb_agg(jsonb_build_array(id,md5(to_jsonb(cash_flows)::text)) order by id) from cash_flows where user_id = ${userId} and portfolio_id = ${portfolioId} and ${flowDay} >= ${window.periodStart}::date and ${flowDay} < ${window.periodEndExclusive}::date),'[]'::jsonb) = ${JSON.stringify(sources.flowSignatures)}::jsonb`;
+	const inWindow = (day: SQL) =>
+		sql`${day} >= ${window.periodStart}::date and ${day} < ${window.periodEndExclusive}::date`;
+	const tradeInWindow = sql`case when trades.execution_count > 0 then exists(select 1 from trade_executions where trade_executions.trade_id = trades.id and trade_executions.user_id = ${userId} and ${inWindow(fillDay)}) else ${inWindow(tradeDay)} end`;
+	return sql`coalesce((select jsonb_agg(jsonb_build_array(id,md5(to_jsonb(trades)::text)) order by id) from trades where user_id = ${userId} and portfolio_id = ${portfolioId} and grouped_into_id is null and ${tradeInWindow}),'[]'::jsonb) = ${JSON.stringify(sources.tradeSignatures)}::jsonb
+ and coalesce((select jsonb_agg(jsonb_build_array(id,md5(to_jsonb(cash_flows)::text)) order by id) from cash_flows where user_id = ${userId} and portfolio_id = ${portfolioId} and ${inWindow(flowDay)}),'[]'::jsonb) = ${JSON.stringify(sources.flowSignatures)}::jsonb`;
 }
 export function reviewSourceWrites(review: LoadedReview, complete: boolean) {
 	const tradeRecords = review.sources.trades.map((snapshot) => ({

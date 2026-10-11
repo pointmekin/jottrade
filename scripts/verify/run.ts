@@ -28,6 +28,7 @@ const DATABASE_TESTS = [
 	"src/test/risk-rules.integration.test.ts",
 	"src/test/rule-compliance.integration.test.ts",
 	"src/test/positions.integration.test.ts",
+	"src/test/review-positions.integration.test.ts",
 ];
 // Blank optional integrations, so a developer's .env never reaches the run.
 const BLANK_KEYS = [
