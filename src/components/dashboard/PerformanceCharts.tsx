@@ -33,6 +33,8 @@ interface PerformanceChartsProps {
 	byStrategy: GroupStats[];
 	bySymbol: GroupStats[];
 	byTag: GroupStats[];
+	byAdherence: GroupStats[];
+	byRuleCheck: GroupStats[];
 	byDayOfWeek: GroupStats[];
 	byHour: GroupStats[];
 }
@@ -152,6 +154,8 @@ export function PerformanceCharts({
 	byStrategy,
 	bySymbol,
 	byTag,
+	byAdherence,
+	byRuleCheck,
 	byDayOfWeek,
 	byHour,
 }: PerformanceChartsProps) {
@@ -172,6 +176,20 @@ export function PerformanceCharts({
 					data={byTag}
 					title="Avg P&L by tag (top 10)"
 					drillDown={ChartGroup.Tag}
+				/>
+			)}
+			{byAdherence.length > 0 && (
+				<AvgPnlBar
+					data={byAdherence}
+					title="Avg P&L by plan adherence"
+					drillDown={ChartGroup.Adherence}
+				/>
+			)}
+			{byRuleCheck.length > 0 && (
+				<AvgPnlBar
+					data={byRuleCheck}
+					title="Avg P&L by rule check"
+					drillDown={ChartGroup.RuleCheck}
 				/>
 			)}
 			<AvgPnlBar data={byDayOfWeek} title="Avg P&L by day of week" />

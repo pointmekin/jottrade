@@ -78,6 +78,8 @@ export function RiskSection({
 							byStrategy={data.byStrategy}
 							bySymbol={data.bySymbol}
 							byTag={data.byTag}
+							byAdherence={data.byAdherence}
+							byRuleCheck={data.byRuleCheck}
 							byDayOfWeek={data.byDayOfWeek}
 							byHour={data.byHour}
 						/>

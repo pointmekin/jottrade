@@ -1,7 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { loadAccountHistory, loadMatchingTrades } from "@/db/account-history";
+import {
+	loadAccountHistory,
+	loadMatchingTrades,
+	loadTradeChecks,
+} from "@/db/account-history";
 import { strategies } from "@/db/schema";
 import { loadTagsByTrade } from "@/db/trade-tags";
 import { analysisScopeSchema, toDateRange } from "@/lib/analysis-scope";
@@ -12,17 +16,21 @@ import {
 } from "@/lib/analytics";
 import { toDayKey, zonedDayOfWeek, zonedHour } from "@/lib/date";
 import {
+	summarizeCheckGroups,
 	summarizeGroup,
 	summarizeGroups,
 	summarizeTagGroups,
 } from "@/lib/group-summary";
 import { NO_STRATEGY } from "@/lib/journal-search";
+import { PLAN_ADHERENCE_LABEL, PlanAdherence } from "@/lib/playbook-check";
 import {
 	computeAvgHoldTime,
 	computeMaxDrawdown,
 	computePayoffRatio,
 	computeSharpe,
 } from "@/lib/risk-metrics";
+import { RuleOutcome } from "@/lib/risk-rule-evaluation";
+import { RULE_CHECK_GROUP_TEXT } from "@/lib/rule-check-text";
 import { authMiddleware } from "./auth-middleware";
 
 const DAY_NAMES = [
@@ -43,10 +51,11 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" })
 	.handler(async ({ data, context }) => {
 		const { userId } = context;
 		const range = toDateRange(data);
-		const [history, matching, userStrategies] = await Promise.all([
+		const [history, matching, userStrategies, checks] = await Promise.all([
 			loadAccountHistory(userId, data.portfolioId),
 			loadMatchingTrades(userId, data),
 			db.select().from(strategies).where(eq(strategies.userId, userId)),
+			loadTradeChecks(userId, data.portfolioId),
 		]);
 
 		const closed = closedTradesInRange(matching ?? history.trades, range);
@@ -123,5 +132,27 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" })
 			.sort((a, b) => b.count - a.count)
 			.slice(0, TOP_GROUPS);
 
-		return { riskMetrics, byStrategy, bySymbol, byTag, byDayOfWeek, byHour };
+		const byAdherence = summarizeCheckGroups(
+			closed,
+			checks.adherence,
+			PLAN_ADHERENCE_LABEL,
+			PlanAdherence.Unchecked,
+		);
+		const byRuleCheck = summarizeCheckGroups(
+			closed,
+			checks.ruleCheck,
+			RULE_CHECK_GROUP_TEXT,
+			RuleOutcome.NotSet,
+		);
+
+		return {
+			riskMetrics,
+			byStrategy,
+			bySymbol,
+			byTag,
+			byAdherence,
+			byRuleCheck,
+			byDayOfWeek,
+			byHour,
+		};
 	});

@@ -7,6 +7,7 @@ import { SymbolMatch } from "@/lib/analysis-scope";
 import { CLEARED_TRADE_FILTERS } from "@/lib/journal-search";
 import { PeriodPreset } from "@/lib/period";
 import { PlanAdherence } from "@/lib/playbook-check";
+import { RuleOutcome } from "@/lib/risk-rule-evaluation";
 
 vi.mock("@tanstack/react-query", () => ({
 	useQuery: () => ({ data: [{ id: 7, name: "Breakout" }] }),
@@ -224,6 +225,20 @@ describe("FilterBar", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Clear plan filter" }));
 		expect(onFiltersChange).toHaveBeenCalledWith(
 			expect.objectContaining({ setupId: "7", adherence: undefined }),
+		);
+	});
+
+	it("shows and clears the rule check filter of a chart link", () => {
+		const { onFiltersChange } = renderFilterBar({
+			ruleCheck: RuleOutcome.NotSet,
+		});
+
+		expect(screen.getByText("Rules: Not checked")).toBeTruthy();
+		fireEvent.click(
+			screen.getByRole("button", { name: "Clear rule check filter" }),
+		);
+		expect(onFiltersChange).toHaveBeenCalledWith(
+			expect.objectContaining({ ruleCheck: undefined }),
 		);
 	});
 

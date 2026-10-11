@@ -15,6 +15,7 @@ import { trades } from "@/db/schema";
 import { tagCondition } from "@/db/trade-tags";
 import { SymbolMatch, type TradeFilter } from "@/lib/analysis-scope";
 import { PlanAdherence } from "@/lib/playbook-check";
+import { RuleOutcome } from "@/lib/risk-rule-evaluation";
 import { TradeStatus } from "@/lib/trade";
 import {
 	SortDirection,
@@ -31,6 +32,12 @@ export const scopeDateBound = (iso: string) =>
 
 /** A check counts only for the strategy the trade has now; a check made for another strategy is stale. */
 export const tradeAdherence = sql<PlanAdherence>`case when (${trades.playbookCheck}->>'strategyId')::int = ${trades.setupId} then ${trades.playbookCheck}->>'result' else ${PlanAdherence.Unchecked} end`;
+
+const hasRuleOutcome = (outcome: RuleOutcome) =>
+	sql`exists (select 1 from jsonb_array_elements(${trades.ruleCheck}->'outcomes') as item where item->>'outcome' = ${outcome})`;
+
+/** The worst outcome of the entry check. A check that could not read the rules stores a reason and is unknown. A trade with no check, or with no rule set, is not checked. */
+export const tradeRuleCheck = sql<RuleOutcome>`case when ${hasRuleOutcome(RuleOutcome.Violated)} then ${RuleOutcome.Violated} when ${hasRuleOutcome(RuleOutcome.Unknown)} or ${trades.ruleCheck}->>'reason' is not null then ${RuleOutcome.Unknown} when ${hasRuleOutcome(RuleOutcome.Pass)} then ${RuleOutcome.Pass} else ${RuleOutcome.NotSet} end`;
 
 function setupCondition(setupId: TradeFilter["setupId"]) {
 	if (setupId === "none") return isNull(trades.setupId);
@@ -57,6 +64,7 @@ export function tradeConditions(userId: string, filter: TradeFilter) {
 		filter.status ? eq(trades.status, filter.status) : undefined,
 		setupCondition(filter.setupId),
 		filter.adherence ? eq(tradeAdherence, filter.adherence) : undefined,
+		filter.ruleCheck ? eq(tradeRuleCheck, filter.ruleCheck) : undefined,
 		filter.confidence?.length
 			? inArray(trades.confidence, filter.confidence)
 			: undefined,

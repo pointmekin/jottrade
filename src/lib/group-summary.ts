@@ -76,6 +76,25 @@ export function summarizeTagGroups(
 	);
 }
 
+/** Each trade is in one bucket. With no checked trade, the groups would only repeat the scope, so there is none. */
+export function summarizeCheckGroups<B extends string>(
+	trades: { id: number; netPnl: number }[],
+	bucketOf: Map<number, B>,
+	labels: Record<B, string>,
+	unchecked: B,
+) {
+	const groups = summarizeGroups(
+		trades,
+		(trade) => bucketOf.get(trade.id) ?? unchecked,
+		(trade) => trade.netPnl,
+	);
+	if (!Array.from(groups.keys()).some((key) => key !== unchecked)) return [];
+	return (Object.entries(labels) as [B, string][]).flatMap(([key, name]) => {
+		const summary = groups.get(key);
+		return summary ? [{ key, name, ...summary }] : [];
+	});
+}
+
 export function summarizeAdherence(
 	rows: { netPnl: number; adherence: PlanAdherence }[],
 ) {
