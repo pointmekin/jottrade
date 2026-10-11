@@ -76,6 +76,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 		"/sign-up",
 		"/forgot-password",
 		"/reset-password",
+		"/two-factor",
 	];
 	const shouldHideSidebar =
 		location.pathname === "/" ||
