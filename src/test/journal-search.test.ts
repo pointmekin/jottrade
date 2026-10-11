@@ -150,13 +150,12 @@ describe("chart drill-down search", () => {
 		});
 	});
 
-	it.each([
-		{ weekday: 7 },
-		{ entryHour: 24 },
-		{ weekday: "x" },
-	])("drops an invalid group %o from the URL", (bad) => {
-		const search = journalSearchSchema.parse(bad);
-		expect(search.weekday).toBeUndefined();
-		expect(search.entryHour).toBeUndefined();
-	});
+	it.each([{ weekday: 7 }, { entryHour: 24 }, { weekday: "x" }])(
+		"drops an invalid group %o from the URL",
+		(bad) => {
+			const search = journalSearchSchema.parse(bad);
+			expect(search.weekday).toBeUndefined();
+			expect(search.entryHour).toBeUndefined();
+		},
+	);
 });
