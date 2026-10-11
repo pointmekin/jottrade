@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
+import { AddToReviewButton } from "@/components/dashboard/add-to-review-button";
 import { useCurrency } from "@/hooks/use-currency";
 import { formatMoney } from "@/lib/currency";
+import { tagFindingText } from "@/lib/insight-review";
 import {
 	FINDING_MIN_TRADES,
 	INSIGHT_FOOTER,
@@ -75,13 +77,22 @@ export function TagFindings({
 								{`Not enough trades (${tag.count} of ${FINDING_MIN_TRADES})`}
 							</span>
 						) : (
-							<span
-								className={cn(
-									"font-mono tabular-nums",
-									tag.difference < 0 ? "text-destructive" : "text-success",
-								)}
-							>
-								{`${formatMoney(tag.difference, currency, { signed: true })} per trade`}
+							<span className="flex items-center gap-3">
+								<span
+									className={cn(
+										"font-mono tabular-nums",
+										tag.difference < 0 ? "text-destructive" : "text-success",
+									)}
+								>
+									{`${formatMoney(tag.difference, currency, { signed: true })} per trade`}
+								</span>
+								<AddToReviewButton
+									text={tagFindingText(
+										{ ...tag, difference: tag.difference },
+										currency,
+									)}
+									search={drillDownSearch(ChartGroup.Tag, tag.key)}
+								/>
 							</span>
 						)}
 					</li>

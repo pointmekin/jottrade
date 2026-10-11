@@ -6,6 +6,11 @@ import { describe, expect, it, vi } from "vitest";
 import { SizingFinding } from "@/components/dashboard/sizing-finding";
 import { INSIGHT_FOOTER } from "@/lib/insights";
 
+vi.mock("@/components/dashboard/add-to-review-button", () => ({
+	AddToReviewButton: ({ text }: { text: string }) => (
+		<button type="button">{text}</button>
+	),
+}));
 vi.mock("@/hooks/use-currency", () => ({ useCurrency: () => "USD" }));
 vi.mock("@tanstack/react-router", () => ({
 	Link: ({ children }: { children: ReactNode }) => (
@@ -33,6 +38,9 @@ describe("SizingFinding", () => {
 		expect(screen.getByText(/median \$100\.00/)).toBeTruthy();
 		expect(screen.getByText("+50% median risk after a loss")).toBeTruthy();
 		expect(screen.getByRole("link", { name: "#1" })).toBeTruthy();
+		expect(screen.getByRole("button").textContent).toBe(
+			"Sizing after a loss: +50% median initial risk (20 trades after a loss).",
+		);
 		expect(screen.getByText(INSIGHT_FOOTER)).toBeTruthy();
 	});
 
@@ -51,6 +59,7 @@ describe("SizingFinding", () => {
 		expect(
 			screen.getByText("Not enough trades with initial risk (0 of 20)"),
 		).toBeTruthy();
+		expect(screen.queryByRole("button")).toBeNull();
 	});
 
 	it("renders nothing with no closed trades", () => {
