@@ -17,6 +17,7 @@ import type { RuleOutcome } from "@/lib/risk-rule-evaluation";
 import { RULE_CHECK_GROUP_TEXT } from "@/lib/rule-check-text";
 import { type TradeSide, TradeStatus } from "@/lib/trade";
 import { parseTagIds, TagMatch } from "@/lib/trade-tag";
+import { sessionLabel, type TradingSession } from "@/lib/trading-session";
 import { getStrategies } from "@/server/strategyActions";
 import { FilterFields } from "./filter-fields";
 import { SavedViewsMenu } from "./saved-views-menu";
@@ -41,6 +42,7 @@ export type JournalFilters = {
 	tagMatch?: TagMatch;
 	weekday?: number;
 	entryHour?: number;
+	session?: TradingSession;
 	period?: PeriodPreset;
 	dateFrom?: string;
 	dateTo?: string;
@@ -162,6 +164,60 @@ function SavedViewChip({
 const periodPrefix = (status?: TradeStatus) =>
 	status === TradeStatus.Closed ? "Closed in" : "Closed or opened in";
 
+/** The filters a dashboard chart link sets. */
+function ChartGroupChips({
+	filters,
+	update,
+}: {
+	filters: JournalFilters;
+	update: (patch: Partial<JournalFilters>) => void;
+}) {
+	return (
+		<>
+			{filters.adherence && (
+				<FilterChip
+					clearLabel="Clear plan filter"
+					onClear={() => update({ adherence: undefined })}
+				>
+					Plan: {PLAN_ADHERENCE_LABEL[filters.adherence]}
+				</FilterChip>
+			)}
+			{filters.ruleCheck && (
+				<FilterChip
+					clearLabel="Clear rule check filter"
+					onClear={() => update({ ruleCheck: undefined })}
+				>
+					Rules: {RULE_CHECK_GROUP_TEXT[filters.ruleCheck]}
+				</FilterChip>
+			)}
+			{filters.weekday !== undefined && (
+				<FilterChip
+					clearLabel="Clear day filter"
+					onClear={() => update({ weekday: undefined })}
+				>
+					Day: {WEEKDAY_NAMES[filters.weekday]}
+				</FilterChip>
+			)}
+			{filters.entryHour !== undefined && (
+				<FilterChip
+					clearLabel="Clear entry hour filter"
+					onClear={() => update({ entryHour: undefined })}
+				>
+					Entry hour: {hourLabel(filters.entryHour)}
+				</FilterChip>
+			)}
+			{filters.session && (
+				<FilterChip
+					clearLabel="Clear session filter"
+					onClear={() => update({ session: undefined })}
+				>
+					Session: {sessionLabel(filters.session)}
+				</FilterChip>
+			)}
+		</>
+	);
+}
+
 function FilterChips({
 	filters,
 	update,
@@ -226,38 +282,7 @@ function FilterChips({
 					onClear={() => update({ setupId: undefined })}
 				/>
 			)}
-			{filters.adherence && (
-				<FilterChip
-					clearLabel="Clear plan filter"
-					onClear={() => update({ adherence: undefined })}
-				>
-					Plan: {PLAN_ADHERENCE_LABEL[filters.adherence]}
-				</FilterChip>
-			)}
-			{filters.ruleCheck && (
-				<FilterChip
-					clearLabel="Clear rule check filter"
-					onClear={() => update({ ruleCheck: undefined })}
-				>
-					Rules: {RULE_CHECK_GROUP_TEXT[filters.ruleCheck]}
-				</FilterChip>
-			)}
-			{filters.weekday !== undefined && (
-				<FilterChip
-					clearLabel="Clear day filter"
-					onClear={() => update({ weekday: undefined })}
-				>
-					Day: {WEEKDAY_NAMES[filters.weekday]}
-				</FilterChip>
-			)}
-			{filters.entryHour !== undefined && (
-				<FilterChip
-					clearLabel="Clear entry hour filter"
-					onClear={() => update({ entryHour: undefined })}
-				>
-					Entry hour: {hourLabel(filters.entryHour)}
-				</FilterChip>
-			)}
+			<ChartGroupChips filters={filters} update={update} />
 			{filters.confidence && (
 				<FilterChip
 					clearLabel="Clear confidence filter"
@@ -314,6 +339,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
 		filters.tags,
 		filters.weekday !== undefined,
 		filters.entryHour !== undefined,
+		filters.session,
 	].filter(Boolean).length;
 	const { view: appliedView } = useAppliedView(filters);
 	const clearAll = () => {

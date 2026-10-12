@@ -13,6 +13,7 @@ import { PeriodPreset } from "@/lib/period";
 import { PlanAdherence } from "@/lib/playbook-check";
 import { RuleOutcome } from "@/lib/risk-rule-evaluation";
 import { TradeStatus } from "@/lib/trade";
+import { TradingSession } from "@/lib/trading-session";
 
 describe("journal search", () => {
 	it.each([0, -2, 1.5, "abc", undefined])("reads page %s as page 1", (page) => {
@@ -38,6 +39,7 @@ describe("journal search", () => {
 			"tagMatch",
 			"weekday",
 			"entryHour",
+			"session",
 			"period",
 			"dateFrom",
 			"dateTo",
@@ -109,6 +111,11 @@ describe("chart drill-down search", () => {
 		],
 		[ChartGroup.Weekday, "0", { weekday: 0 }],
 		[ChartGroup.EntryHour, "9", { entryHour: 9 }],
+		[
+			ChartGroup.Session,
+			TradingSession.London,
+			{ session: TradingSession.London },
+		],
 	])("maps the %s group %s to closed trades", (group, key, filter) => {
 		expect(drillDownSearch(group, key)).toEqual({
 			...filter,
@@ -150,12 +157,15 @@ describe("chart drill-down search", () => {
 		});
 	});
 
-	it.each([{ weekday: 7 }, { entryHour: 24 }, { weekday: "x" }])(
-		"drops an invalid group %o from the URL",
-		(bad) => {
-			const search = journalSearchSchema.parse(bad);
-			expect(search.weekday).toBeUndefined();
-			expect(search.entryHour).toBeUndefined();
-		},
-	);
+	it.each([
+		{ weekday: 7 },
+		{ entryHour: 24 },
+		{ weekday: "x" },
+		{ session: "tokyo" },
+	])("drops an invalid group %o from the URL", (bad) => {
+		const search = journalSearchSchema.parse(bad);
+		expect(search.weekday).toBeUndefined();
+		expect(search.entryHour).toBeUndefined();
+		expect(search.session).toBeUndefined();
+	});
 });

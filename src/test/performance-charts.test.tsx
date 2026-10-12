@@ -3,11 +3,9 @@
 import { render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
-import {
-	INSIGHT_FOOTER,
-	PerformanceCharts,
-} from "@/components/dashboard/PerformanceCharts";
+import { PerformanceCharts } from "@/components/dashboard/PerformanceCharts";
 import { summarizeGroup } from "@/lib/group-summary";
+import { INSIGHT_FOOTER } from "@/lib/insights";
 
 vi.mock("@/hooks/use-currency", () => ({ useCurrency: () => "USD" }));
 vi.mock("@tanstack/react-router", () => ({

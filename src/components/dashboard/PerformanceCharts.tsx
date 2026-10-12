@@ -15,6 +15,7 @@ import {
 import { useCurrency } from "@/hooks/use-currency";
 import { formatMoney } from "@/lib/currency";
 import type { GroupSummary } from "@/lib/group-summary";
+import { INSIGHT_FOOTER } from "@/lib/insights";
 import {
 	ChartGroup,
 	type DashboardSearch,
@@ -28,9 +29,6 @@ import {
 } from "./chart-theme";
 
 type GroupStats = GroupSummary & { key: string; name: string };
-
-export const INSIGHT_FOOTER =
-	"Association in your journal. Not a cause and not a prediction.";
 
 type Coverage = { annotated: number; closed: number; annotation: string };
 

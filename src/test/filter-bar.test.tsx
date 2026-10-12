@@ -8,6 +8,7 @@ import { CLEARED_TRADE_FILTERS } from "@/lib/journal-search";
 import { PeriodPreset } from "@/lib/period";
 import { PlanAdherence } from "@/lib/playbook-check";
 import { RuleOutcome } from "@/lib/risk-rule-evaluation";
+import { TradingSession } from "@/lib/trading-session";
 
 vi.mock("@tanstack/react-query", () => ({
 	useQuery: () => ({ data: [{ id: 7, name: "Breakout" }] }),
@@ -250,6 +251,22 @@ describe("FilterBar", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Clear day filter" }));
 		expect(onFiltersChange).toHaveBeenCalledWith(
 			expect.objectContaining({ weekday: undefined, entryHour: 0 }),
+		);
+	});
+
+	it("shows the session window and clears the session filter", () => {
+		const { onFiltersChange } = renderFilterBar({
+			session: TradingSession.NewYork,
+		});
+
+		expect(
+			screen.getByText("Session: New York (13:00–21:00 UTC)"),
+		).toBeTruthy();
+		fireEvent.click(
+			screen.getByRole("button", { name: "Clear session filter" }),
+		);
+		expect(onFiltersChange).toHaveBeenCalledWith(
+			expect.objectContaining({ session: undefined }),
 		);
 	});
 

@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { SectionHeading } from "@/components/app-page-header";
+import { InsightsList } from "@/components/dashboard/insights-list";
 import { RiskMetrics } from "@/components/dashboard/RiskMetrics";
 import { MetricCardSkeleton } from "@/components/metric-card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -86,6 +87,7 @@ export function RiskSection({
 							byHour={data.byHour}
 						/>
 					</Suspense>
+					<InsightsList insights={data.insights} />
 				</>
 			) : (
 				<RiskSectionSkeleton />

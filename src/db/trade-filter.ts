@@ -7,6 +7,7 @@ import {
 	inArray,
 	isNull,
 	like,
+	lt,
 	lte,
 	type SQLWrapper,
 	sql,
@@ -22,6 +23,7 @@ import {
 	type TradeSort,
 	TradeSortField,
 } from "@/lib/trade-sort";
+import { SESSION_WINDOW, type TradingSession } from "@/lib/trading-session";
 
 /** The scope date of every screen: closed trades by exit, other trades by entry, as in `groupTradesByDay`. */
 export const tradeScopeDate = sql`case when ${trades.status} = ${TradeStatus.Closed} then coalesce(${trades.exitDate}, ${trades.entryDate}) else ${trades.entryDate} end`;
@@ -59,6 +61,13 @@ function symbolCondition({ symbol, symbolMatch }: TradeFilter) {
 	return like(trades.symbol, `%${symbol.replaceAll(/[\\%_]/g, "\\$&")}%`);
 }
 
+function sessionCondition(session?: TradingSession) {
+	if (!session) return undefined;
+	const { fromHour, toHour } = SESSION_WINDOW[session];
+	const hour = zonedPart("hour", trades.entryDate);
+	return and(gte(hour, fromHour), lt(hour, toHour));
+}
+
 /** A leg is a broker row grouped into a position. Only by-id reads return it. */
 export const positionRow = isNull(trades.groupedIntoId);
 
@@ -89,6 +98,7 @@ export function tradeConditions(userId: string, filter: TradeFilter) {
 					zonedPart("hour", trades.entryDate, filter.timeZone),
 					filter.entryHour,
 				),
+		sessionCondition(filter.session),
 		filter.dateFrom
 			? gte(tradeScopeDate, scopeDateBound(filter.dateFrom))
 			: undefined,

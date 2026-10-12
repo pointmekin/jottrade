@@ -74,6 +74,13 @@ The dashboard chart "Avg P&L by plan adherence" uses the same buckets for all cl
 
 Each of these 3 insight charts shows its annotated share: the closed trades in scope with at least one tag, with a plan check (not "Not checked"), or with a rule check (not "Not checked"), out of all closed trades in scope (`countTagged`, `countChecked`). A trade with 2 tags counts once. The share shows how much of the scope the groups describe; trades with no annotation can differ from the others. The footer "Association in your journal. Not a cause and not a prediction." shows on each insight chart. There are no p-values or confidence numbers.
 
+The dashboard "Insights" list (`findInsights` in `src/lib/insights.ts`) compares the average P&L per closed trade of a cohort with the average of all closed trades in scope. The difference is the cohort average minus the scope average, both rounded to cents. It is not a cost, a saving or a prediction. Each finding has the cohort and comparison trade ids, a formula id, the sample size (the smaller cohort), the account and the period. The cohorts are:
+
+- `tag-avg-pnl-vs-scope`: the closed trades with the tag, for the 10 tags with the most trades. There are no tag findings under a tag filter.
+- `session-avg-pnl-vs-scope`: the closed trades by entry time in fixed UTC windows (`SESSION_WINDOW` in `src/lib/trading-session.ts`): Asia 00:00–08:00, London 08:00–13:00, New York 13:00–21:00, Other 21:00–24:00. A window with no trades has no row.
+
+A finding shows only when each cohort has at least 20 closed trades (`MIN_COHORT_TRADES`). 20 is a convention, not a statistical test. Below it, the row shows "Not enough trades (N of 20)". The free-text `mistake` field is not an insight cohort; tags are the structured field.
+
 `scripts/reconcile-metrics.ts` runs the same check on a real database. It reads every account in one read-only transaction and compares the headline and the strategy chart with SQL totals. It also counts the closed trades whose stored `return_percent` is not the price return.
 
 ## Rule compliance

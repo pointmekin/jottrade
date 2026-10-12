@@ -29,6 +29,7 @@ import {
 	summarizeGroups,
 	summarizeTagGroups,
 } from "@/lib/group-summary";
+import { findInsights } from "@/lib/insights";
 import { NO_STRATEGY } from "@/lib/journal-search";
 import { PLAN_ADHERENCE_LABEL, PlanAdherence } from "@/lib/playbook-check";
 import {
@@ -155,9 +156,19 @@ export const getAdvancedAnalytics = createServerFn({ method: "GET" })
 			ruleChecked: countChecked(closed, checks.ruleCheck, RuleOutcome.NotSet),
 		};
 
+		const insights = findInsights(
+			closed,
+			data.tagIds?.length ? null : tagsByTrade,
+			{
+				portfolioId: data.portfolioId,
+				period: { from: data.dateFrom ?? null, to: data.dateTo ?? null },
+			},
+		);
+
 		return {
 			riskMetrics,
 			insightCoverage,
+			insights,
 			byStrategy,
 			bySymbol,
 			byTag,

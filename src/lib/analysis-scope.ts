@@ -5,6 +5,7 @@ import { PlanAdherence } from "./playbook-check";
 import { RuleOutcome } from "./risk-rule-evaluation";
 import { TradeConfidence, TradeSide, TradeStatus } from "./trade";
 import { TAG_FILTER_LIMIT, TagMatch } from "./trade-tag";
+import { TradingSession } from "./trading-session";
 
 export const SymbolMatch = {
 	Contains: "contains",
@@ -37,6 +38,8 @@ export const tradeFilterSchema = z.object({
 	/** 0 is Sunday. Closed trades by exit, other trades by entry, in `timeZone`. */
 	weekday: z.number().int().min(0).max(6).optional(),
 	entryHour: z.number().int().min(0).max(23).optional(),
+	/** A fixed UTC window of the entry time, as in `SESSION_WINDOW`. */
+	session: z.enum(TradingSession).optional(),
 	dateFrom: z.iso.datetime().optional(),
 	dateTo: z.iso.datetime().optional(),
 	timeZone: timeZoneSchema.optional(),
@@ -63,7 +66,8 @@ export function isTradeAttributeFiltered(filter: TradeFilter) {
 			filter.mistake?.length ||
 			filter.tagIds?.length ||
 			filter.weekday !== undefined ||
-			filter.entryHour !== undefined,
+			filter.entryHour !== undefined ||
+			filter.session,
 	);
 }
 

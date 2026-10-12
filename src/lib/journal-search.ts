@@ -7,6 +7,7 @@ import { RuleOutcome } from "./risk-rule-evaluation";
 import { TradeConfidence, TradeSide, TradeStatus } from "./trade";
 import { SortDirection, TradeSortField } from "./trade-sort";
 import { parseTagIds, TagMatch } from "./trade-tag";
+import { TradingSession } from "./trading-session";
 
 export const JournalView = {
 	All: "all",
@@ -36,6 +37,7 @@ export const scopeSearchSchema = z.object({
 	tagMatch: z.enum(TagMatch).optional(),
 	weekday: tradeFilterSchema.shape.weekday.catch(undefined),
 	entryHour: tradeFilterSchema.shape.entryHour.catch(undefined),
+	session: tradeFilterSchema.shape.session.catch(undefined),
 	period: z.enum(PeriodPreset).default(PeriodPreset.All),
 	dateFrom: z.string().optional(),
 	dateTo: z.string().optional(),
@@ -61,6 +63,7 @@ export const CLEARED_TRADE_FILTERS = {
 	tagMatch: undefined,
 	weekday: undefined,
 	entryHour: undefined,
+	session: undefined,
 } satisfies Partial<ScopeSearch>;
 
 export const journalSearchSchema = scopeSearchSchema.extend({
@@ -114,6 +117,7 @@ export function toTradeQuery(
 		tagMatch: search.tagMatch,
 		weekday: search.weekday,
 		entryHour: search.entryHour,
+		session: search.session,
 		dateFrom: range.from?.toISOString(),
 		dateTo: range.to?.toISOString(),
 		timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -131,6 +135,7 @@ export const ChartGroup = {
 	RuleCheck: "ruleCheck",
 	Weekday: "weekday",
 	EntryHour: "entryHour",
+	Session: "session",
 } as const;
 
 export type ChartGroup = (typeof ChartGroup)[keyof typeof ChartGroup];
@@ -156,6 +161,8 @@ function groupFilter(group: ChartGroup, key: string) {
 			return { weekday: Number(key) };
 		case ChartGroup.EntryHour:
 			return { entryHour: Number(key) };
+		case ChartGroup.Session:
+			return { session: z.enum(TradingSession).parse(key) };
 	}
 }
 
