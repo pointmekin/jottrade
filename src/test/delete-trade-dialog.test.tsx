@@ -83,6 +83,12 @@ describe("DeleteTradeDialog", () => {
 		expect(deleteTrade).toHaveBeenCalledWith({ data: { id: trade.id } });
 		expect(invalidate.mock.calls.map(([filters]) => filters?.queryKey)).toEqual(
 			[
+				["review-period"],
+				["review-queue"],
+				["trade-review-annotation"],
+				["import-batches"],
+				["import-batch"],
+				["import-undo"],
 				["trades"],
 				["trade"],
 				["calendar"],

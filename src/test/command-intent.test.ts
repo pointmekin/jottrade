@@ -49,6 +49,7 @@ describe("extracted intent schema", () => {
 			"/journal",
 			"/calendar",
 			"/strategies",
+			"/reviews",
 			"/settings",
 		]);
 		expect(intentJsonSchema.properties.intent.enum).toContain("unknown");

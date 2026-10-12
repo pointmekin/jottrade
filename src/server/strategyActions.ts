@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { strategies, trades } from "@/db/schema";
@@ -73,16 +73,17 @@ export const deleteStrategy = createServerFn({ method: "POST" })
 	.validator(strategyIdSchema)
 	.handler(async ({ data: { id } }) => {
 		const userId = await requireUserId();
-		await db.transaction(async (tx) => {
-			await tx
-				.update(trades)
-				.set({ setupId: null })
-				.where(and(eq(trades.setupId, id), eq(trades.userId, userId)));
-			const [deleted] = await tx
-				.delete(strategies)
-				.where(and(eq(strategies.id, id), eq(strategies.userId, userId)))
-				.returning();
-			if (!deleted) throw new Error("Strategy not found");
-		});
+		const results = await db.batch([
+			db.execute(
+				sql`SELECT id FROM portfolios WHERE user_id=${userId} ORDER BY id FOR UPDATE`,
+			),
+			db.execute(
+				sql`SELECT id FROM trades WHERE user_id=${userId} AND setup_id=${id} ORDER BY id FOR UPDATE`,
+			),
+			db.execute(
+				sql`WITH owned AS (SELECT id FROM strategies WHERE id=${id} AND user_id=${userId}), updated AS (UPDATE trades SET setup_id=NULL, edit_revision=edit_revision+1 WHERE setup_id=${id} AND user_id=${userId} AND EXISTS(SELECT 1 FROM owned) RETURNING id) DELETE FROM strategies WHERE id=${id} AND user_id=${userId} RETURNING id`,
+			),
+		]);
+		if (!results[2].rows.length) throw new Error("Strategy not found");
 		return { success: true };
 	});

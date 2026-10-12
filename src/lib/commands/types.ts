@@ -27,6 +27,7 @@ export type TradeParams = {
 	entryPrice?: string;
 	quantity?: string;
 	targetPrice?: string;
+	initialStopPrice?: string;
 };
 export type AccountEntryParams = {
 	kind: Exclude<AccountEntryKind, typeof AccountEntryKind.Adjustment>;

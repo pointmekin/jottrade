@@ -35,6 +35,9 @@ const overviewSchema = z.object({
 	entryPrice: z.string(),
 	targetPrice: z.string().optional(),
 	exitPrice: z.string().optional(),
+	exitDate: z.string().optional(),
+	exitQuoteToAccountRate: z.string().optional(),
+	managementStopPrice: z.string().optional(),
 	quantity: z.string(),
 	fees: z.string().optional(),
 	confidence: z.enum(TradeConfidence).optional(),
@@ -93,6 +96,9 @@ const valuesOf = (trade: Trade): OverviewValues => ({
 	entryPrice: trade.entryPrice ?? "",
 	targetPrice: trade.targetPrice ?? "",
 	exitPrice: trade.exitPrice ?? "",
+	exitDate: trade.exitDate?.toISOString().slice(0, 16) ?? "",
+	exitQuoteToAccountRate: trade.exitQuoteToAccountRate ?? "",
+	managementStopPrice: trade.managementStopPrice ?? "",
 	quantity: trade.quantity ?? "",
 	fees: trade.fees ?? "",
 	confidence: trade.confidence ?? undefined,
@@ -119,7 +125,11 @@ export function TradeOverviewForm({ trade }: { trade: Trade }) {
 			updateTrade({
 				data: {
 					id: trade.id,
+					expectedRevision: trade.editRevision,
 					...values,
+					exitDate: values.exitDate
+						? overviewExitDate(values.exitDate, trade.exitDate)
+						: undefined,
 					setupId: setupId === NO_STRATEGY ? null : Number(setupId),
 				},
 			}),
@@ -133,7 +143,16 @@ export function TradeOverviewForm({ trade }: { trade: Trade }) {
 		>
 			<div className="grid grid-cols-2 gap-3">
 				<FieldGroup label="Entry Price">
-					<Input {...register("entryPrice")} className={INPUT_CLASS} />
+					<Input
+						{...register("entryPrice")}
+						readOnly={Boolean(trade.initialRiskSnapshot)}
+						className={INPUT_CLASS}
+					/>
+					{trade.initialRiskSnapshot && (
+						<p className="text-xs text-muted-foreground">
+							Use Correct original plan to change recorded entry facts.
+						</p>
+					)}
 				</FieldGroup>
 				<FieldGroup label="Planned target price">
 					<Input
@@ -146,6 +165,22 @@ export function TradeOverviewForm({ trade }: { trade: Trade }) {
 				</FieldGroup>
 				<FieldGroup label="Exit Price">
 					<Input {...register("exitPrice")} className={INPUT_CLASS} />
+				</FieldGroup>
+				<FieldGroup label="Management stop price">
+					<Input {...register("managementStopPrice")} className={INPUT_CLASS} />
+				</FieldGroup>
+				<FieldGroup label="Exit date (UTC)">
+					<Input
+						type="datetime-local"
+						{...register("exitDate")}
+						className={INPUT_CLASS}
+					/>
+				</FieldGroup>
+				<FieldGroup label="Exit FX rate">
+					<Input
+						{...register("exitQuoteToAccountRate")}
+						className={INPUT_CLASS}
+					/>
 				</FieldGroup>
 				<FieldGroup label="Quantity">
 					<Input {...register("quantity")} className={INPUT_CLASS} />
@@ -187,6 +222,11 @@ export function TradeOverviewForm({ trade }: { trade: Trade }) {
 					]}
 				/>
 			</FieldGroup>
+			{save.error && (
+				<p role="alert" className="text-sm text-destructive">
+					{save.error.message}
+				</p>
+			)}
 			<Button
 				type="submit"
 				disabled={save.isPending}
@@ -196,4 +236,10 @@ export function TradeOverviewForm({ trade }: { trade: Trade }) {
 			</Button>
 		</form>
 	);
+}
+
+function overviewExitDate(value: string, stored: Date | null | undefined) {
+	if (stored && value === stored.toISOString().slice(0, 16))
+		return stored.toISOString();
+	return new Date(`${value}Z`).toISOString();
 }

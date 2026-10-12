@@ -1,4 +1,16 @@
-import { parseUtcDate } from "./date";
+import {
+	importDecimal,
+	importUtcDate,
+	normalizeImportHeader,
+	type ParsedImportRow,
+	positiveImportDecimal,
+	subtractImportMoney,
+	sumImportMoney,
+} from "./import-values";
+
+export type { CsvRow } from "./import-values";
+
+import type { CsvRow } from "./import-values";
 
 export type ImportedTrade = {
 	ticket: string;
@@ -10,14 +22,13 @@ export type ImportedTrade = {
 	exitDate?: string;
 	exitPrice?: string;
 	fees: string;
-	netPnl: string;
+	netPnl?: string;
+	profit?: string;
+	commission: string;
+	swap: string;
+	closeReason: string;
 	notes: string;
 };
-
-export type CsvRow = Record<string, string | undefined>;
-
-// Exness names the money columns `profit`/`commission`/`swap`; some MT4/5
-// exports suffix them with `_usd`. Both spellings map to the same field.
 const COLUMN_ALIASES = {
 	ticket: ["ticket"],
 	symbol: ["symbol"],
@@ -32,10 +43,10 @@ const COLUMN_ALIASES = {
 	swap: ["swap", "swap_usd"],
 	closeReason: ["close_reason"],
 } as const;
+export const TRADE_IMPORT_HEADERS = Object.values(COLUMN_ALIASES).flat();
 
 type ColumnKey = keyof typeof COLUMN_ALIASES;
 type ColumnMap = Partial<Record<ColumnKey, string>>;
-
 const REQUIRED_COLUMNS: ColumnKey[] = [
 	"ticket",
 	"symbol",
@@ -45,93 +56,157 @@ const REQUIRED_COLUMNS: ColumnKey[] = [
 	"openingPrice",
 	"profit",
 ];
-
 function resolveColumns(fields: string[]): ColumnMap {
-	const present = new Set(fields.map((f) => f.trim().toLowerCase()));
 	const resolved: ColumnMap = {};
 	for (const key of Object.keys(COLUMN_ALIASES) as ColumnKey[]) {
-		const match = COLUMN_ALIASES[key].find((alias) => present.has(alias));
-		if (match) resolved[key] = match;
+		const field = fields.find((name) =>
+			COLUMN_ALIASES[key].some(
+				(alias) => alias === normalizeImportHeader(name),
+			),
+		);
+		if (field) resolved[key] = field;
 	}
 	return resolved;
 }
-
-/** Exness leaves a numeric cell empty to mean zero, so a blank is not an error. */
-function parseNumber(value: string | undefined): number | null {
-	const trimmed = value?.trim();
-	if (!trimmed) return null;
-	const parsed = Number(trimmed.replace(/[\s,]/g, ""));
-	return Number.isFinite(parsed) ? parsed : null;
-}
-
-function toImportedTrade(
+function readTrade(
 	row: CsvRow,
 	columns: ColumnMap,
-): ImportedTrade | null {
-	const cell = (key: ColumnKey) => {
-		const column = columns[key];
-		return column ? row[column] : undefined;
+	rowNumber: number,
+): ParsedImportRow<ImportedTrade> {
+	const issues: ParsedImportRow<ImportedTrade>["issues"] = [];
+	const cell = (key: ColumnKey) => row[columns[key] ?? ""]?.trim() ?? "";
+	const requiredText = (key: ColumnKey) => {
+		const value = cell(key);
+		if (!value)
+			issues.push({
+				column: columns[key] ?? key,
+				message: "A value is required.",
+			});
+		return value;
 	};
-	const ticket = cell("ticket")?.trim();
-	const symbol = cell("symbol")?.trim();
-	const side = cell("type")?.trim();
-	const entryDate = parseUtcDate(cell("openingTime"));
-	const entryPrice = parseNumber(cell("openingPrice"));
-	const quantity = parseNumber(cell("lots"));
-	if (!ticket || !symbol || !side) return null;
-	if (!entryDate || entryPrice === null || quantity === null) return null;
-
-	const profit = parseNumber(cell("profit")) ?? 0;
-	const commission = parseNumber(cell("commission")) ?? 0;
-	const swap = parseNumber(cell("swap")) ?? 0;
-	// The broker reports profit gross of costs; commission and swap arrive signed.
-	const netPnl = profit + commission + swap;
-	const fees = Math.abs(commission) + Math.abs(swap);
-
-	return {
+	const number = (key: ColumnKey, positive = false) => {
+		const parsed = positive
+			? positiveImportDecimal(cell(key))
+			: importDecimal(cell(key));
+		if (parsed === null)
+			issues.push({
+				column: columns[key] ?? key,
+				message: positive
+					? "Enter a positive decimal value."
+					: "Enter a decimal amount, including 0 for breakeven.",
+			});
+		return parsed ?? "0";
+	};
+	const date = (key: ColumnKey) => {
+		const parsed = importUtcDate(cell(key));
+		if (!parsed)
+			issues.push({
+				column: columns[key] ?? key,
+				message: "Enter a valid UTC date and time.",
+			});
+		return parsed ?? "";
+	};
+	const ticket = requiredText("ticket");
+	const symbol = requiredText("symbol").toUpperCase();
+	const side = requiredText("type").toLowerCase();
+	if (!["buy", "sell"].includes(side))
+		issues.push({
+			column: columns.type ?? "type",
+			message: "Only buy and sell executions are supported.",
+		});
+	const entryDate = date("openingTime");
+	const entryPrice = number("openingPrice", true);
+	const quantity = number("lots", true);
+	const closed = Boolean(cell("closingTime") || cell("closingPrice"));
+	const exitDate = closed ? date("closingTime") : undefined;
+	const exitPrice = closed ? number("closingPrice", true) : undefined;
+	if (exitDate && entryDate && exitDate < entryDate)
+		issues.push({
+			column: columns.closingTime ?? "closing_time_utc",
+			message: "Closing time cannot precede opening time.",
+		});
+	const profit = closed || cell("profit") ? number("profit") : undefined;
+	const cost = (key: "commission" | "swap") => {
+		if (!columns[key])
+			issues.push({
+				column: key,
+				message:
+					"This export omitted the cost column. Supply a verified signed amount, including 0 when there was no cost.",
+			});
+		return cell(key) ? number(key) : "0";
+	};
+	const commission = cost("commission");
+	const swap = cost("swap");
+	const netPnl =
+		profit === undefined
+			? undefined
+			: sumImportMoney([profit, commission, swap]);
+	const fees = subtractImportMoney("0", sumImportMoney([commission, swap]));
+	const closeReason = cell("closeReason");
+	const value = {
 		ticket,
 		symbol,
 		side,
 		entryDate,
-		entryPrice: String(entryPrice),
-		quantity: String(quantity),
-		exitDate: parseUtcDate(cell("closingTime")),
-		exitPrice: parseNumber(cell("closingPrice"))?.toString(),
-		fees: fees.toFixed(2),
-		netPnl: netPnl.toFixed(2),
-		notes: `Ticket: ${ticket} | Reason: ${cell("closeReason")?.trim() || "N/A"}`,
+		entryPrice,
+		quantity,
+		exitDate,
+		exitPrice,
+		profit,
+		commission,
+		swap,
+		netPnl,
+		fees,
+		closeReason,
+		notes: `Ticket: ${ticket} | Reason: ${closeReason || "N/A"}`,
+	};
+	return {
+		rowNumber,
+		source: row,
+		issues,
+		value: issues.length ? null : value,
 	};
 }
-
 export type TradeCsvResult =
 	| { error: string }
-	| { trades: ImportedTrade[]; skipped: number };
-
+	| {
+			trades: ImportedTrade[];
+			skipped: number;
+			rows: ParsedImportRow<ImportedTrade>[];
+			sourceCurrency: string | null;
+	  };
 export function parseTradeRows(
 	rows: CsvRow[],
 	fields: string[],
 ): TradeCsvResult {
+	const duplicate = (Object.keys(COLUMN_ALIASES) as ColumnKey[]).find(
+		(key) =>
+			fields.filter((field) =>
+				COLUMN_ALIASES[key].some(
+					(alias) => alias === normalizeImportHeader(field),
+				),
+			).length > 1,
+	);
+	if (duplicate)
+		return {
+			error: `More than one column describes ${duplicate}. Choose one consistent broker export variant.`,
+		};
 	const columns = resolveColumns(fields);
 	const missing = REQUIRED_COLUMNS.filter((key) => !columns[key]);
-	if (missing.length > 0) {
-		const names = missing
-			.map((key) => COLUMN_ALIASES[key].join(" or "))
-			.join(", ");
-		return { error: `CSV is missing required columns: ${names}.` };
-	}
-
-	const trades = rows
-		.map((row) => toImportedTrade(row, columns))
-		.filter((trade): trade is ImportedTrade => trade !== null);
-	if (trades.length === 0) {
-		return { error: "No valid trades found in CSV. Check format." };
-	}
-	// A profit column that is blank on every row means the wrong export
-	// variant. Importing it would silently flatten the equity curve.
-	if (trades.every((trade) => Number(trade.netPnl) === 0)) {
+	if (missing.length)
 		return {
-			error: `Every row has zero P&L. Check that the "${columns.profit}" column holds values.`,
+			error: `CSV is missing required columns: ${missing.map((key) => COLUMN_ALIASES[key].join(" or ")).join(", ")}.`,
 		};
-	}
-	return { trades, skipped: rows.length - trades.length };
+	const parsed = rows.map((row, index) => readTrade(row, columns, index + 2));
+	const trades = parsed.flatMap((row) => (row.value ? [row.value] : []));
+	return {
+		trades,
+		skipped: rows.length - trades.length,
+		rows: parsed,
+		sourceCurrency: fields.some((field) =>
+			normalizeImportHeader(field).endsWith("_usd"),
+		)
+			? "USD"
+			: null,
+	};
 }

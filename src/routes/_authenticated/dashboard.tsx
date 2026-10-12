@@ -109,11 +109,7 @@ function Dashboard() {
 						title="Tools"
 						detail={`Plan a setup before you take it · ${formatMoneyWithCode(stats?.totalBalance ?? 0, currency)}`}
 					/>
-					{stats ? (
-						<SetupCalculator initialBalance={stats.totalBalance} />
-					) : (
-						<Skeleton className="h-72 w-full" />
-					)}
+					{stats ? <SetupCalculator /> : <Skeleton className="h-72 w-full" />}
 				</section>
 			</main>
 		</div>

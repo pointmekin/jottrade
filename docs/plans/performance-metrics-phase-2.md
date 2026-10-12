@@ -11,7 +11,7 @@ Issue: [#8](https://github.com/pointmekin/jottrade/issues/8). Phase 1: `docs/pla
 | 3 | Journal header | "Price return" opens a definition popover. |
 | 4 | Account return | `computeAccountReturn` and a "Trade returns" section on the trade page. |
 | 5 | Success-signal baseline | `scripts/reconcile-metrics.ts`, a read-only reconciliation. |
-| 6 | R-multiple | Design only (below). No schema change in this phase. |
+| 6 | R-multiple | The original design was deferred in phase 2. Issue #9 implements the saved original-plan contract described below. |
 
 ## Decisions
 
@@ -37,67 +37,16 @@ The issue has two signals.
 
 2. **Fewer user questions about differing totals.** JotTrade is a personal tool, so a "question" is a report by the owner. Proposal: open a GitHub issue with the label `metrics-mismatch` for each report. The baseline is the count of such reports before #8. The label does not exist yet. The owner decides whether to create it.
 
-## R-multiple design (not applied)
+## R-multiple implementation in issue #9
 
-R-multiple = net P&L ÷ initial risk. Initial risk is the loss at the initial stop. The journal has no stop, so this needs a schema change.
+The earlier single-stop-column design is superseded by a saved original plan. `src/lib/trade-risk.ts` calculates price-distance risk before costs using the entry-time conversion. It never estimates original risk by pretending the trade exited at the stop. `docs/metrics.md` defines initial risk, planned RR and realized net R.
 
-### Schema and migration
+The additive nullable trade fields are `initialStopPrice`, `initialTargetPrice`, `initialRiskAmount`, `initialRiskPercent`, `initialRiskSnapshot`, `managementStopPrice` and `riskCorrectionHistory`. The snapshot saves prices, original quantity, contract specification, currencies, entry FX, reviewed balance and their sources. Legacy rows remain null. An import's stop at close is not treated as the original stop.
 
-```ts
-// src/db/schema.ts, after targetPrice
-stopPrice: numeric("stop_price"),
-```
+Manual entry, reviewed command capture and the instrument-aware calculator use the same capture schema. The calculator opens the existing journal drawer for review and keeps the account bound to the draft. Details show the saved plan, planned RR, realized net R and correction history. Current management edits preserve the original denominator. Explicit original-plan corrections use an atomic revision check and append before/after history. Imported execution corrections remain in import reconciliation.
 
-```sql
--- drizzle/0007_<name>.sql, from `npm run db:generate`
-ALTER TABLE "trades" ADD COLUMN "stop_price" numeric;
-```
+Manual closed-trade P&L has separate `exitQuoteToAccountRate` and `pnlCalculationSnapshot` fields. A required external exit rate must be reviewed for the actual exit date. Entry risk FX is never substituted for it. Broker net P&L and import provenance remain unchanged by risk-only correction.
 
-- It is the same shape as `0006` (`target_price`). A nullable column without a default is a metadata-only change in Postgres. It does not rewrite the table.
-- Legacy rows stay `NULL`. There is no backfill. The issue excludes speculative backfill of risk data.
+R is shown on trade details only. Dashboard average R and speculative legacy backfill are outside this implementation.
 
-### Rollout order
-
-Dev and prod share one Neon database, and Vercel builds `main` without a migration step.
-
-1. The owner applies the migration. The deployed build keeps working, because Drizzle selects columns by name and ignores a new one.
-2. Merge and deploy the code that reads `stop_price`.
-
-The reverse order breaks production: the new build selects a column that does not exist. Recovery: revert the code first, then `ALTER TABLE "trades" DROP COLUMN "stop_price";`. The drop loses every recorded stop, so export the column before.
-
-### Capture
-
-| Path | Change |
-|---|---|
-| `TradeEntryForm` | An optional "Initial stop" input next to the target. It uses `register()`, so the form keeps `"use no memo"`. |
-| Trade page (`TradeDetailSheet`) | The same input. An edit corrects a typo. It does not trail the stop. |
-| `createTrade` / `updateTrade` | Zod: positive; below entry for a long, above entry for a short. |
-| Command palette | `commandIntentActions.ts` tells the model to ignore a stop. Change it to extract `stopPrice`. |
-| Exness import | The Exness export has a `stop_loss` column, but it holds the stop at close. A trailed stop gives a wrong R. **Owner decision:** map it, or leave imports without a stop. |
-
-### Formula
-
-- Initial risk in account currency = the loss if the trade closed at the stop: `-calculateInstrumentPnL({ ...trade, exitPrice: stopPrice, feesAccount: 0 }).netPnl`. It reuses the contract size and the FX conversion of the P&L.
-- R = net P&L ÷ initial risk. Net P&L includes fees, so a trade that exits at the stop shows slightly below −1R.
-- The value is `null` without a stop, for a trade that is not closed, or when the risk is not positive.
-
-### UI states
-
-| Place | Value | Unavailable text |
-|---|---|---|
-| Trade page, "R-multiple" cell | `+1.80R` | "No initial stop recorded" / "Trade is not closed" |
-| Dashboard, "Avg R" card | mean R of trades with a stop | "—" with "No trade has a stop"; the sub-line always shows "12 of 187 trades have a stop" |
-| Payoff ratio card | unchanged | The definition text stops saying that R is not available. |
-
-The dashboard shows Avg R from 1 trade with a stop, with the sample. Payoff ratio stays, because most legacy trades have no stop.
-
-### Tests
-
-- `computeRMultiple`: long, short, a non-USD quote (FX), fees below −1R, no stop, an open trade, a stop on the wrong side.
-- Zod: a stop on the wrong side fails for a long and for a short.
-- `RiskMetrics`: Avg R with a partial sample, and with no stop.
-- The trade entry form saves and clears the stop.
-
-### Estimate
-
-2–3 developer-days after the migration: schema and validation 0.5, capture paths 1, metrics and UI 1, docs and screenshots 0.5.
+The coordinator generates one combined additive migration for issues #9, #10 and #11. Apply it before deploying code that selects the new columns. If application rollback is needed, keep the additive columns and correction history so recorded plans survive. No migration or live database changes are performed by the issue #9 implementation chat.

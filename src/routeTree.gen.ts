@@ -15,6 +15,7 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedJournalRouteImport } from './routes/_authenticated/journal'
+import { Route as AuthenticatedReviewsRouteImport } from './routes/_authenticated/reviews'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedStrategiesRouteImport } from './routes/_authenticated/strategies'
 import { Route as UnauthenticatedSignInRouteImport } from './routes/_unauthenticated/sign-in'
@@ -59,6 +60,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
 const AuthenticatedJournalRoute = AuthenticatedJournalRouteImport.update({
   id: '/journal',
   path: '/journal',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedReviewsRoute = AuthenticatedReviewsRouteImport.update({
+  id: '/reviews',
+  path: '/reviews',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
@@ -149,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof AuthenticatedCalendarRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/journal': typeof AuthenticatedJournalRoute
+  '/reviews': typeof AuthenticatedReviewsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/strategies': typeof AuthenticatedStrategiesRoute
   '/sign-in': typeof UnauthenticatedSignInRoute
@@ -172,6 +179,7 @@ export interface FileRoutesByTo {
   '/calendar': typeof AuthenticatedCalendarRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/journal': typeof AuthenticatedJournalRoute
+  '/reviews': typeof AuthenticatedReviewsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/strategies': typeof AuthenticatedStrategiesRoute
   '/sign-in': typeof UnauthenticatedSignInRoute
@@ -197,6 +205,7 @@ export interface FileRoutesById {
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/journal': typeof AuthenticatedJournalRoute
+  '/_authenticated/reviews': typeof AuthenticatedReviewsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/strategies': typeof AuthenticatedStrategiesRoute
   '/_unauthenticated/sign-in': typeof UnauthenticatedSignInRoute
@@ -222,6 +231,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/dashboard'
     | '/journal'
+    | '/reviews'
     | '/settings'
     | '/strategies'
     | '/sign-in'
@@ -245,6 +255,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/dashboard'
     | '/journal'
+    | '/reviews'
     | '/settings'
     | '/strategies'
     | '/sign-in'
@@ -269,6 +280,7 @@ export interface FileRouteTypes {
     | '/_authenticated/calendar'
     | '/_authenticated/dashboard'
     | '/_authenticated/journal'
+    | '/_authenticated/reviews'
     | '/_authenticated/settings'
     | '/_authenticated/strategies'
     | '/_unauthenticated/sign-in'
@@ -348,6 +360,13 @@ declare module '@tanstack/react-router' {
       path: '/journal'
       fullPath: '/journal'
       preLoaderRoute: typeof AuthenticatedJournalRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/reviews': {
+      id: '/_authenticated/reviews'
+      path: '/reviews'
+      fullPath: '/reviews'
+      preLoaderRoute: typeof AuthenticatedReviewsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/settings': {
@@ -469,6 +488,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedJournalRoute: typeof AuthenticatedJournalRoute
+  AuthenticatedReviewsRoute: typeof AuthenticatedReviewsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStrategiesRoute: typeof AuthenticatedStrategiesRoute
   AuthenticatedJournalTradeIdRoute: typeof AuthenticatedJournalTradeIdRoute
@@ -478,6 +498,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedJournalRoute: AuthenticatedJournalRoute,
+  AuthenticatedReviewsRoute: AuthenticatedReviewsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStrategiesRoute: AuthenticatedStrategiesRoute,
   AuthenticatedJournalTradeIdRoute: AuthenticatedJournalTradeIdRoute,

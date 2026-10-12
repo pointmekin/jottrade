@@ -13,6 +13,7 @@ import { useCurrency } from "@/hooks/use-currency";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { CalendarDay } from "@/lib/calendar-days";
 import { formatMoney } from "@/lib/currency";
+import { ReviewKind } from "@/lib/review";
 import { TradeSide } from "@/lib/trade";
 import { cn } from "@/lib/utils";
 
@@ -127,6 +128,14 @@ export function DayTradesPopover({
 					</DrawerDescription>
 				</DrawerHeader>
 				<div className="min-h-0 flex-1 overflow-y-auto px-3 pb-5 pt-3">
+					<Link
+						to="/reviews"
+						search={{ kind: ReviewKind.Daily, day: date }}
+						onClick={onTradeClick}
+						className="mb-3 block rounded border p-3 text-sm underline"
+					>
+						Review this day
+					</Link>
 					<TradeList day={day} onTradeClick={onTradeClick} />
 				</div>
 			</DrawerContent>

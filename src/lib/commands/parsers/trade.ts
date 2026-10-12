@@ -1,4 +1,5 @@
 import { TradeSide } from "@/lib/trade";
+import { validateInitialStop } from "@/lib/trade-risk";
 import { resolveCommandSymbol } from "../aliases";
 import { correctTypos } from "../fuzzy";
 import { type CommandCandidate, IntentType, type TradeParams } from "../types";
@@ -15,6 +16,8 @@ const vocabulary = [
 	"short",
 	"entry",
 	"target",
+	"stop",
+	"loss",
 	"take",
 	"profit",
 	"price",
@@ -40,6 +43,9 @@ const leadInPhrases = [
 ];
 const leadIn = new RegExp(`^(?:(?:${leadInPhrases.join("|")})\\s+)+`, "i");
 
+const stopPatterns = [
+	`\\b(?:stop(?:\\s+loss)?|sl)(?:\\s+price)?${connector}(${number})`,
+];
 const targetPatterns = [
 	`\\b(?:target|tp|take\\s+profit)(?:\\s+price)?${connector}(${number})`,
 ];
@@ -124,6 +130,7 @@ export function parseTrade(query: string): CommandCandidate | null {
 
 	let rest = corrected.slice(action[0].length).trim();
 	for (const [field, patterns] of [
+		["initialStopPrice", stopPatterns],
 		["targetPrice", targetPatterns],
 		["quantity", quantityPatterns],
 		["entryPrice", entryPatterns],
@@ -146,7 +153,8 @@ export function parseTrade(query: string): CommandCandidate | null {
 		params.quantity &&
 		Number(params.entryPrice) > 0 &&
 		Number(params.quantity) > 0 &&
-		(!params.targetPrice || Number(params.targetPrice) > 0);
+		(!params.targetPrice || Number(params.targetPrice) > 0) &&
+		isValidInitialStop(params);
 	return {
 		id: "trade",
 		title:
@@ -163,4 +171,17 @@ export function parseTrade(query: string): CommandCandidate | null {
 				}
 			: {}),
 	};
+}
+
+function isValidInitialStop(params: TradeParams) {
+	try {
+		validateInitialStop(
+			params.side ?? TradeSide.Long,
+			params.entryPrice ?? "",
+			params.initialStopPrice,
+		);
+		return true;
+	} catch {
+		return false;
+	}
 }

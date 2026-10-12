@@ -1,3 +1,6 @@
+import type { PnlCalculationSnapshot } from "./pnl-context";
+import type { InitialRiskSnapshot, RiskCorrection } from "./trade-risk-schema";
+
 export const TradeStatus = {
 	Open: "OPEN",
 	Closed: "CLOSED",
@@ -24,6 +27,23 @@ export type TradeConfidence =
 
 export type Trade = {
 	id: number;
+	portfolioId?: number;
+	editRevision?: number;
+	importHash?: string | null;
+	initialStopPrice?: string | null;
+	initialTargetPrice?: string | null;
+	initialRiskAmount?: string | null;
+	initialRiskPercent?: string | null;
+	initialRiskSnapshot?: InitialRiskSnapshot | null;
+	managementStopPrice?: string | null;
+	riskCorrectionHistory?: RiskCorrection[] | null;
+	exitQuoteToAccountRate?: string | null;
+	pnlCalculationSnapshot?: PnlCalculationSnapshot | null;
+	brokerSource?: string | null;
+	brokerTicket?: string | null;
+	brokerProfit?: string | null;
+	brokerCommission?: string | null;
+	brokerSwap?: string | null;
 	symbol: string;
 	side: TradeSide;
 	status: TradeStatus | null;
@@ -40,5 +60,8 @@ export type Trade = {
 	mistake?: string | null;
 	setupId?: number | null;
 	notes?: string | null;
+	annotationRevision?: number;
+	reviewedAt?: Date | null;
+	reviewedExecutionFingerprint?: string | null;
 	screenshots?: string[] | null;
 };
