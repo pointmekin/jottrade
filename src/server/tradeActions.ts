@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { requireOwnedPortfolio } from "@/db/portfolios";
@@ -44,13 +44,18 @@ const tradeSchema = z.object({
 
 const updateTradeSchema = tradeSchema.partial().extend({
 	id: z.number(),
+	expectedRevision: z.number().int().nonnegative().optional(),
+	expectedAnnotationRevision: z.number().int().nonnegative().optional(),
 	confidence: z.enum(TradeConfidence).optional(),
 	mistake: z.string().optional(),
 	setupId: z.number().nullable().optional(),
 });
 
 type ExistingTrade = typeof trades.$inferSelect;
-type TradeChanges = Omit<z.infer<typeof updateTradeSchema>, "id">;
+type TradeChanges = Omit<
+	z.infer<typeof updateTradeSchema>,
+	"id" | "expectedRevision" | "expectedAnnotationRevision"
+>;
 
 function recalculatePnl(
 	existing: ExistingTrade,
@@ -121,50 +126,122 @@ export const createTrade = createServerFn({ method: "POST" })
 		return { success: true };
 	});
 
+function validateUpdateRevision(
+	existing: ExistingTrade,
+	changes: TradeChanges,
+	expectedRevision?: number,
+	expectedAnnotationRevision?: number,
+) {
+	if (
+		existing.importHash &&
+		changes.portfolioId !== undefined &&
+		changes.portfolioId !== existing.portfolioId
+	)
+		throw new Error(
+			"Imported trades cannot move accounts. Undo an eligible import and reimport into the intended account.",
+		);
+	if (
+		expectedRevision !== undefined &&
+		expectedRevision !== existing.editRevision
+	)
+		throw new Error("Trade changed. Reload before saving.");
+	if (
+		changes.notes !== undefined &&
+		expectedRevision === undefined &&
+		expectedAnnotationRevision === undefined
+	)
+		throw new Error(
+			"Notes require the client annotation baseline. Reload before saving.",
+		);
+	if (
+		changes.notes !== undefined &&
+		expectedAnnotationRevision !== undefined &&
+		expectedAnnotationRevision !== existing.annotationRevision
+	)
+		throw new Error("Notes changed. Reload before saving.");
+}
+
 export const updateTrade = createServerFn({ method: "POST" })
 	.validator(updateTradeSchema)
-	.handler(async ({ data: { id, ...changes } }) => {
-		const userId = await requireUserId();
-		const [existing] = await db
-			.select()
-			.from(trades)
-			.where(and(eq(trades.id, id), eq(trades.userId, userId)));
-		if (!existing) throw new Error("Trade not found");
+	.handler(
+		async ({
+			data: { id, expectedRevision, expectedAnnotationRevision, ...changes },
+		}) => {
+			const userId = await requireUserId();
+			const [existing] = await db
+				.select()
+				.from(trades)
+				.where(and(eq(trades.id, id), eq(trades.userId, userId)));
+			if (!existing) throw new Error("Trade not found");
+			validateUpdateRevision(
+				existing,
+				changes,
+				expectedRevision,
+				expectedAnnotationRevision,
+			);
 
-		const portfolio = await requireOwnedPortfolio(
-			userId,
-			changes.portfolioId ?? existing.portfolioId,
-		);
-		const { netPnl, returnPercent, isRecalculated } = recalculatePnl(
-			existing,
-			changes,
-			portfolio.currency ?? DEFAULT_CURRENCY,
-		);
-		const closesNow = isRecalculated && changes.exitPrice && !changes.status;
-		const status = closesNow
-			? TradeStatus.Closed
-			: (changes.status ?? existing.status);
+			const portfolio = await requireOwnedPortfolio(
+				userId,
+				changes.portfolioId ?? existing.portfolioId,
+			);
+			const { netPnl, returnPercent, isRecalculated } = recalculatePnl(
+				existing,
+				changes,
+				portfolio.currency ?? DEFAULT_CURRENCY,
+			);
+			const closesNow = isRecalculated && changes.exitPrice && !changes.status;
+			const status = closesNow
+				? TradeStatus.Closed
+				: (changes.status ?? existing.status);
 
-		await db
-			.update(trades)
-			.set({
-				...changes,
-				targetPrice: changes.targetPrice === "" ? null : changes.targetPrice,
-				status,
-				netPnl,
-				returnPercent,
-			})
-			.where(eq(trades.id, id));
+			const updated = await db
+				.update(trades)
+				.set({
+					...changes,
+					targetPrice: changes.targetPrice === "" ? null : changes.targetPrice,
+					status,
+					netPnl,
+					returnPercent,
+					editRevision: sql`${trades.editRevision} + 1`,
+					annotationRevision:
+						changes.notes !== undefined
+							? sql`${trades.annotationRevision} + 1`
+							: undefined,
+				})
+				.where(
+					and(
+						eq(trades.id, id),
+						eq(trades.userId, userId),
+						eq(trades.editRevision, existing.editRevision ?? 0),
+						changes.notes !== undefined &&
+							expectedAnnotationRevision !== undefined
+							? eq(trades.annotationRevision, expectedAnnotationRevision)
+							: undefined,
+					),
+				)
+				.returning({ id: trades.id });
+			if (!updated.length)
+				throw new Error("Trade changed or was removed. Reload before saving.");
 
-		return { success: true };
-	});
+			return { success: true };
+		},
+	);
 
 export const deleteTrade = createServerFn({ method: "POST" })
 	.validator(z.object({ id: z.number() }))
 	.handler(async ({ data }) => {
 		const userId = await requireUserId();
-		await db
+		const deleted = await db
 			.delete(trades)
-			.where(and(eq(trades.id, data.id), eq(trades.userId, userId)));
+			.where(
+				and(
+					eq(trades.id, data.id),
+					eq(trades.userId, userId),
+					sql`NOT EXISTS (SELECT 1 FROM review_source_trades WHERE trade_id=${trades.id})`,
+				),
+			)
+			.returning({ id: trades.id });
+		if (!deleted.length)
+			throw new Error("Trade was removed or belongs to a persisted review.");
 		return { success: true };
 	});

@@ -24,6 +24,12 @@ export type TradeConfidence =
 
 export type Trade = {
 	id: number;
+	editRevision?: number;
+	brokerSource?: string | null;
+	brokerTicket?: string | null;
+	brokerProfit?: string | null;
+	brokerCommission?: string | null;
+	brokerSwap?: string | null;
 	symbol: string;
 	side: TradeSide;
 	status: TradeStatus | null;

@@ -1,7 +1,11 @@
 import Papa from "papaparse";
-
-type CsvRow = Record<string, string | undefined>;
-
+import {
+	type CsvRow,
+	importAmount,
+	importUtcDate,
+	normalizeImportHeader,
+	type ParsedImportRow,
+} from "./import-values";
 export type ImportedAdjustment = {
 	symbol: string;
 	type: string;
@@ -12,112 +16,94 @@ export type ImportedAdjustment = {
 	occurredAt: string;
 	dividendRate: string;
 	amount: number;
+	amountDecimal: string;
 	note: string;
 };
-
+export const ADJUSTMENT_IMPORT_HEADERS = [
+	"Symbol",
+	"Type",
+	"Lots",
+	"Position ID",
+	"Ex-date",
+	"Adjustment day",
+	"Adjustment date",
+	"Dividend rate",
+	"Adjustment",
+	"Export warning",
+];
 const requiredHeaders = ["Adjustment date", "Adjustment"] as const;
-
-function normalizeHeader(value: string): string {
-	return value
-		.replace(/^\uFEFF/, "")
-		.trim()
-		.toLowerCase();
-}
-
-function findHeader(fields: string[], expected: string): string | undefined {
-	const normalized = normalizeHeader(expected);
-	return fields.find((field) => normalizeHeader(field) === normalized);
-}
-
-function parseAmount(value: string | undefined): number | null {
-	const trimmed = value?.trim();
-	if (!trimmed) return null;
-
-	const isParenthesized = /^\(.*\)$/.test(trimmed);
-	const normalized = trimmed
-		.replace(/[−‐‑‒–—]/g, "-")
-		.replace(/[^\d.,+-]/g, "")
-		.replace(/,/g, "");
-	const parsed = Number(normalized);
-	if (!Number.isFinite(parsed) || parsed === 0) return null;
-	return isParenthesized ? -Math.abs(parsed) : parsed;
-}
-
-function parseAdjustmentDate(value: string | undefined): string | null {
-	const trimmed = value?.trim();
-	if (!trimmed) return null;
-
-	const hasZone = /(Z|UTC|GMT|[+-]\d{2}:?\d{2})$/i.test(trimmed);
-	const timestamp = Date.parse(hasZone ? trimmed : `${trimmed} UTC`);
-	return Number.isNaN(timestamp) ? null : new Date(timestamp).toISOString();
-}
-
-export function parseAdjustmentCsv(csv: string): {
-	adjustments: ImportedAdjustment[];
-	skipped: number;
-} {
-	const parsed = Papa.parse<CsvRow>(csv, {
-		header: true,
-		skipEmptyLines: "greedy",
-	});
-
-	if (parsed.errors.length > 0) {
-		throw new Error("The adjustment CSV could not be read.");
-	}
-
-	const fields = parsed.meta.fields ?? [];
-	const missing = requiredHeaders.filter(
-		(header) => !findHeader(fields, header),
-	);
-	if (missing.length > 0) {
-		throw new Error(`CSV is missing required columns: ${missing.join(", ")}.`);
-	}
-
-	const column = (name: string) => findHeader(fields, name);
-	const value = (row: CsvRow, name: string) => {
-		const key = column(name);
-		return key ? (row[key]?.trim() ?? "") : "";
-	};
-
-	const adjustments: ImportedAdjustment[] = [];
-	let skipped = 0;
-
-	for (const row of parsed.data) {
-		const occurredAt = parseAdjustmentDate(value(row, "Adjustment date"));
-		const amount = parseAmount(value(row, "Adjustment"));
-		if (!occurredAt || amount === null) {
-			skipped++;
-			continue;
-		}
-
-		const symbol = value(row, "Symbol");
-		const type = value(row, "Type");
-		const lots = value(row, "Lots");
-		const positionId = value(row, "Position ID");
-		const exDate = value(row, "Ex-date");
-		const adjustmentDay = value(row, "Adjustment day");
-		const dividendRate = value(row, "Dividend rate");
+export function parseAdjustmentRows(
+	rows: CsvRow[],
+	fields: string[],
+): ParsedImportRow<ImportedAdjustment>[] {
+	const column = (name: string) =>
+		fields.find(
+			(field) => normalizeImportHeader(field) === normalizeImportHeader(name),
+		);
+	const missing = requiredHeaders.filter((name) => !column(name));
+	if (missing.length)
+		throw Error(`CSV is missing required columns: ${missing.join(", ")}.`);
+	const value = (row: CsvRow, name: string) =>
+		row[column(name) ?? ""]?.trim() ?? "";
+	return rows.map((row, index) => {
+		const issues: ParsedImportRow<ImportedAdjustment>["issues"] = [];
+		const occurredAt = importUtcDate(value(row, "Adjustment date"));
+		const amount = importAmount(value(row, "Adjustment"));
+		if (!occurredAt)
+			issues.push({
+				column: "Adjustment date",
+				message: "Enter a valid UTC date and time.",
+			});
+		if (amount === null || amount === "0")
+			issues.push({
+				column: "Adjustment",
+				message: "Enter a signed nonzero decimal amount.",
+			});
+		const symbol = value(row, "Symbol"),
+			type = value(row, "Type"),
+			positionId = value(row, "Position ID");
 		const noteParts = [
 			symbol,
 			type,
 			positionId ? `Position ${positionId}` : "",
 		].filter(Boolean);
-
-		adjustments.push({
+		const adjustment = {
 			symbol,
 			type,
-			lots,
 			positionId,
-			exDate,
-			adjustmentDay,
-			occurredAt,
-			dividendRate,
-			amount,
+			lots: value(row, "Lots"),
+			exDate: value(row, "Ex-date"),
+			adjustmentDay: value(row, "Adjustment day"),
+			occurredAt: occurredAt ?? "",
+			dividendRate: value(row, "Dividend rate"),
+			amount: Number(amount),
+			amountDecimal: amount ?? "0",
 			note: noteParts.length
 				? `${noteParts.join(" · ")} · Exness adjustment`
 				: "Exness adjustment",
-		});
-	}
-
-	return { adjustments, skipped };
+		};
+		return {
+			rowNumber: index + 2,
+			source: row,
+			issues,
+			value: issues.length ? null : adjustment,
+		};
+	});
+}
+export function parseAdjustmentCsv(csv: string): {
+	adjustments: ImportedAdjustment[];
+	skipped: number;
+	rows: ParsedImportRow<ImportedAdjustment>[];
+} {
+	const parsed = Papa.parse<CsvRow>(csv, {
+		header: true,
+		skipEmptyLines: "greedy",
+	});
+	if (parsed.errors.length)
+		throw Error(
+			`The adjustment CSV could not be read: ${parsed.errors[0].message}`,
+		);
+	const rows = parseAdjustmentRows(parsed.data, parsed.meta.fields ?? []);
+	const adjustments = rows.flatMap((row) => (row.value ? [row.value] : []));
+	return { adjustments, skipped: rows.length - adjustments.length, rows };
 }

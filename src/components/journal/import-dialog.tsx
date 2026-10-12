@@ -12,6 +12,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdjustmentImportZone } from "./AdjustmentImportZone";
 import { ImportZone } from "./ImportZone";
+import { ImportHistory } from "./import-history";
 
 export function ImportDialog() {
 	const [isOpen, setIsOpen] = useState(false);
@@ -34,9 +35,25 @@ export function ImportDialog() {
 					</DialogDescription>
 				</DialogHeader>
 				<Tabs defaultValue="trades" className="mt-2">
-					<TabsList className="grid w-full grid-cols-2">
-						<TabsTrigger value="trades">Trade history CSV</TabsTrigger>
-						<TabsTrigger value="adjustments">Adjustment CSV</TabsTrigger>
+					<TabsList className="grid h-auto w-full grid-cols-3">
+						<TabsTrigger
+							className="min-w-0 whitespace-normal text-xs sm:text-sm"
+							value="trades"
+						>
+							Trade history CSV
+						</TabsTrigger>
+						<TabsTrigger
+							className="min-w-0 whitespace-normal text-xs sm:text-sm"
+							value="adjustments"
+						>
+							Adjustment CSV
+						</TabsTrigger>
+						<TabsTrigger
+							className="min-w-0 whitespace-normal text-xs sm:text-sm"
+							value="history"
+						>
+							Import history
+						</TabsTrigger>
 					</TabsList>
 					{/* A fixed body height keeps the dialog still when the tab changes. */}
 					<div className="mt-4 h-[26rem] overflow-y-auto">
@@ -49,6 +66,9 @@ export function ImportDialog() {
 						</TabsContent>
 						<TabsContent value="adjustments">
 							<AdjustmentImportZone onSuccess={close} />
+						</TabsContent>
+						<TabsContent value="history">
+							<ImportHistory />
 						</TabsContent>
 					</div>
 				</Tabs>
