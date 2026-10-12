@@ -2,7 +2,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAccounts } from "@/hooks/use-accounts";
 import { AccountEntryKind } from "@/lib/account-entry";
@@ -10,47 +9,45 @@ import { resolveCommandSymbol } from "@/lib/commands/aliases";
 import {
 	type AccountEntryParams,
 	IntentType,
-	type TradeParams,
 	type WriteIntent,
 } from "@/lib/commands/types";
-import { resolveInstrumentSpec } from "@/lib/instruments";
+import { localDateTimeToIso, toDateTimeLocalValue } from "@/lib/date";
 import {
 	invalidateAccountEntryQueries,
 	invalidateTradeQueries,
 } from "@/lib/query-keys";
 import { TradeSide } from "@/lib/trade";
+import {
+	type TradeCaptureValues,
+	tradeCaptureSchema,
+} from "@/lib/trade-capture";
+import { RiskCaptureSource } from "@/lib/trade-risk-schema";
 import { addCashFlow } from "@/server/cashFlowActions";
 import type { AccountRecord } from "@/server/portfolioActions";
 import { createTrade } from "@/server/tradeActions";
+import { TextField, TradeFields } from "./command-trade-fields";
 
 const SELECT_CLASS =
 	"h-9 w-full rounded-md border border-input bg-background px-3 text-sm";
-const SYMBOL_PATTERN = /^[A-Z][A-Z0-9./_-]{0,39}$/;
 const DECIMAL_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)$/;
 const CENTS_PATTERN = /^\d+(?:\.\d{1,2})?$/;
 
 const isPositive = (value: string) =>
 	DECIMAL_PATTERN.test(value) && Number(value) > 0;
 
-type TradeDraft = Required<Omit<TradeParams, "side">> & { side: TradeSide };
+type TradeDraft = TradeCaptureValues;
 
 async function saveTrade(accountId: number, draft: TradeDraft) {
-	const isValid =
-		SYMBOL_PATTERN.test(draft.symbol) &&
-		isPositive(draft.entryPrice) &&
-		isPositive(draft.quantity) &&
-		(draft.targetPrice === "" || isPositive(draft.targetPrice));
-	if (!isValid) {
-		throw new Error(
-			"Enter a symbol, positive entry price and quantity, and a positive target if provided.",
-		);
-	}
+	const capture = tradeCaptureSchema.parse(draft);
 	await createTrade({
 		data: {
+			...capture,
 			portfolioId: accountId,
-			...draft,
-			targetPrice: draft.targetPrice || undefined,
-			entryDate: new Date().toISOString(),
+			entryDate: localDateTimeToIso(capture.entryDate),
+			exitDate: capture.exitDate
+				? localDateTimeToIso(capture.exitDate)
+				: undefined,
+			captureSource: RiskCaptureSource.Command,
 		},
 	});
 }
@@ -79,106 +76,6 @@ function titleOf(intent: WriteIntent) {
 	return intent.params.kind === AccountEntryKind.Deposit
 		? "Add deposit"
 		: "Add withdrawal";
-}
-
-function TextField({
-	id,
-	label,
-	value,
-	onChange,
-	isRequired = true,
-}: {
-	id: string;
-	label: string;
-	value: string;
-	onChange: (value: string) => void;
-	isRequired?: boolean;
-}) {
-	return (
-		<div className="space-y-1.5">
-			<Label htmlFor={id}>{label}</Label>
-			<Input
-				id={id}
-				inputMode="decimal"
-				value={value}
-				onChange={(event) => onChange(event.target.value)}
-				required={isRequired}
-			/>
-		</div>
-	);
-}
-
-function TradeFields({
-	id,
-	draft,
-	onChange,
-}: {
-	id: string;
-	draft: TradeDraft;
-	onChange: (patch: Partial<TradeDraft>) => void;
-}) {
-	const unit =
-		resolveInstrumentSpec(resolveCommandSymbol(draft.symbol.trim()))
-			.quantityUnit === "LOTS"
-			? "lots"
-			: "units";
-
-	return (
-		<>
-			<div className="grid grid-cols-2 gap-3">
-				<TextField
-					id={`${id}-symbol`}
-					label="Symbol"
-					value={draft.symbol}
-					onChange={(symbol) => onChange({ symbol })}
-				/>
-				<div className="space-y-1.5">
-					<Label htmlFor={`${id}-side`}>Side</Label>
-					<select
-						id={`${id}-side`}
-						className={SELECT_CLASS}
-						value={draft.side}
-						onChange={(event) =>
-							onChange({
-								side:
-									event.target.value === TradeSide.Short
-										? TradeSide.Short
-										: TradeSide.Long,
-							})
-						}
-					>
-						<option value={TradeSide.Long}>Long</option>
-						<option value={TradeSide.Short}>Short</option>
-					</select>
-				</div>
-			</div>
-			<div className="grid grid-cols-2 gap-3">
-				<TextField
-					id={`${id}-entry`}
-					label="Entry price"
-					value={draft.entryPrice}
-					onChange={(entryPrice) => onChange({ entryPrice })}
-				/>
-				<TextField
-					id={`${id}-quantity`}
-					label={`Quantity (${unit})`}
-					value={draft.quantity}
-					onChange={(quantity) => onChange({ quantity })}
-				/>
-			</div>
-			<TextField
-				id={`${id}-target`}
-				label="Planned target price (optional)"
-				value={draft.targetPrice}
-				onChange={(targetPrice) => onChange({ targetPrice })}
-				isRequired={false}
-			/>
-			<p className="text-xs text-muted-foreground">
-				Creates an open trade with the current entry date. A target does not
-				close the trade.
-			</p>
-		</>
-	);
 }
 
 function AccountSelect({
@@ -223,7 +120,27 @@ function initialDraft(intent: WriteIntent): TradeDraft {
 		entryPrice: params.entryPrice ?? "",
 		quantity: params.quantity ?? "",
 		targetPrice: params.targetPrice ?? "",
+		initialStopPrice: params.initialStopPrice ?? "",
+		entryDate: toDateTimeLocalValue(new Date()),
+		entryQuoteToAccountRate: "",
+		balanceAccount: "",
+		confirmedUnitQuoteCurrency: "",
+		exitPrice: "",
+		exitDate: "",
+		exitQuoteToAccountRate: "",
+		fees: "",
 	};
+}
+
+function requestedCurrencyOf(intent: WriteIntent) {
+	if (intent.type === IntentType.AccountEntry) return intent.params.currency;
+	return undefined;
+}
+
+function initialAmount(intent: WriteIntent) {
+	if (intent.type === IntentType.AccountEntry)
+		return intent.params.amount ?? "";
+	return "";
 }
 
 function useSaveIntent(
@@ -231,7 +148,7 @@ function useSaveIntent(
 	handlers: {
 		save: () => Promise<void>;
 		onSaved: () => void;
-		onFailed: () => void;
+		onFailed: (cause: Error) => void;
 		onSettled: () => void;
 	},
 ) {
@@ -272,15 +189,10 @@ export function CommandPreview({
 	const [accountId, setAccountId] = useState(activeAccount?.id);
 	const account = accounts.find((item) => item.id === accountId);
 	const [draft, setDraft] = useState(() => initialDraft(intent));
-	const [amount, setAmount] = useState(
-		intent.type === IntentType.AccountEntry ? (intent.params.amount ?? "") : "",
-	);
+	const [amount, setAmount] = useState(() => initialAmount(intent));
 	const [error, setError] = useState<string>();
 	const saving = useRef(false);
-	const requestedCurrency =
-		intent.type === IntentType.AccountEntry
-			? intent.params.currency
-			: undefined;
+	const requestedCurrency = requestedCurrencyOf(intent);
 	const hasCurrencyMismatch = Boolean(
 		requestedCurrency && account && requestedCurrency !== account.currency,
 	);
@@ -297,8 +209,7 @@ export function CommandPreview({
 			await saveAccountEntry(account.id, intent.params, amount);
 		},
 		onSaved: onSuccess,
-		onFailed: () =>
-			setError("Could not save. Check the fields and account, then try again."),
+		onFailed: (cause) => setError(`Could not save. ${cause.message}`),
 		onSettled: () => {
 			saving.current = false;
 			onSavingChange?.(false);
@@ -336,6 +247,7 @@ export function CommandPreview({
 				{intent.type === IntentType.Trade && (
 					<TradeFields
 						id={id}
+						currency={account?.currency ?? "USD"}
 						draft={draft}
 						onChange={(patch) => setDraft({ ...draft, ...patch })}
 					/>

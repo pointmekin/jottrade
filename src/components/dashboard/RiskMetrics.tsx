@@ -96,8 +96,9 @@ export function RiskMetrics({ metrics }: { metrics: RiskMetricsData }) {
 							trades are left out.
 						</p>
 						<p>
-							It is not reward to risk: the journal does not record a stop at
-							entry, so R-multiples are not available.
+							It compares average outcomes. Original planned reward/risk and
+							realized net R are shown separately on trade details when an
+							initial plan is available.
 						</p>
 					</>
 				}

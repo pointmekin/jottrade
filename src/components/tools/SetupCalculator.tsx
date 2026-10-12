@@ -1,6 +1,8 @@
-import { Calculator, RotateCcw } from "lucide-react";
-import { useId, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { Calculator } from "lucide-react";
+import { useId, useState } from "react";
+import { LogTradeDrawer } from "@/components/journal/log-trade-drawer";
+import { RiskFields } from "@/components/journal/trade-risk-fields";
 import {
 	Card,
 	CardContent,
@@ -10,185 +12,159 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
-import { useCurrency } from "@/hooks/use-currency";
-import { currencySymbol, formatMoney } from "@/lib/currency";
+import { useAccounts } from "@/hooks/use-accounts";
+import { toDateTimeLocalValue } from "@/lib/date";
+import { QueryKey } from "@/lib/query-keys";
+import { TradeSide } from "@/lib/trade";
+import type { TradeCaptureValues } from "@/lib/trade-capture";
+import { calculatePositionSize } from "@/lib/trade-risk";
+import { RiskCaptureSource } from "@/lib/trade-risk-schema";
+import { getAnalytics } from "@/server/getAnalytics";
 
-export function SetupCalculator({
-	initialBalance = 0,
-}: {
-	initialBalance?: number;
-}) {
-	const currency = useCurrency();
-	const [balance, setBalance] = useState(
-		() => Math.round(initialBalance * 100) / 100,
-	);
-	const [riskPercent, setRiskPercent] = useState(1.0);
-	const [entryPrice, setEntryPrice] = useState<string>("");
-	const [stopLoss, setStopLoss] = useState<string>("");
-	const [targetPrice, setTargetPrice] = useState<string>("");
-	const balanceId = useId();
-	const entryId = useId();
-	const stopLossId = useId();
-	const targetId = useId();
+export function SetupCalculator() {
+	const { activeAccount } = useAccounts();
+	if (!activeAccount) return null;
+	return <CalculatorInputs key={activeAccount.id} />;
+}
 
-	const results = useMemo<{
-		riskAmount: number;
-		positionSize: number;
-		rrRatio: number | null;
-	} | null>(() => {
-		const entry = parseFloat(entryPrice);
-		const sl = parseFloat(stopLoss);
-		const tp = parseFloat(targetPrice);
-
-		if (Number.isNaN(entry) || Number.isNaN(sl) || entry === sl) {
-			return null;
-		}
-
-		const riskAmount = balance * (riskPercent / 100);
-		const slDist = Math.abs(entry - sl);
-		const positionSize = riskAmount / slDist;
-
-		let rrRatio = null;
-		if (!Number.isNaN(tp)) {
-			const rewardDist = Math.abs(tp - entry);
-			rrRatio = rewardDist / slDist;
-		}
-
-		return {
-			riskAmount,
-			positionSize,
-			rrRatio,
-		};
-	}, [balance, entryPrice, riskPercent, stopLoss, targetPrice]);
-
-	const clear = () => {
-		setEntryPrice("");
-		setStopLoss("");
-		setTargetPrice("");
+function CalculatorInputs() {
+	const { activeAccount } = useAccounts();
+	const id = useId();
+	const [balanceOverride, setBalanceOverride] = useState<string>();
+	const [riskPercent, setRiskPercent] = useState("1");
+	const [draft, setDraft] = useState<TradeCaptureValues>({
+		symbol: "",
+		side: TradeSide.Long,
+		entryPrice: "",
+		quantity: "",
+		entryDate: toDateTimeLocalValue(new Date()),
+		initialStopPrice: "",
+		targetPrice: "",
+		entryQuoteToAccountRate: "",
+		confirmedUnitQuoteCurrency: "",
+		captureSource: RiskCaptureSource.Calculator,
+	});
+	const range = {
+		portfolioId: activeAccount?.id ?? 0,
+		timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 	};
-
+	const balanceQuery = useQuery({
+		queryKey: [QueryKey.Analytics, range],
+		queryFn: () => getAnalytics({ data: range }),
+		enabled: Boolean(activeAccount),
+	});
+	const balance =
+		balanceOverride ?? String(balanceQuery.data?.stats.totalBalance ?? "");
+	let quantity: string | null = null;
+	let error: string | undefined;
+	try {
+		quantity = calculatePositionSize(
+			{
+				...draft,
+				accountCurrency: activeAccount?.currency ?? "USD",
+				balanceAccount: balance,
+			},
+			(Number(balance) * Number(riskPercent)) / 100,
+		);
+	} catch (cause) {
+		error = cause instanceof Error ? cause.message : "Risk unavailable";
+	}
+	const values = {
+		...draft,
+		quantity: quantity ?? "",
+		balanceAccount: balance,
+	};
 	return (
 		<Card className="w-full gap-4 py-5">
 			<CardHeader className="px-5">
 				<CardTitle className="flex items-center gap-2 text-base">
-					<Calculator className="size-4 text-muted-foreground" />
+					<Calculator className="size-4" />
 					Position size
 				</CardTitle>
 				<CardDescription>
-					Calculate risk, position size, and R:R ratio.
+					Plan theoretical lots or units, then review the trade before saving.
 				</CardDescription>
 			</CardHeader>
-			<CardContent className="space-y-5 px-5">
-				<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-					<div className="grid gap-2">
-						<Label htmlFor={balanceId}>
-							Account balance ({currencySymbol(currency)} {currency})
-						</Label>
-						<Input
-							id={balanceId}
-							type="number"
-							value={balance}
-							onChange={(e) => setBalance(parseFloat(e.target.value) || 0)}
-						/>
-					</div>
-					<div className="grid gap-2">
-						<Label htmlFor={entryId}>Entry price</Label>
-						<Input
-							id={entryId}
-							type="number"
-							placeholder="0.00"
-							value={entryPrice}
-							onChange={(e) => setEntryPrice(e.target.value)}
-						/>
-					</div>
-					<div className="grid gap-2">
-						<Label htmlFor={stopLossId}>Stop loss</Label>
-						<Input
-							id={stopLossId}
-							type="number"
-							placeholder="0.00"
-							value={stopLoss}
-							onChange={(e) => setStopLoss(e.target.value)}
-						/>
-					</div>
-					<div className="grid gap-2">
-						<Label htmlFor={targetId}>Target price (optional)</Label>
-						<Input
-							id={targetId}
-							type="number"
-							placeholder="0.00"
-							value={targetPrice}
-							onChange={(e) => setTargetPrice(e.target.value)}
-						/>
-					</div>
-				</div>
-
-				<div className="grid gap-2 sm:max-w-sm">
-					<div className="flex items-center justify-between">
-						<Label htmlFor="risk">Risk percentage</Label>
-						<span className="font-data text-sm font-medium">
-							{riskPercent}%
-						</span>
-					</div>
-					<Slider
-						value={[riskPercent]}
-						onValueChange={(v: number[]) => setRiskPercent(v[0])}
-						max={5}
-						step={0.1}
-						className="py-2"
-					/>
-				</div>
-
-				<div className="space-y-4 border-t border-border pt-4">
-					{results ? (
-						<div className="grid gap-4 sm:grid-cols-3">
-							<div className="surface p-3">
-								<p className="field-label">Risk amount</p>
-								<p className="mt-1 font-data text-lg font-semibold text-destructive">
-									{formatMoney(results.riskAmount, currency)}
-								</p>
-							</div>
-							<div className="surface p-3">
-								<p className="field-label">Position size</p>
-								<p className="mt-1 font-data text-lg font-semibold">
-									{results.positionSize.toFixed(4)}{" "}
-									<span className="text-xs font-normal text-muted-foreground">
-										units
-									</span>
-								</p>
-							</div>
-							<div className="surface flex items-center justify-between gap-3 p-3">
-								<div>
-									<p className="field-label">R:R ratio</p>
-									<p
-										className={`mt-1 font-data text-lg font-semibold ${results.rrRatio && results.rrRatio >= 2 ? "text-success" : "text-foreground"}`}
-									>
-										{results.rrRatio ? `1:${results.rrRatio.toFixed(2)}` : "-"}
-									</p>
-								</div>
-								{results.rrRatio && results.rrRatio >= 2 && (
-									<span className="status-pill bg-success/10 text-success">
-										Good setup
-									</span>
-								)}
-							</div>
+			<CardContent className="space-y-4 px-5">
+				<p className="text-sm">
+					{activeAccount?.name} · {activeAccount?.currency}. Balance suggestion
+					uses all recorded history.
+				</p>
+				<div className="grid gap-3 sm:grid-cols-2">
+					{(
+						[
+							["symbol", "Symbol"],
+							["entryPrice", "Entry price"],
+							["targetPrice", "Initial target price"],
+						] as const
+					).map(([name, label]) => (
+						<div key={name} className="space-y-1.5">
+							<Label htmlFor={`${id}-${name}`}>{label}</Label>
+							<Input
+								id={`${id}-${name}`}
+								value={draft[name] ?? ""}
+								onChange={(e) => setDraft({ ...draft, [name]: e.target.value })}
+							/>
 						</div>
-					) : (
-						<p className="py-2 text-sm text-muted-foreground">
-							Enter an entry price and stop loss to see results.
-						</p>
-					)}
-
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={clear}
-						className="text-muted-foreground hover:text-foreground"
-					>
-						<RotateCcw className="size-4" /> Reset
-					</Button>
+					))}
+					<div className="space-y-1.5">
+						<Label htmlFor={`${id}-side`}>Side</Label>
+						<select
+							id={`${id}-side`}
+							className="h-9 w-full rounded-md border border-input bg-background px-3"
+							value={draft.side}
+							onChange={(e) =>
+								setDraft({
+									...draft,
+									side:
+										e.target.value === TradeSide.Short
+											? TradeSide.Short
+											: TradeSide.Long,
+								})
+							}
+						>
+							<option value={TradeSide.Long}>Long</option>
+							<option value={TradeSide.Short}>Short</option>
+						</select>
+					</div>
+					<div className="space-y-1.5">
+						<Label htmlFor={`${id}-percent`}>Requested risk %</Label>
+						<Input
+							id={`${id}-percent`}
+							type="number"
+							step="any"
+							min="0"
+							value={riskPercent}
+							onChange={(e) => setRiskPercent(e.target.value)}
+						/>
+					</div>
 				</div>
+				<RiskFields
+					values={values}
+					currency={activeAccount?.currency ?? "USD"}
+					onChange={(patch) => {
+						if (patch.balanceAccount !== undefined)
+							setBalanceOverride(patch.balanceAccount);
+						setDraft({ ...draft, ...patch });
+					}}
+				/>
+				{error && (
+					<p role="alert" className="text-sm text-destructive">
+						{error}
+					</p>
+				)}
+				{quantity && (
+					<p className="font-data">
+						Suggested quantity: {quantity}. Confirm your broker quantity step in
+						the entry form.
+					</p>
+				)}
+				<LogTradeDrawer
+					defaultOpen={false}
+					initialDraft={{ ...values, portfolioId: activeAccount?.id ?? 0 }}
+					trigger="Use in trade"
+					disabled={quantity === null || !activeAccount}
+				/>
 			</CardContent>
 		</Card>
 	);

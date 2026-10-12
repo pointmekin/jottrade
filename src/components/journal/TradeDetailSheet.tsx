@@ -7,6 +7,7 @@ import { updateTrade } from "@/server/tradeActions";
 import { DeleteTradeDialog } from "./DeleteTradeDialog";
 import { TradeImages } from "./trade-images";
 import { TradeOverviewForm } from "./trade-overview-form";
+import { TradeRiskDetails } from "./trade-risk-details";
 
 interface TradeDetailContentProps {
 	trade: Trade;
@@ -42,6 +43,7 @@ export function TradeDetailContent({
 			/>
 			<div className="space-y-6 px-4 py-4 sm:px-5 sm:py-5">
 				<TradeOverviewForm trade={trade} />
+				<TradeRiskDetails key={trade.id} trade={trade} />
 				<Divider />
 				<div className="space-y-2">
 					<p className="field-label">Notes</p>
