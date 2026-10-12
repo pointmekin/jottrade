@@ -1,0 +1,25 @@
+# jottrade PR workflow notes
+
+- Run quality and verify with Node 22: `PATH=$HOME/.nvm/versions/node/v22.19.0/bin:$PATH`. The default Node is 26.
+- Run the gate from a clean worktree. In the source checkout, Vitest also collects the tests in nested `.claude/worktrees`, and the gate fails.
+- The permission system denies raw `psql create/drop database`. Use the guarded commands: `DATABASE_URL=.../jottrade_test_x npm run db:reset`, `db:dev:migrate`, `db:drop`.
+- To check one spec alone: `npm run verify -- [--no-build] e2e/<spec> --repeat-each=N`.
+- Migration collision: take main's `drizzle/meta`, delete the branch migration, run `DATABASE_URL= npx drizzle-kit generate --name <same_name>`. Then migrate main first and the branch second on a test database.
+- A changed file must pass the whole gate (React Doctor, SonarJS), so a 1-line edit can need a refactor of old code.
+- Merge PRs with squash (linear history). The PR branch can contain merge commits.
+- Merged+deployed: #48-#53 (2026-10-08); #12 A1 #54, A2 #55, B #56 (migration 0010), C1 #57, D #59 (`bf78fdb`, 0011); #14 #58 (`c679e2d`); #16-A #60 (`76de6e8`). #12 open for C2 only; #14 open (no sample data, owner).
+- Paseo workers: `paseo run -d --provider claude/claude-opus-5-5 --mode auto --thinking medium --new-workspace worktree --worktree-mode branch-off --new-branch <b> --base origin/main "<prompt>"`. Wait with `paseo wait <id>`.
+- If a PR falls behind main, run `gh pr update-branch <n>` (merge commit, no force-push).
+- Paseo Claude workers can hit a provider session limit (reset time varies; check `paseo logs`); then finish the slice directly in its worktree.
+- TanStack Query v5: a disabled query has isLoading=false; guard clamps/skeletons with the accounts loading state.
+- Known pre-existing gaps (not fixed): journal header buttons overflow at 375px; duplicate calendar URL keys crash the page. #12 plan: ~/.paseo/plans/issue-12-plan.md. Slices A1 → A2 → B → C1 → D, one worker at a time.
+- #12 decisions (orchestrator defaults, reversible): scope date = coalesce(exit_date, entry_date) everywhere, labeled "Closed in"; balance metrics stay "Account-wide" under a trade filter; saved views have an optional account; browser timezone; weekday/hour drill-down (C2) deferred; no telemetry.
+- Issue priority (proposed): #34, #12, #16 (blocked: email provider), #14 rest (sample data needs a decision), #18/#20/#19, #17, #22/#21.
+- Owner decisions 2026-10-09: #16 email provider = Resend (owner adds RESEND_API_KEY + verified sender in Vercel). #14: NO sample data; do only the import-error guidance part.
+- e2e/drilldown.spec.ts was flaky on main (6/15): Recharts bar animation remounts the drill-down links and drops focus. Fix in the D PR: isAnimationActive={!drillDown} (20/20 pass).
+- A background `cmd > log; echo exit=$?; tail log` reports tail's exit; always grep the log for "Verification passed" / "failed".
+- `paseo send <id> "<msg>"` blocks until the worker finishes the message.
+- #18-A worker 8d2358df resumed after the session limit (branch issue-18-a-playbooks, migration 0012). #20 waits for #18-A (both add a migration).
+- Plans ready: ~/.paseo/plans/issue-18-plan.md (slices A-D; E deferred), issue-20-plan.md (slices A-E). Owner decisions appended to each plan. One migration worker at a time (#18 A and #20 A both add migration 0012+).
+- #61 (#16-B sessions) merged+deployed `5cb5475` (fixes: list key includes current session id; iOS/Android browser names). Default kept: no password step to revoke a session. #16-C delete-account worker launched (branch issue-16-c-delete-account).
+- #62 (#18-A playbooks, migration 0012) merged `63da8a3`. PR #63 (#16-C delete account) in security review. Workers: #18-B c9ce5592, #20-E d2f5287e. #20-A waits for #18-B (both edit tradeActions.ts). Sign-out cache clear -> #20 slice D.
