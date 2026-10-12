@@ -42,7 +42,7 @@ export function CommandPreview({
 	const account = accounts.find((item) => item.id === accountId);
 	const trade = intent.type === "trade" ? intent.params : {};
 	const [symbol, setSymbol] = useState(trade.symbol ?? "");
-	const [side, setSide] = useState(trade.side ?? "LONG");
+	const [side, setSide] = useState<"LONG" | "SHORT" | "">(trade.side ?? "");
 	const [entryPrice, setEntryPrice] = useState(trade.entryPrice ?? "");
 	const [quantity, setQuantity] = useState(trade.quantity ?? "");
 	const [targetPrice, setTargetPrice] = useState(trade.targetPrice ?? "");
@@ -56,6 +56,9 @@ export function CommandPreview({
 		resolveInstrumentSpec(normalizedSymbol).quantityUnit === "LOTS"
 			? "lots"
 			: "units";
+	const quantityUnitMismatch =
+		!!trade.quantityUnit &&
+		trade.quantityUnit !== resolveInstrumentSpec(normalizedSymbol).quantityUnit;
 	const currencyMismatch =
 		intent.type === "account-entry" &&
 		intent.params.currency &&
@@ -70,6 +73,8 @@ export function CommandPreview({
 				);
 			if (intent.type === "trade") {
 				if (
+					!side ||
+					quantityUnitMismatch ||
 					!/^[A-Z][A-Z0-9./_-]{0,39}$/.test(normalizedSymbol) ||
 					!positive(entryPrice) ||
 					!positive(quantity) ||
@@ -195,11 +200,15 @@ export function CommandPreview({
 								<select
 									id={`${id}-side`}
 									className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+									required
 									value={side}
 									onChange={(event) =>
 										setSide(event.target.value === "SHORT" ? "SHORT" : "LONG")
 									}
 								>
+									<option value="" disabled>
+										Choose a side
+									</option>
 									<option value="LONG">Long</option>
 									<option value="SHORT">Short</option>
 								</select>
@@ -260,6 +269,13 @@ export function CommandPreview({
 						</p>
 					</div>
 				)}
+				{quantityUnitMismatch && (
+					<p role="alert" className="text-sm text-destructive">
+						The command specifies {trade.quantityUnit?.toLowerCase()}, but{" "}
+						{normalizedSymbol || "this instrument"} uses {unit}. Go back and
+						enter a quantity in {unit}; no conversion is applied.
+					</p>
+				)}
 				{currencyMismatch && (
 					<p role="alert" className="text-sm text-destructive">
 						The command specifies{" "}
@@ -278,7 +294,12 @@ export function CommandPreview({
 					</Button>
 					<Button
 						type="submit"
-						disabled={!account || !!currencyMismatch || mutation.isPending}
+						disabled={
+							!account ||
+							!!currencyMismatch ||
+							quantityUnitMismatch ||
+							mutation.isPending
+						}
 					>
 						{mutation.isPending ? "Saving…" : "Confirm and save"}
 					</Button>

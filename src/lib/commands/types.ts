@@ -1,24 +1,20 @@
-import type { AccountEntryKind } from "@/lib/account-entry";
+import type { z } from "zod";
+import type {
+	accountEntryParamsSchema,
+	ExtractedCommandIntent,
+	tradeParamsSchema,
+} from "./intent-schema";
 
-export type TradeParams = {
-	symbol?: string;
-	side?: "LONG" | "SHORT";
-	entryPrice?: string;
-	quantity?: string;
-	targetPrice?: string;
-};
-export type AccountEntryParams = {
-	kind: Exclude<AccountEntryKind, "ADJUSTMENT">;
-	amount?: string;
-	currency?: string;
-};
-export type WriteIntent =
-	| { type: "trade"; params: TradeParams }
-	| { type: "account-entry"; params: AccountEntryParams };
-export type CommandIntent =
-	| WriteIntent
-	| { type: "navigation"; path: string }
-	| { type: "theme"; theme: "dark" | "light" | "system" };
+export type TradeParams = z.infer<typeof tradeParamsSchema>;
+export type AccountEntryParams = z.infer<typeof accountEntryParamsSchema>;
+export type CommandIntent = Exclude<
+	ExtractedCommandIntent,
+	{ type: "unknown" }
+>;
+export type WriteIntent = Extract<
+	CommandIntent,
+	{ type: "trade" | "account-entry" }
+>;
 export type CommandCandidate = {
 	id: string;
 	title: string;

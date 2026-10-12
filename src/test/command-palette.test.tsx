@@ -15,6 +15,9 @@ const mocks = vi.hoisted(() => ({
 	setTheme: vi.fn(),
 	session: { user: { id: "u1" } } as object | null,
 }));
+vi.mock("@/server/commandIntentActions", () => ({
+	extractCommandIntent: vi.fn(),
+}));
 vi.mock("@tanstack/react-router", () => ({
 	useNavigate: () => mocks.navigate,
 }));
