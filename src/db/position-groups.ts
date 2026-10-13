@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { lockPortfolio, requireOwnedPortfolio } from "@/db/portfolios";
 import { loadPosition } from "@/db/positions";
-import { tradeExecutions, trades } from "@/db/schema";
+import { tradeExecutions, trades, tradeTags } from "@/db/schema";
 import { positionRow } from "@/db/trade-filter";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import {
@@ -170,7 +170,7 @@ export async function groupBrokerRows(
 			.set({ groupedIntoId: positionId })
 			.where(and(inArray(trades.id, legIds), eq(trades.userId, userId))),
 		db.execute(
-			sql`INSERT INTO trade_tags (trade_id, tag_id) SELECT DISTINCT ${positionId}::int, tag_id FROM trade_tags WHERE ${inArray(sql`trade_id`, legIds)}`,
+			sql`INSERT INTO trade_tags (trade_id, tag_id) SELECT DISTINCT ${positionId}::int, tag_id FROM trade_tags WHERE ${inArray(tradeTags.tradeId, legIds)}`,
 		),
 	]);
 	return positionId;

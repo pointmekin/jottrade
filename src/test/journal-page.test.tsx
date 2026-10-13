@@ -52,6 +52,9 @@ vi.mock("@/components/journal/AccountEntriesPanel", () => ({
 	AccountEntriesPanel: Empty,
 }));
 vi.mock("@/components/journal/bulk-edit-bar", () => ({ BulkEditBar: Empty }));
+vi.mock("@/components/journal/group-positions-dialog", () => ({
+	GroupSuggestionsNotice: Empty,
+}));
 vi.mock("@/components/journal/export-dialog", () => ({ ExportDialog: Empty }));
 vi.mock("@/components/journal/import-dialog", () => ({ ImportDialog: Empty }));
 vi.mock("@/components/journal/log-trade-drawer", () => ({

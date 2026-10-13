@@ -28,9 +28,9 @@ const groupKey = (suggestion: Suggestion) => suggestion.tradeIds.join("-");
 
 export function GroupSuggestionsNotice() {
 	const suggestions = useGroupSuggestions();
-	const [skipped, setSkipped] = useState<string[]>([]);
+	const [skipped, setSkipped] = useState<ReadonlySet<string>>(new Set());
 	const visible = (suggestions.data ?? []).filter(
-		(suggestion) => !skipped.includes(groupKey(suggestion)),
+		(suggestion) => !skipped.has(groupKey(suggestion)),
 	);
 	if (!visible.length) return null;
 	const label =
@@ -62,7 +62,9 @@ export function GroupSuggestionsNotice() {
 						<SuggestionCard
 							key={groupKey(suggestion)}
 							suggestion={suggestion}
-							onSkip={() => setSkipped([...skipped, groupKey(suggestion)])}
+							onSkip={() =>
+								setSkipped(new Set([...skipped, groupKey(suggestion)]))
+							}
 						/>
 					))}
 				</ul>
