@@ -279,6 +279,24 @@ describe("updateTrade on a trade with fills", () => {
 		expect(mocks.set.mock.calls[0][0]).not.toHaveProperty("netPnl");
 	});
 
+	it("rejects an economic change to a grouped broker row and keeps annotations", async () => {
+		const leg = () => legacyTrade({ groupedIntoId: 9 });
+		mocks.rows.mockReturnValueOnce([leg()]);
+
+		await expect(
+			updateTrade({ data: { id: 2, expectedRevision: 3, quantity: "3" } }),
+		).rejects.toThrow(
+			"This broker row is grouped into a position. Ungroup it first.",
+		);
+		expect(mocks.set).not.toHaveBeenCalled();
+
+		mocks.rows.mockReturnValueOnce([leg()]).mockReturnValueOnce([ACCOUNT]);
+		await updateTrade({
+			data: { id: 2, expectedRevision: 3, mistake: "Late entry" },
+		});
+		expect(mocks.set.mock.calls[0][0]).toMatchObject({ mistake: "Late entry" });
+	});
+
 	it("rejects an execution correction of the original plan", async () => {
 		mocks.rows.mockReturnValueOnce([multiFill()]);
 

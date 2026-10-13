@@ -118,10 +118,13 @@ export function assertExitKept(
 }
 
 export function assertFillFieldsKept(
-	existing: StoredTrade & { executionCount: number },
+	existing: StoredTrade & {
+		executionCount: number;
+		groupedIntoId?: number | null;
+	},
 	changes: TradeUpdateFields,
 ) {
-	if (!existing.executionCount) return;
+	if (!existing.executionCount && !existing.groupedIntoId) return;
 	const isChanged =
 		hasPnlChanges(existing, {
 			...changes,
@@ -130,6 +133,10 @@ export function assertFillFieldsKept(
 		(changes.entryDate !== undefined &&
 			dateDiffers(changes.entryDate, existing.entryDate)) ||
 		(changes.status !== undefined && changes.status !== existing.status);
+	if (isChanged && existing.groupedIntoId)
+		throw new Error(
+			"This broker row is grouped into a position. Ungroup it first.",
+		);
 	if (isChanged)
 		throw new Error("This trade has fills. Edit the fills instead.");
 }
