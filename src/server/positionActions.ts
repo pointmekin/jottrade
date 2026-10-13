@@ -1,6 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
+	groupBrokerRows,
+	loadGroupLegs,
+	loadGroupSuggestions,
+	ungroupBrokerRows,
+} from "@/db/position-groups";
+import {
 	type ExecutionFill,
 	loadPosition,
 	loadPositionForWrite,
@@ -16,6 +22,10 @@ import { authMiddleware } from "./auth-middleware";
 const tradeRefSchema = z.object({ tradeId: z.number().int().positive() });
 const writeRefSchema = tradeRefSchema.extend({
 	expectedRevision: z.number().int().nonnegative(),
+});
+const accountRefSchema = z.object({ portfolioId: z.number().int().positive() });
+const groupSchema = accountRefSchema.extend({
+	tradeIds: z.array(z.number().int().positive()).min(2).max(100),
 });
 const fillRefSchema = writeRefSchema.extend({
 	executionId: z.number().int().positive(),
@@ -43,9 +53,13 @@ export const getPositionExecutions = createServerFn({ method: "GET" })
 			context.userId,
 			data.tradeId,
 		);
+		const legIds = [
+			...new Set(fills.flatMap((fill) => fill.sourceTradeId ?? [])),
+		];
 		return {
 			editRevision: trade.editRevision,
 			isMaterialized: trade.executionCount > 0,
+			legs: await loadGroupLegs(context.userId, legIds),
 			fills,
 			replay: replayPosition(trade.side, fills, instrument),
 		};
@@ -123,3 +137,29 @@ export const deleteExecution = createServerFn({ method: "POST" })
 			return { success: true };
 		},
 	);
+
+export const getGroupSuggestions = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
+	.validator(accountRefSchema)
+	.handler(({ data, context }) =>
+		loadGroupSuggestions(context.userId, data.portfolioId),
+	);
+
+export const groupImportedTrades = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
+	.validator(groupSchema)
+	.handler(async ({ data, context }) => ({
+		tradeId: await groupBrokerRows(
+			context.userId,
+			data.portfolioId,
+			data.tradeIds,
+		),
+	}));
+
+export const ungroupPosition = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
+	.validator(tradeRefSchema)
+	.handler(async ({ data, context }) => {
+		await ungroupBrokerRows(context.userId, data.tradeId);
+		return { success: true };
+	});

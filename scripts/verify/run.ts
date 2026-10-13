@@ -29,6 +29,7 @@ const DATABASE_TESTS = [
 	"src/test/risk-rules.integration.test.ts",
 	"src/test/rule-compliance.integration.test.ts",
 	"src/test/positions.integration.test.ts",
+	"src/test/position-grouping.integration.test.ts",
 	"src/test/review-positions.integration.test.ts",
 	"src/test/tag-insights.integration.test.ts",
 	"src/test/check-insights.integration.test.ts",

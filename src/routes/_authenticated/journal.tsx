@@ -12,6 +12,7 @@ import { AccountEntriesPanel } from "@/components/journal/AccountEntriesPanel";
 import { BulkEditBar } from "@/components/journal/bulk-edit-bar";
 import { ExportDialog } from "@/components/journal/export-dialog";
 import { FilterBar, type JournalFilters } from "@/components/journal/FilterBar";
+import { GroupSuggestionsNotice } from "@/components/journal/group-positions-dialog";
 import { ImportDialog } from "@/components/journal/import-dialog";
 import {
 	JournalTable,
@@ -164,6 +165,7 @@ function JournalTradesSection({
 		);
 	return (
 		<>
+			<GroupSuggestionsNotice />
 			{hidesAdjustments && (
 				<p className="text-sm text-muted-foreground">
 					Adjustments show only when you sort by date, newest first.

@@ -324,10 +324,13 @@ export const deleteTrade = createServerFn({ method: "POST" })
 					eq(trades.id, data.id),
 					eq(trades.userId, userId),
 					sql`NOT EXISTS (SELECT 1 FROM review_source_trades WHERE trade_id=${trades.id})`,
+					sql`NOT EXISTS (SELECT 1 FROM trades leg WHERE leg.grouped_into_id=${trades.id})`,
 				),
 			)
 			.returning({ id: trades.id });
 		if (!deleted.length)
-			throw new Error("Trade was removed or belongs to a persisted review.");
+			throw new Error(
+				"Trade was removed, belongs to a persisted review, or is a grouped position. Ungroup a grouped position first.",
+			);
 		return { success: true };
 	});

@@ -1,5 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { CheckCheck, ChevronDown, Tag, TagsIcon, X } from "lucide-react";
+import {
+	CheckCheck,
+	ChevronDown,
+	Layers,
+	Tag,
+	TagsIcon,
+	X,
+} from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { TagPicker } from "@/components/tags/tag-picker";
 import { Button } from "@/components/ui/button";
@@ -11,6 +18,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useBulkEdit } from "@/hooks/use-bulk-edit";
+import { useGroupBrokerRows } from "@/hooks/use-group-positions";
 import { QueryKey } from "@/lib/query-keys";
 import { TradeConfidence } from "@/lib/trade";
 import {
@@ -78,6 +86,7 @@ export function BulkEditBar({
 	onClear,
 }: BulkEditBarProps) {
 	const edit = useBulkEdit();
+	const group = useGroupBrokerRows();
 	const { data: strategies = [], isSuccess: hasStrategies } = useQuery({
 		queryKey: [QueryKey.Strategies],
 		queryFn: () => getStrategies(),
@@ -88,7 +97,7 @@ export function BulkEditBar({
 	// starts again rather than keep trades the user can no longer see.
 	const apply = (change: BulkTradeChange) =>
 		edit.mutate({ tradeIds: selectedIds, change }, { onSettled: onClear });
-	const isBusy = edit.isPending;
+	const isBusy = edit.isPending || group.isPending;
 
 	return (
 		<section
@@ -198,6 +207,14 @@ export function BulkEditBar({
 					>
 						<CheckCheck className="mr-1.5 size-3.5" /> Mark reviewed
 					</ActionButton>
+					{count > 1 && (
+						<ActionButton
+							disabled={isBusy}
+							onClick={() => group.mutate(selectedIds, { onSuccess: onClear })}
+						>
+							<Layers className="mr-1.5 size-3.5" /> Group as one position
+						</ActionButton>
+					)}
 					<ActionButton aria-label="Clear selection" onClick={onClear}>
 						<X className="size-3.5" />
 					</ActionButton>

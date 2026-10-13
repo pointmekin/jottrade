@@ -58,6 +58,7 @@ export type ImportCandidate = {
 	reason: string;
 	initialRiskAmount?: string | null;
 	initialRiskSnapshot?: InitialRiskSnapshot | null;
+	isGroupedLeg?: boolean;
 };
 export type ImportPreviewRow = {
 	rowNumber: number;
