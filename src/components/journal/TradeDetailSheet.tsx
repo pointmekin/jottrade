@@ -3,6 +3,7 @@ import { QueryKey } from "@/lib/query-keys";
 import { type Trade, TradeSide } from "@/lib/trade";
 import { cn } from "@/lib/utils";
 import { DeleteTradeDialog } from "./DeleteTradeDialog";
+import { GroupedPosition } from "./grouped-position";
 import { PositionTimeline } from "./position-timeline";
 import { TradeImages } from "./trade-images";
 import { TradeOverviewForm } from "./trade-overview-form";
@@ -41,6 +42,7 @@ export function TradeDetailContent({
 			<div className="space-y-6 px-4 py-4 sm:px-5 sm:py-5">
 				<TradeOverviewForm trade={trade} />
 				<Divider />
+				<GroupedPosition trade={trade} onUngrouped={onDeleted} />
 				<PositionTimeline trade={trade} />
 				<Divider />
 				<TradeRiskDetails key={trade.id} trade={trade} />

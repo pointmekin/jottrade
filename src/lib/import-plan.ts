@@ -66,6 +66,8 @@ function findTarget(
 		(candidate) => candidate.id === (decision?.targetId ?? row.targetId),
 	);
 	if (!target) throw Error("Choose an existing candidate from this account.");
+	if (target.isGroupedLeg)
+		throw Error("Trade is grouped into a position. Ungroup it first.");
 	if (
 		decision?.expectedRevision !== undefined &&
 		decision.expectedRevision !== target.revision

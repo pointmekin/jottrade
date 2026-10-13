@@ -177,7 +177,7 @@ describe.skipIf(!verifyUrl)("user isolation on the seeded database", () => {
 			],
 			[
 				trades.deleteTrade({ data: { id: aliceTradeId } }),
-				"Trade was removed or belongs to a persisted review.",
+				"Trade was removed, belongs to a persisted review, or is a grouped position. Ungroup a grouped position first.",
 			],
 			[
 				accounts.updateAccount({

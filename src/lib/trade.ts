@@ -32,6 +32,7 @@ export type Trade = {
 	portfolioId?: number;
 	editRevision?: number;
 	executionCount?: number;
+	groupedIntoId?: number | null;
 	closedQuantity?: string | null;
 	importHash?: string | null;
 	initialStopPrice?: string | null;

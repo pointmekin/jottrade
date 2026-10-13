@@ -90,6 +90,7 @@ export async function loadPosition(
 		fees: row.fees,
 		exitQuoteToAccountRate: row.exitQuoteToAccountRate ?? undefined,
 		sourceTradeId: row.sourceTradeId,
+		brokerRealizedPnl: row.sourceTradeId ? row.realizedPnl : undefined,
 	}));
 	return { trade, instrument, fills };
 }
@@ -127,6 +128,10 @@ export async function loadPositionForWrite(
 	const position = await loadPosition(userId, tradeId);
 	if (position.trade.editRevision !== expectedRevision)
 		throw new Error(STALE_MESSAGE);
+	if (position.fills.some((fill) => fill.sourceTradeId))
+		throw new Error(
+			"A grouped position keeps its broker fills. Ungroup it to change them.",
+		);
 	if (position.trade.executionCount === 0) assertMaterializable(position);
 	return position;
 }

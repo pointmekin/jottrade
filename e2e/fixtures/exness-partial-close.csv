@@ -1,0 +1,3 @@
+ticket,symbol,type,lots,opening_time_utc,closing_time_utc,opening_price,closing_price,profit,commission,swap
+9101,AUDUSD,buy,0.10,2026-09-03 08:00:00,2026-09-03 10:00:00,0.6600,0.6650,50.00,-0.70,0.00
+9102,AUDUSD,buy,0.20,2026-09-03 08:00:00,2026-09-04 12:00:00,0.6600,0.6580,-40.00,-1.40,0.00

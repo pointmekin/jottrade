@@ -71,6 +71,7 @@ export async function loadImportMatches(
 			notes: row.notes,
 			initialRiskAmount: row.initialRiskAmount,
 			initialRiskSnapshot: row.initialRiskSnapshot,
+			isGroupedLeg: row.groupedIntoId !== null,
 			reason: "Existing trade",
 		}));
 	} else {

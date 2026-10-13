@@ -135,4 +135,4 @@ These items are not about deploys. They come from the audit of the merged work f
   - A cancelled screenshot upload increases `editRevision`, so undo protects a trade that did not change (`src/server/imageActions.ts`).
   - When a review protects a cash flow, a delete shows "Cash flow not found" instead of a review message (`src/server/cashFlowActions.ts`).
 - [ ] Resolve or answer the open Codex review threads on #35, #36 and #37.
-- [ ] Optional: collect real, sanitised Exness exports with partial closes to verify imports (#10 release evidence).
+- [ ] Optional: collect real, sanitised Exness exports with partial closes to verify imports (#10 release evidence). Issue #17 slice E2 shipped with a synthetic fixture (`e2e/fixtures/exness-partial-close.csv`). It assumes that Exness writes each partial close as its own row with the open time and open price of the original order. Import a real export and check that "Review groups" suggests the partial closes. If it does not, tell Claude which columns differ.

@@ -48,7 +48,11 @@ export const executionInputSchema = z.object({
 export type PositionFill = Omit<
 	z.infer<typeof executionInputSchema>,
 	"executedAt"
-> & { executedAt: Date };
+> & {
+	executedAt: Date;
+	// A grouped broker row keeps the net P&L the broker reported.
+	brokerRealizedPnl?: string | null;
+};
 
 export type PositionInstrument = Pick<
 	ManualPnlInput,
@@ -127,16 +131,17 @@ function applyExit(
 			? state.unallocatedFees
 			: (state.unallocatedFees * quantity) / state.remainingQty;
 	const realizedPnl = Number(
-		calculateManualPnl({
-			...instrument,
-			side,
-			entryPrice: String(state.averageEntryPrice),
-			exitPrice: fill.price,
-			exitDate: fill.executedAt.toISOString(),
-			quantity: fill.quantity,
-			fees: String(feeOf(fill) + allocatedEntryFees),
-			exitQuoteToAccountRate: fill.exitQuoteToAccountRate,
-		}).netPnl,
+		fill.brokerRealizedPnl ??
+			calculateManualPnl({
+				...instrument,
+				side,
+				entryPrice: String(state.averageEntryPrice),
+				exitPrice: fill.price,
+				exitDate: fill.executedAt.toISOString(),
+				quantity: fill.quantity,
+				fees: String(feeOf(fill) + allocatedEntryFees),
+				exitQuoteToAccountRate: fill.exitQuoteToAccountRate,
+			}).netPnl,
 	);
 	return {
 		...state,
