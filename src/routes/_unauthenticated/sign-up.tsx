@@ -4,14 +4,14 @@ import {
 	redirect,
 	useRouter,
 } from "@tanstack/react-router";
-import { ArrowRight, Crosshair, Loader2, Lock, Mail, User } from "lucide-react";
+import { Lock, Mail, User } from "lucide-react";
 import { useEffect, useId, useState } from "react";
-import {
-	AuthAside,
-	GoogleAuthSection,
-	IconField,
-} from "@/components/auth/auth-page-parts";
+import { AuthSubmitButton, IconField } from "@/components/auth/auth-page-parts";
+import { AuthPageShell } from "@/components/auth/auth-page-shell";
+import { GoogleAuthSection } from "@/components/auth/google-auth-section";
+import { AuthStatus, useAuthStatus } from "@/components/auth/use-auth-status";
 import { authClient } from "@/lib/auth-client";
+import { PASSWORD_MIN_LENGTH } from "@/lib/password";
 
 export const Route = createFileRoute("/_unauthenticated/sign-up")({
 	beforeLoad: async () => {
@@ -29,18 +29,19 @@ export const Route = createFileRoute("/_unauthenticated/sign-up")({
 	component: SignUp,
 });
 
+const SIGN_UP_FAILED = "Couldn't create the account. Try again.";
+
 function SignUp() {
 	const { data: session, isPending } = authClient.useSession();
 	const router = useRouter();
 	const nameId = useId();
 	const emailId = useId();
 	const passwordId = useId();
+	const flow = useAuthStatus();
 
 	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
-	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState("");
 
 	useEffect(() => {
 		if (session && !isPending) {
@@ -50,8 +51,8 @@ function SignUp() {
 
 	const handleSignUp = async (e: React.FormEvent) => {
 		e.preventDefault();
-		setLoading(true);
-		setError("");
+		if (flow.busy) return;
+		flow.start(AuthStatus.Email);
 		try {
 			await authClient.signUp.email(
 				{
@@ -64,124 +65,86 @@ function SignUp() {
 						router.navigate({ to: "/dashboard" });
 					},
 					onError: (ctx) => {
-						setError(ctx.error.message);
-						setLoading(false);
+						flow.fail(ctx.error.message || SIGN_UP_FAILED);
 					},
 				},
 			);
 		} catch (err: unknown) {
-			setError(err instanceof Error ? err.message : "An error occurred");
-			setLoading(false);
+			flow.fail(err instanceof Error ? err.message : SIGN_UP_FAILED);
 		}
 	};
 
-	if (isPending || session) {
-		return (
-			<div className="min-h-screen flex items-center justify-center bg-background">
-				<Loader2 className="h-8 w-8 text-primary animate-spin" />
-			</div>
-		);
-	}
-
 	return (
-		<div className="grid min-h-screen overflow-hidden lg:grid-cols-[minmax(0,1fr)_30rem]">
-			<AuthAside
-				heading="Build a record you can learn from."
-				description="Capture trades manually or import your broker history, then trace the decisions behind the result."
-				steps={["Capture", "Connect", "Improve"]}
-			/>
+		<AuthPageShell
+			aside={{
+				heading: "Build a record you can learn from.",
+				description:
+					"Capture trades manually or import your broker history, then trace the decisions behind the result.",
+				steps: ["Capture", "Connect", "Improve"],
+			}}
+			title="Create account"
+			description="Start tracking your trades today."
+			error={flow.error}
+			loading={isPending || !!session}
+			fields={3}
+			footer={
+				<>
+					Already have an account?{" "}
+					<Link
+						to="/sign-in"
+						className="font-medium text-primary transition-colors hover:text-primary/80"
+					>
+						Sign in
+					</Link>
+				</>
+			}
+		>
+			<GoogleAuthSection label="Sign up with Google" flow={flow} />
 
-			<main className="flex items-center justify-center px-6 py-10">
-				<div className="w-full max-w-[380px]">
-					<div className="mb-10 flex items-center gap-2.5 lg:hidden">
-						<div className="flex h-8 w-8 items-center justify-center border border-border bg-accent">
-							<Crosshair className="h-4 w-4 text-ring" strokeWidth={1.5} />
-						</div>
-						<span className="font-semibold text-lg tracking-tight text-foreground">
-							JotTrade
-						</span>
-					</div>
+			<form onSubmit={handleSignUp} className="mt-4">
+				<fieldset disabled={flow.busy} className="min-w-0 space-y-4">
+					<IconField
+						id={nameId}
+						label="Full name"
+						icon={User}
+						type="text"
+						autoComplete="name"
+						placeholder="John Doe"
+						value={name}
+						onChange={setName}
+					/>
 
-					<div className="border-y border-border py-7">
-						<div className="mb-6">
-							<h1 className="text-xl font-semibold text-foreground mb-1">
-								Create account
-							</h1>
-							<p className="text-sm text-muted-foreground">
-								Start tracking your trades today.
-							</p>
-						</div>
+					<IconField
+						id={emailId}
+						label="Email"
+						icon={Mail}
+						type="email"
+						autoComplete="email"
+						placeholder="you@example.com"
+						value={email}
+						onChange={setEmail}
+					/>
 
-						{error && (
-							<div className="mb-5 border border-destructive/30 bg-destructive/10 p-3.5 text-sm text-destructive">
-								{error}
-							</div>
-						)}
+					<IconField
+						id={passwordId}
+						label="Password"
+						icon={Lock}
+						type="password"
+						autoComplete="new-password"
+						placeholder="••••••••"
+						value={password}
+						onChange={setPassword}
+						minLength={PASSWORD_MIN_LENGTH}
+						hint={`Use at least ${PASSWORD_MIN_LENGTH} characters.`}
+					/>
 
-						<GoogleAuthSection label="Sign up with Google" />
-
-						<form onSubmit={handleSignUp} className="space-y-4 mt-4">
-							<IconField
-								id={nameId}
-								label="Full Name"
-								icon={User}
-								type="text"
-								autoComplete="name"
-								placeholder="John Doe"
-								value={name}
-								onChange={setName}
-							/>
-
-							<IconField
-								id={emailId}
-								label="Email"
-								icon={Mail}
-								type="email"
-								autoComplete="email"
-								placeholder="you@example.com"
-								value={email}
-								onChange={setEmail}
-							/>
-
-							<IconField
-								id={passwordId}
-								label="Password"
-								icon={Lock}
-								type="password"
-								autoComplete="new-password"
-								placeholder="••••••••"
-								value={password}
-								onChange={setPassword}
-							/>
-
-							<button
-								type="submit"
-								disabled={loading}
-								className="mt-2 flex w-full items-center justify-center border border-primary bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/88 disabled:cursor-not-allowed disabled:opacity-60"
-							>
-								{loading ? (
-									<Loader2 className="h-4 w-4 animate-spin" />
-								) : (
-									<>
-										Create Account
-										<ArrowRight className="ml-2 h-4 w-4" />
-									</>
-								)}
-							</button>
-						</form>
-
-						<p className="mt-6 text-center text-sm text-muted-foreground">
-							Already have an account?{" "}
-							<Link
-								to="/sign-in"
-								className="text-primary hover:text-primary/80 font-medium transition-colors"
-							>
-								Sign in
-							</Link>
-						</p>
-					</div>
-				</div>
-			</main>
-		</div>
+					<AuthSubmitButton
+						pending={flow.status === AuthStatus.Email}
+						label="Create Account"
+						pendingLabel="Creating account…"
+					/>
+				</fieldset>
+			</form>
+		</AuthPageShell>
 	);
 }
