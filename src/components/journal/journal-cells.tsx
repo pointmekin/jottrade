@@ -1,5 +1,6 @@
 import { SlidersHorizontal } from "lucide-react";
 import { formatMoney } from "@/lib/currency";
+import { formatInstrumentPrice } from "@/lib/instrument-price";
 import { UNAVAILABLE } from "@/lib/metric";
 import { partlyClosedLabel } from "@/lib/position";
 import { type Trade, TradeSide } from "@/lib/trade";
@@ -55,6 +56,20 @@ export function Money({
 	return (
 		<span className={cn("font-data font-medium", signed && color)}>
 			{formatMoney(value, currency, { signed })}
+		</span>
+	);
+}
+
+export function Price({
+	value,
+	symbol,
+}: {
+	value: string | null;
+	symbol: string;
+}) {
+	return (
+		<span className="font-data font-medium break-all">
+			{formatInstrumentPrice(value, symbol)}
 		</span>
 	);
 }

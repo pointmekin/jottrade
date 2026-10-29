@@ -11,6 +11,7 @@ import {
 	AdjustmentPill,
 	Dash,
 	Money,
+	Price,
 	SidePill,
 	TradeStatusText,
 } from "./journal-cells";
@@ -78,17 +79,13 @@ const buildColumns = (currency: string): JournalColumn[] => [
 	},
 	{
 		id: "entryPrice",
-		header: `Entry (${currency})`,
-		trade: (trade) => (
-			<Money value={toNumber(trade.entryPrice)} currency={currency} />
-		),
+		header: "Entry",
+		trade: (trade) => <Price value={trade.entryPrice} symbol={trade.symbol} />,
 	},
 	{
 		id: "exitPrice",
-		header: `Exit (${currency})`,
-		trade: (trade) => (
-			<Money value={toNumber(trade.exitPrice)} currency={currency} />
-		),
+		header: "Exit",
+		trade: (trade) => <Price value={trade.exitPrice} symbol={trade.symbol} />,
 	},
 	{
 		id: "quantity",

@@ -18,6 +18,7 @@ import type { ExecutionFill } from "@/db/positions";
 import { useCurrency } from "@/hooks/use-currency";
 import { formatMoney } from "@/lib/currency";
 import { toDateTimeLocalValue } from "@/lib/date";
+import { formatInstrumentPrice } from "@/lib/instrument-price";
 import { resolveInstrumentSpec } from "@/lib/instruments";
 import { formatEntryDate } from "@/lib/journal-format";
 import {
@@ -42,13 +43,8 @@ const KIND_LABEL = {
 	[ExecutionKind.Exit]: "Exit",
 } as const;
 
-const formatPrice = (value: number) =>
-	value.toLocaleString("en-US", {
-		maximumFractionDigits: 12,
-		useGrouping: false,
-	});
-
 type FillContext = {
+	symbol: string;
 	tradeId: number;
 	revision: number;
 	unit: string;
@@ -70,6 +66,7 @@ export function PositionTimeline({ trade }: { trade: Trade }) {
 	const steps = replay?.ok ? replay.steps : [];
 	const open = positionSummary(steps).open;
 	const context: FillContext = {
+		symbol: trade.symbol,
 		tradeId: trade.id,
 		revision: query.data?.editRevision ?? 0,
 		unit,
@@ -132,7 +129,12 @@ export function PositionTimeline({ trade }: { trade: Trade }) {
 			)}
 			{replay?.ok && (
 				<>
-					<PositionTotals steps={steps} unit={unit} currency={currency} />
+					<PositionTotals
+						steps={steps}
+						unit={unit}
+						currency={currency}
+						symbol={trade.symbol}
+					/>
 					<ol className="divide-y divide-border rounded-md border border-border">
 						{steps.map((step) => (
 							<FillRow
@@ -156,17 +158,18 @@ export function PositionTimeline({ trade }: { trade: Trade }) {
 }
 
 function PositionTotals({
+	symbol,
 	steps,
 	unit,
 	currency,
 }: {
 	steps: PositionStep[];
+	symbol: string;
 	unit: string;
 	currency: string;
 }) {
 	const summary = positionSummary(steps);
-	const price = (value: number | null) =>
-		value === null ? "—" : formatPrice(value);
+	const price = (value: number | null) => formatInstrumentPrice(value, symbol);
 	const items = [
 		["Entered", `${formatQuantity(summary.entered)} ${unit}`],
 		["Closed", `${formatQuantity(summary.closed)} ${unit}`],
@@ -185,19 +188,22 @@ function PositionTotals({
 			{items.map(([label, value]) => (
 				<div key={label} className="min-w-0">
 					<dt className="text-xs text-muted-foreground">{label}</dt>
-					<dd className="font-data tabular-nums">{value}</dd>
+					<dd className="break-all font-data tabular-nums">{value}</dd>
 				</div>
 			))}
 		</dl>
 	);
 }
 
-function stepState(step: PositionStep, unit: string, currency: string) {
+function stepState(
+	step: PositionStep,
+	{ unit, currency, symbol }: FillContext,
+) {
 	const realized = formatMoney(step.cumulativeRealizedPnl, currency, {
 		signed: true,
 	});
 	if (step.remainingQty === 0) return `Closed · realized ${realized}`;
-	return `Open ${formatQuantity(step.remainingQty)} ${unit} · avg ${formatPrice(step.averageEntryPrice)} · realized ${realized}`;
+	return `Open ${formatQuantity(step.remainingQty)} ${unit} · avg ${formatInstrumentPrice(step.averageEntryPrice, symbol)} · realized ${realized}`;
 }
 
 function FillRow({
@@ -256,14 +262,17 @@ function FillRow({
 					label="Quantity"
 					value={formatQuantity(Number(fill.quantity))}
 				/>
-				<FillValue label="Price" value={formatPrice(Number(fill.price))} />
+				<FillValue
+					label="Price"
+					value={formatInstrumentPrice(fill.price, context.symbol)}
+				/>
 				<FillValue
 					label="Fee"
 					value={formatMoney(Number(fill.fees || 0), context.currency)}
 				/>
 			</dl>
 			<p className="font-data text-xs text-muted-foreground">
-				{stepState(step, context.unit, context.currency)}
+				{stepState(step, context)}
 			</p>
 		</li>
 	);
@@ -273,7 +282,7 @@ function FillValue({ label, value }: { label: string; value: string }) {
 	return (
 		<div className="min-w-0">
 			<dt className="text-xs text-muted-foreground">{label}</dt>
-			<dd className="font-data tabular-nums">{value}</dd>
+			<dd className="break-all font-data tabular-nums">{value}</dd>
 		</div>
 	);
 }

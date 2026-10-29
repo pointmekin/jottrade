@@ -106,6 +106,22 @@ afterEach(() => {
 });
 
 describe("PositionTimeline", () => {
+	it("preserves stored FX fill precision and quote units in detail", async () => {
+		mockGet.mockResolvedValue(
+			loaded([
+				fill(1, ExecutionKind.Entry, 1, "1", "1.09750"),
+				fill(2, ExecutionKind.Exit, 2, "1", "1.09800"),
+			]),
+		);
+		renderTimeline();
+		const rows = await screen.findAllByRole("listitem");
+		expect(within(rows[0]).getByText("1.09750 USD")).toBeTruthy();
+		expect(within(rows[1]).getByText("1.09800 USD")).toBeTruthy();
+		const totals = within(screen.getByLabelText("Position totals"));
+		expect(totals.getByText("1.0975 USD")).toBeTruthy();
+		expect(totals.getByText("1.098 USD")).toBeTruthy();
+	});
+
 	it("shows one row and the two actions for a single-fill trade", async () => {
 		mockGet.mockResolvedValue(
 			loaded([fill(undefined, ExecutionKind.Entry, 1, "1", "1.1")], false),
@@ -137,7 +153,7 @@ describe("PositionTimeline", () => {
 			expect.stringMatching(/^Exit at/),
 		]);
 		expect(rows[2].textContent).toContain(
-			"Open 1.5 lots · avg 1.0975 · realized +$375.00",
+			"Open 1.5 lots · avg 1.0975 USD · realized +$375.00",
 		);
 		const totals = screen.getByLabelText("Position totals");
 		expect(within(totals).getByText("2.0 lots")).toBeTruthy();
