@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { TagList } from "@/components/tags/tag-chip";
 import type { AccountEntryRecord } from "@/lib/account-entry";
-import { formatMoney } from "@/lib/currency";
 import { formatEntryDate, toNumber } from "@/lib/journal-format";
 import { UNAVAILABLE } from "@/lib/metric";
 import type { Trade } from "@/lib/trade";
@@ -9,6 +8,7 @@ import { cn } from "@/lib/utils";
 import {
 	AdjustmentPill,
 	Money,
+	Price,
 	SidePill,
 	TradeStatusText,
 } from "./journal-cells";
@@ -16,17 +16,17 @@ import {
 function PriceField({
 	label,
 	value,
-	currency,
+	symbol,
 }: {
 	label: string;
 	value: string | null;
-	currency: string;
+	symbol: string;
 }) {
 	return (
 		<div>
 			<p className="text-xs text-muted-foreground">{label}</p>
-			<p className="font-data text-xs text-foreground">
-				{value ? formatMoney(Number(value), currency) : UNAVAILABLE}
+			<p className="min-w-0 font-data text-xs text-foreground">
+				<Price value={value} symbol={symbol} />
 			</p>
 		</div>
 	);
@@ -78,12 +78,16 @@ export function TradeCard({
 				<PriceField
 					label="Entry"
 					value={trade.entryPrice}
-					currency={currency}
+					symbol={trade.symbol}
 				/>
-				<PriceField label="Exit" value={trade.exitPrice} currency={currency} />
+				<PriceField
+					label="Exit"
+					value={trade.exitPrice}
+					symbol={trade.symbol}
+				/>
 				<div>
 					<p className="text-xs text-muted-foreground">Qty</p>
-					<p className="font-data text-xs text-foreground">
+					<p className="min-w-0 font-data text-xs text-foreground">
 						{trade.quantity || UNAVAILABLE}
 					</p>
 				</div>

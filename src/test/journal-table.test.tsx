@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { JournalTable } from "@/components/journal/JournalTable";
 import { mergeJournalEntries } from "@/lib/journal-entries";
-import { TradeSide, TradeStatus } from "@/lib/trade";
+import { type Trade, TradeSide, TradeStatus } from "@/lib/trade";
 
 vi.mock("@/hooks/use-currency", () => ({ useCurrency: () => "USD" }));
 vi.mock("@tanstack/react-router", () => ({
@@ -24,6 +24,44 @@ describe("JournalTable", () => {
 			await screen.findByText(/Fees, leverage, swaps and currency/),
 		).toBeTruthy();
 	});
+
+	it.each([
+		["EURUSD", "1.09750", "1.09800", " USD"],
+		["USDJPY", "149.501", "149.502", " JPY"],
+		["XAUUSD", "2745.125", "2745.135", " USD"],
+		["BTCUSD", "0.0000000000001", "0.0000000000002", ""],
+		["PENNY", "0.0001", "0.00015", ""],
+	])(
+		"keeps %s execution prices consistent in desktop and mobile",
+		(symbol, entryPrice, exitPrice, quote) => {
+			const trade: Trade = {
+				id: 107,
+				symbol,
+				entryPrice,
+				exitPrice,
+				side: TradeSide.Long,
+				status: TradeStatus.Closed,
+				entryDate: new Date("2026-10-01T10:00:00Z"),
+				exitDate: null,
+				quantity: "1",
+				netPnl: "12.50",
+				returnPercent: "50",
+			};
+			const { unmount } = render(
+				<JournalTable entries={mergeJournalEntries([trade], [])} />,
+			);
+			const desktop = within(screen.getByRole("table"));
+			const mobile = within(screen.getByRole("link"));
+			for (const surface of [desktop, mobile]) {
+				expect(surface.getByText(`${entryPrice}${quote}`)).toBeTruthy();
+				expect(surface.getByText(`${exitPrice}${quote}`)).toBeTruthy();
+				expect(surface.getByText("+$12.50")).toBeTruthy();
+			}
+			expect(desktop.getByRole("columnheader", { name: "Entry" })).toBeTruthy();
+			expect(desktop.getByRole("columnheader", { name: "Exit" })).toBeTruthy();
+			unmount();
+		},
+	);
 
 	it("selects trades without opening them and shows their tags", () => {
 		const trade = (id: number) => ({
