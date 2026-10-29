@@ -150,6 +150,68 @@ describe("risk capture flows", () => {
 			(screen.getByLabelText("Quantity (lots)") as HTMLInputElement).value,
 		).toBe("0.1");
 	});
+	it("focuses the first invalid risk field in a correction and preserves the reviewed plan on recovery", async () => {
+		vi.mocked(correctTradeInitialRisk).mockResolvedValue({ success: true });
+		const onClose = vi.fn();
+		setup(
+			<TradeRiskCorrectionForm
+				trade={{
+					...calculateInitialRisk(capture),
+					id: 2,
+					portfolioId: 7,
+					editRevision: 4,
+					symbol: capture.symbol,
+					side: capture.side,
+					status: TradeStatus.Open,
+					entryDate: new Date(capture.entryDate),
+					entryPrice: capture.entryPrice,
+					quantity: capture.quantity,
+					exitDate: null,
+					exitPrice: null,
+					netPnl: null,
+					returnPercent: null,
+				}}
+				onClose={onClose}
+			/>,
+		);
+		fill("Correction reason", "Review original inputs");
+		fill("Initial stop price", "bad");
+		fill("Balance used for risk %", "bad");
+		fireEvent.click(
+			screen.getByRole("button", { name: "Confirm original-plan correction" }),
+		);
+		await waitFor(() =>
+			expect(document.activeElement).toBe(
+				screen.getByLabelText("Initial stop price"),
+			),
+		);
+		expect(correctTradeInitialRisk).not.toHaveBeenCalled();
+		fill("Initial stop price", "1.095");
+		fireEvent.click(
+			screen.getByRole("button", { name: "Confirm original-plan correction" }),
+		);
+		await waitFor(() =>
+			expect(document.activeElement).toBe(
+				screen.getByLabelText("Balance used for risk %"),
+			),
+		);
+		fill("Balance used for risk %", "");
+		fireEvent.click(
+			screen.getByRole("button", { name: "Confirm original-plan correction" }),
+		);
+		await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+		expect(vi.mocked(correctTradeInitialRisk).mock.calls[0][0].data).toEqual(
+			expect.objectContaining({
+				id: 2,
+				expectedRevision: 4,
+				reason: "Review original inputs",
+				balanceAccount: "",
+				entryPrice: capture.entryPrice,
+				quantity: capture.quantity,
+			}),
+		);
+	});
+
 	it("ordinary overview save preserves the exact exit instant", async () => {
 		setup(
 			<TradeOverviewForm

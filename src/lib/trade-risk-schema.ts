@@ -55,7 +55,10 @@ export const riskInputSchema = z.object({
 			z
 				.string()
 				.trim()
-				.regex(/^[A-Za-z]{3}$/),
+				.regex(
+					/^[A-Za-z]{3}$/,
+					"Enter a three-letter quote currency, e.g. USD, or leave blank.",
+				),
 			z.literal(""),
 		])
 		.optional(),

@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TradeEntryForm } from "@/components/journal/TradeEntryForm";
 import { type TradeDraft, tradeDraftKey } from "@/lib/trade-draft";
+import { calculateInitialRisk } from "@/lib/trade-risk";
 import { createTrade } from "@/server/tradeActions";
 
 const state = vi.hoisted(() => ({
@@ -94,6 +95,97 @@ afterEach(() => {
 });
 
 describe("log trade draft", () => {
+	it.each([
+		[
+			"Balance used for risk %",
+			"oops",
+			"10000",
+			"Balance must be nonnegative.",
+		],
+		[
+			"Entry FX rate (account money per quote unit)",
+			"oops",
+			"1",
+			"Enter a positive decimal number.",
+		],
+		["Initial stop price", "-1", "90", "Enter a positive decimal number."],
+		[
+			"Confirm unit-based quantity: quote currency",
+			"US1",
+			"USD",
+			"Enter a three-letter quote currency, e.g. USD, or leave blank.",
+		],
+	])(
+		"explains invalid %s, focuses it, and saves the same draft after correction",
+		async (label, invalid, valid, message) => {
+			const view = setup();
+			fillTrade();
+			fill("Symbol", "SYNTHETIC");
+			fill(label, invalid);
+			await waitFor(() =>
+				expect(stored(KEY_7)?.values.symbol).toBe("SYNTHETIC"),
+			);
+			const draftId = stored(KEY_7).draftId;
+			state.activeAccount = state.accounts[1];
+			view.rerender(
+				<QueryClientProvider client={new QueryClient()}>
+					<TradeEntryForm />
+				</QueryClientProvider>,
+			);
+			fireEvent.click(screen.getByRole("button", { name: "Log Long" }));
+			await waitFor(() => expect(document.activeElement).toBe(input(label)));
+			expect(createTrade).not.toHaveBeenCalled();
+			expect(input(label).getAttribute("aria-invalid")).toBe("true");
+			const error = screen.getByText(message);
+			expect(
+				input(label).getAttribute("aria-describedby")?.split(" "),
+			).toContain(error.id);
+			expect(error.parentElement).toBe(input(label).parentElement);
+			expect(input("Notes").value).toBe("Waited for the retest.");
+			fill(label, valid);
+			fireEvent.click(screen.getByRole("button", { name: "Log Long" }));
+			await waitFor(() => expect(createTrade).toHaveBeenCalledOnce());
+			expect(vi.mocked(createTrade).mock.calls[0][0].data).toEqual(
+				expect.objectContaining({
+					portfolioId: 7,
+					clientDraftId: draftId,
+					notes: "Waited for the retest.",
+				}),
+			);
+		},
+	);
+
+	it("keeps a malformed quote confirmation visible after switching to a known symbol", async () => {
+		setup();
+		fillTrade();
+		fill("Symbol", "SYNTHETIC");
+		fill("Confirm unit-based quantity: quote currency", "US1");
+		fill("Symbol", "EURUSD");
+		fireEvent.click(screen.getByRole("button", { name: "Log Long" }));
+		await waitFor(() =>
+			expect(document.activeElement).toBe(
+				input("Confirm unit-based quantity: quote currency"),
+			),
+		);
+		fill("Confirm unit-based quantity: quote currency", "");
+		fireEvent.click(screen.getByRole("button", { name: "Log Long" }));
+		await waitFor(() => expect(createTrade).toHaveBeenCalledOnce());
+	});
+
+	it("saves blank optional risk as unknown rather than zero", async () => {
+		setup();
+		fillTrade();
+		fireEvent.click(screen.getByRole("button", { name: "Log Long" }));
+		await waitFor(() => expect(createTrade).toHaveBeenCalledOnce());
+		const data = vi.mocked(createTrade).mock.calls[0][0].data;
+		expect(data.initialStopPrice).toBe("");
+		expect(data.balanceAccount).toBe("");
+		expect(data.entryQuoteToAccountRate).toBe("");
+		const plan = calculateInitialRisk({ ...data, accountCurrency: "USD" });
+		expect(plan.initialRiskAmount).toBeNull();
+		expect(plan.initialRiskPercent).toBeNull();
+	});
+
 	it("writes the draft after a pause and restores it after a remount", async () => {
 		const view = setup();
 		fillTrade();

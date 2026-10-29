@@ -1,4 +1,13 @@
 import { useId } from "react";
+import { useFormContext } from "react-hook-form";
+import {
+	FormControl,
+	FormDescription,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatMoney } from "@/lib/currency";
@@ -27,42 +36,27 @@ export function RiskFields({
 	portfolioId?: number;
 	onChange: (patch: Partial<RiskInputs & { ruleNote: string }>) => void;
 }) {
-	const id = useId();
 	const unknown = !resolveInstrumentSpec(values.symbol).quoteCurrency;
 	return (
 		<section className="space-y-3" aria-label="Original risk plan">
 			{FIELDS.map(([name, label]) => (
-				<div key={name} className="space-y-1.5">
-					<Label htmlFor={`${id}-${name}`}>{label}</Label>
-					<Input
-						id={`${id}-${name}`}
-						inputMode="decimal"
-						value={values[name] ?? ""}
-						onChange={(e) => onChange({ [name]: e.target.value })}
-					/>
-				</div>
+				<RiskInput
+					key={name}
+					name={name}
+					label={label}
+					value={values[name] ?? ""}
+					onChange={(value) => onChange({ [name]: value })}
+				/>
 			))}
-			{unknown && (
-				<div className="space-y-1.5">
-					<Label htmlFor={`${id}-quote`}>
-						Confirm unit-based quantity: quote currency
-					</Label>
-					<Input
-						id={`${id}-quote`}
-						maxLength={3}
-						placeholder="e.g. USD"
-						value={values.confirmedUnitQuoteCurrency ?? ""}
-						onChange={(e) =>
-							onChange({
-								confirmedUnitQuoteCurrency: e.target.value.toUpperCase(),
-							})
-						}
-					/>
-					<p className="text-xs text-muted-foreground">
-						Entering a currency confirms this quantity is units, not broker
-						lots. Leave blank if the contract is unknown.
-					</p>
-				</div>
+			{(unknown || Boolean(values.confirmedUnitQuoteCurrency)) && (
+				<RiskInput
+					name="confirmedUnitQuoteCurrency"
+					label="Confirm unit-based quantity: quote currency"
+					value={values.confirmedUnitQuoteCurrency ?? ""}
+					onChange={(value) =>
+						onChange({ confirmedUnitQuoteCurrency: value.toUpperCase() })
+					}
+				/>
 			)}
 			<RiskPreview values={values} currency={currency} />
 			{portfolioId !== undefined && (
@@ -77,6 +71,68 @@ export function RiskFields({
 				from exit FX. Balance is optional; review it at the original entry time.
 			</p>
 		</section>
+	);
+}
+
+type RiskFieldName = (typeof FIELDS)[number][0] | "confirmedUnitQuoteCurrency";
+
+function RiskInput({
+	name,
+	label,
+	value,
+	onChange,
+}: {
+	name: RiskFieldName;
+	label: string;
+	value: string;
+	onChange: (value: string) => void;
+}) {
+	const form = useFormContext<TradeCaptureValues>();
+	const id = useId();
+	const isQuote = name === "confirmedUnitQuoteCurrency";
+	const description = isQuote
+		? "Entering a currency confirms this quantity is units, not broker lots. Leave blank if the contract is unknown."
+		: undefined;
+	const inputProps = {
+		inputMode: isQuote ? ("text" as const) : ("decimal" as const),
+		maxLength: isQuote ? 3 : undefined,
+		placeholder: isQuote ? "e.g. USD" : undefined,
+		value,
+		onChange: (event: React.ChangeEvent<HTMLInputElement>) =>
+			onChange(event.target.value),
+	};
+	if (!form)
+		return (
+			<div className="space-y-1.5">
+				<Label htmlFor={id}>{label}</Label>
+				<Input {...inputProps} id={id} />
+				{description && (
+					<p className="text-xs text-muted-foreground">{description}</p>
+				)}
+			</div>
+		);
+	return (
+		<FormField
+			control={form.control}
+			name={name}
+			render={({ field }) => (
+				<FormItem>
+					<FormLabel>{label}</FormLabel>
+					<FormControl>
+						<Input
+							{...inputProps}
+							name={field.name}
+							ref={field.ref}
+							onBlur={field.onBlur}
+						/>
+					</FormControl>
+					{description && (
+						<FormDescription className="text-xs">{description}</FormDescription>
+					)}
+					<FormMessage role="alert" />
+				</FormItem>
+			)}
+		/>
 	);
 }
 
