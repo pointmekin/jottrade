@@ -96,10 +96,10 @@ The `_authenticated` guard (`src/routes/_authenticated/route.tsx`) runs on the c
 ### Trade risk and R-multiples (PR #35)
 
 - **Entry**: risk fields in the trade form, the command palette trade preview and the setup calculator on the dashboard (`trade-risk-fields.tsx`); "Correct initial risk" on the trade detail page (`trade-risk-correction-form.tsx`, `trade-risk-details.tsx`).
-- **Flows**: capture the original stop and risk at entry; show planned reward/risk and realized net R for closed trades. Management edits keep the original denominator. A correction is revision-checked and stores a reason and the previous plan. Missing original risk stays unknown; it is never guessed.
+- **Flows**: capture the original stop and risk at entry; show planned reward/risk and realized net R for closed trades. Management edits keep the original denominator. A correction is revision-checked and stores a reason and the previous plan. Missing original risk stays unknown; it is never guessed. Capture and correction show schema errors beside each invalid optional stop, entry FX, balance and quote confirmation with accessible descriptions and invalid state; submitting focuses the first invalid control. A populated quote confirmation stays visible after a symbol change so it can be corrected or cleared. Correcting inputs keeps the draft and reviewed account; blank optional risk remains valid.
 - **Server**: `tradeActions.ts` (capture), `tradeRiskActions.ts` (`correctTradeInitialRisk`). Logic: `src/lib/trade-risk.ts`, `src/lib/trade-risk-schema.ts`, `src/lib/trade-capture.ts`.
 - **Data**: risk columns on `trades`.
-- **Verification**: Unit `trade-risk.test.ts`, `trade-risk-actions.test.ts`, `trade-risk-capture.test.tsx`. DB (optional) `feature-integration.test.ts`.
+- **Verification**: Unit `trade-risk.test.ts`, `trade-risk-actions.test.ts`, `trade-risk-capture.test.tsx` (correction focus and recovery), `trade-entry-form.test.tsx` (field errors, focus, recovery, draft identity/account pinning and blank risk). E2E `risk-capture.spec.ts` (keyboard recovery and saving at desktop and phone widths). DB (optional) `feature-integration.test.ts`.
 
 ### Positions with partial fills (issue #17)
 
