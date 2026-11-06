@@ -6,6 +6,7 @@ import { requireOwnedPortfolio } from "@/db/portfolios";
 import { trades } from "@/db/schema";
 import { positionRow } from "@/db/trade-filter";
 import { realizedAt } from "@/lib/analytics";
+import { REVIEW_QUEUE_PAGE_SIZE } from "@/lib/review";
 import { currentExecutionFingerprint } from "@/lib/review-execution-fingerprint";
 import { TradeStatus } from "@/lib/trade";
 import { authMiddleware } from "./auth-middleware";
@@ -57,7 +58,10 @@ export const getReviewQueue = createServerFn({ method: "GET" })
 		return {
 			total: pending.length,
 			trades: pending
-				.slice((data.page - 1) * 50, data.page * 50)
+				.slice(
+					(data.page - 1) * REVIEW_QUEUE_PAGE_SIZE,
+					data.page * REVIEW_QUEUE_PAGE_SIZE,
+				)
 				.map((trade) => ({
 					id: trade.id,
 					symbol: trade.symbol,

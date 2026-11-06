@@ -1,5 +1,10 @@
 import { formatMoney } from "@/lib/currency";
+import { METRIC_TONE_CLASS, toneOf } from "@/lib/metric";
 import type { ReviewResultSnapshot } from "@/lib/review";
+import { cn } from "@/lib/utils";
+
+const UNAVAILABLE_TEXT = "Unavailable";
+
 export function ReviewResults({
 	results,
 	currency,
@@ -11,40 +16,43 @@ export function ReviewResults({
 }) {
 	const money = (value: string | null) =>
 		value === null
-			? "Unavailable"
+			? UNAVAILABLE_TEXT
 			: formatMoney(Number(value), currency, { signed: true });
+	const tradingPnl =
+		results.tradingPnl === null ? null : Number(results.tradingPnl);
+	const rows: [string, string | number][] = [
+		["Realized trade P&L", money(results.tradePnl)],
+		["Broker adjustments", money(results.adjustmentPnl)],
+		["Net deposits / withdrawals", money(results.netDeposits)],
+		["Closed trades", results.closedTradeCount],
+		[
+			"Win rate",
+			results.winRate === null
+				? UNAVAILABLE_TEXT
+				: `${results.winRate.toFixed(1)}%`,
+		],
+	];
 	return (
-		<section className="surface space-y-3 p-4">
-			<h2 className="font-semibold">{label}</h2>
-			<dl className="grid grid-cols-2 gap-3 text-sm">
-				<div>
-					<dt className="text-muted-foreground">Realized trade P&L</dt>
-					<dd>{money(results.tradePnl)}</dd>
-				</div>
-				<div>
-					<dt className="text-muted-foreground">Broker adjustments</dt>
-					<dd>{money(results.adjustmentPnl)}</dd>
-				</div>
-				<div>
-					<dt className="text-muted-foreground">Trading result</dt>
-					<dd>{money(results.tradingPnl)}</dd>
-				</div>
-				<div>
-					<dt className="text-muted-foreground">Net deposits / withdrawals</dt>
-					<dd>{money(results.netDeposits)}</dd>
-				</div>
-				<div>
-					<dt className="text-muted-foreground">Closed trades</dt>
-					<dd>{results.closedTradeCount}</dd>
-				</div>
-				<div>
-					<dt className="text-muted-foreground">Win rate</dt>
-					<dd>
-						{results.winRate === null
-							? "Unavailable"
-							: `${results.winRate.toFixed(1)}%`}
-					</dd>
-				</div>
+		<section className="surface space-y-4 p-4" aria-label={label}>
+			<div>
+				<h2 className="text-sm font-semibold">{label}</h2>
+				<p className="field-label mt-3">Trading result</p>
+				<p
+					className={cn(
+						"metric-value mt-1",
+						tradingPnl !== 0 && METRIC_TONE_CLASS[toneOf(tradingPnl)],
+					)}
+				>
+					{money(results.tradingPnl)}
+				</p>
+			</div>
+			<dl className="space-y-2 border-t border-border pt-3 text-sm">
+				{rows.map(([term, value]) => (
+					<div key={term} className="flex items-baseline justify-between gap-3">
+						<dt className="text-muted-foreground">{term}</dt>
+						<dd className="font-data">{value}</dd>
+					</div>
+				))}
 			</dl>
 			{results.missingPnlCount > 0 && (
 				<p className="text-xs text-muted-foreground">

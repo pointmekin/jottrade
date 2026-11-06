@@ -6,7 +6,8 @@ import { SizingFinding } from "@/components/dashboard/sizing-finding";
 import { TagFindings } from "@/components/dashboard/tag-findings";
 import { MetricCardSkeleton } from "@/components/metric-card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCurrency } from "@/hooks/use-currency";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MetricVariant } from "@/lib/metric";
 import type { getAdvancedAnalytics } from "@/server/getAdvancedAnalytics";
 
 type AdvancedAnalytics = Awaited<ReturnType<typeof getAdvancedAnalytics>>;
@@ -18,17 +19,18 @@ const PerformanceCharts = lazy(() =>
 );
 
 const METRICS = ["sharpe", "drawdown", "payoff", "hold"];
-const CHARTS = ["strategy", "symbol", "day", "hour"];
 
-function ChartsSkeleton() {
+const Finding = {
+	Tags: "tags",
+	Sizing: "sizing",
+	Sessions: "sessions",
+} as const;
+
+function ChartSkeleton() {
 	return (
-		<div className="grid grid-cols-1 gap-4 md:grid-cols-2" aria-hidden="true">
-			{CHARTS.map((key) => (
-				<div key={key} className="surface p-3 sm:p-4">
-					<Skeleton className="h-4 w-40" />
-					<Skeleton className="mt-4 h-48 w-full" />
-				</div>
-			))}
+		<div className="space-y-5" aria-hidden="true">
+			<Skeleton className="h-9 w-80 max-w-full" />
+			<Skeleton className="h-[264px] w-full" />
 		</div>
 	);
 }
@@ -38,67 +40,102 @@ function RiskSectionSkeleton() {
 		<>
 			<div className="metric-row grid-cols-2 md:grid-cols-4">
 				{METRICS.map((key) => (
-					<MetricCardSkeleton key={key} />
+					<MetricCardSkeleton key={key} variant={MetricVariant.Cell} />
 				))}
 			</div>
-			<ChartsSkeleton />
+			<ChartSkeleton />
 		</>
+	);
+}
+
+function FindingsSection({ data }: { data: AdvancedAnalytics }) {
+	const { findings } = data;
+	const hasTags = findings.tags.length > 0;
+	return (
+		<section className="page-section space-y-4" aria-label="Findings">
+			<SectionHeading
+				title="Findings"
+				detail="How tags, sizing and sessions relate to your results"
+			/>
+			<Tabs
+				defaultValue={hasTags ? Finding.Tags : Finding.Sizing}
+				className="gap-4"
+			>
+				<TabsList aria-label="Finding">
+					{hasTags && (
+						<TabsTrigger value={Finding.Tags} className="px-3 max-sm:h-9">
+							Tags
+						</TabsTrigger>
+					)}
+					<TabsTrigger value={Finding.Sizing} className="px-3 max-sm:h-9">
+						Sizing after a loss
+					</TabsTrigger>
+					<TabsTrigger value={Finding.Sessions} className="px-3 max-sm:h-9">
+						Sessions
+					</TabsTrigger>
+				</TabsList>
+				<TabsContent value={Finding.Tags}>
+					<TagFindings scope={findings.scope} tags={findings.tags} />
+				</TabsContent>
+				<TabsContent value={Finding.Sizing}>
+					<SizingFinding sizing={findings.sizing} />
+				</TabsContent>
+				<TabsContent value={Finding.Sessions}>
+					<SessionFindings
+						scope={findings.scope}
+						sessions={findings.sessions}
+					/>
+				</TabsContent>
+			</Tabs>
+		</section>
 	);
 }
 
 export function RiskSection({
 	data,
 	isLoading,
-	periodLabel,
 	isAccountWide,
 }: {
 	data: AdvancedAnalytics | undefined;
 	isLoading: boolean;
-	periodLabel: string;
 	isAccountWide?: boolean;
 }) {
-	const currency = useCurrency();
 	if (!isLoading && !data) return null;
 
 	return (
-		<section className="mt-6 space-y-4 sm:mt-8">
-			<SectionHeading
-				title="Risk and performance"
-				detail={
-					data
-						? `${data.riskMetrics.closedTrades} closed trades · ${periodLabel} · ${currency}`
-						: periodLabel
-				}
-			/>
-			{data ? (
-				<>
-					<RiskMetrics
-						metrics={data.riskMetrics}
-						isAccountWide={isAccountWide}
-					/>
-					<Suspense fallback={<ChartsSkeleton />}>
-						<PerformanceCharts
-							closedTrades={data.riskMetrics.closedTrades}
-							insightCoverage={data.insightCoverage}
-							byStrategy={data.byStrategy}
-							bySymbol={data.bySymbol}
-							byTag={data.byTag}
-							byAdherence={data.byAdherence}
-							byRuleCheck={data.byRuleCheck}
-							byDayOfWeek={data.byDayOfWeek}
-							byHour={data.byHour}
+		<>
+			<section className="page-section space-y-6" aria-label="Performance">
+				<SectionHeading
+					title="Performance"
+					detail={
+						data ? `${data.riskMetrics.closedTrades} closed trades` : undefined
+					}
+				/>
+				{data ? (
+					<>
+						<RiskMetrics
+							metrics={data.riskMetrics}
+							isAccountWide={isAccountWide}
 						/>
-					</Suspense>
-					<TagFindings scope={data.findings.scope} tags={data.findings.tags} />
-					<SizingFinding sizing={data.findings.sizing} />
-					<SessionFindings
-						scope={data.findings.scope}
-						sessions={data.findings.sessions}
-					/>
-				</>
-			) : (
-				<RiskSectionSkeleton />
-			)}
-		</section>
+						<Suspense fallback={<ChartSkeleton />}>
+							<PerformanceCharts
+								closedTrades={data.riskMetrics.closedTrades}
+								insightCoverage={data.insightCoverage}
+								byStrategy={data.byStrategy}
+								bySymbol={data.bySymbol}
+								byTag={data.byTag}
+								byAdherence={data.byAdherence}
+								byRuleCheck={data.byRuleCheck}
+								byDayOfWeek={data.byDayOfWeek}
+								byHour={data.byHour}
+							/>
+						</Suspense>
+					</>
+				) : (
+					<RiskSectionSkeleton />
+				)}
+			</section>
+			{data && <FindingsSection data={data} />}
+		</>
 	);
 }

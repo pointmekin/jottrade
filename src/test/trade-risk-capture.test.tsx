@@ -234,7 +234,7 @@ describe("risk capture flows", () => {
 				}}
 			/>,
 		);
-		fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+		fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 		await waitFor(() => expect(updateTrade).toHaveBeenCalledOnce());
 		expect(vi.mocked(updateTrade).mock.calls[0][0].data.exitDate).toBe(
 			"2026-10-01T12:00:32.123Z",

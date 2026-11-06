@@ -200,6 +200,17 @@ a {
     @apply rounded-lg border border-border bg-card;
   }
 
+  .page-section {
+    @apply mt-8 border-t border-border pt-6 sm:mt-10;
+  }
+
+  .hero-value {
+    @apply text-[2.25rem] font-semibold leading-none text-foreground sm:text-[2.75rem];
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+  }
+
   .metric-value {
     @apply text-2xl font-semibold leading-tight text-foreground;
     font-family: var(--font-mono);

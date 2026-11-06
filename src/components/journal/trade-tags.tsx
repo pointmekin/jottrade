@@ -28,14 +28,9 @@ export function TradeTags({ trade }: { trade: Trade }) {
 	return (
 		<section aria-labelledby={headingId} className="space-y-2">
 			<div className="flex items-center justify-between gap-3">
-				<div>
-					<h3 id={headingId} className="text-sm font-medium">
-						Tags
-					</h3>
-					<p className="text-xs text-muted-foreground">
-						Mark every factor that applied, such as news, late entry or tilt.
-					</p>
-				</div>
+				<h3 id={headingId} className="text-sm font-medium">
+					Tags
+				</h3>
 				<TagPicker
 					align="end"
 					selectedIds={selectedIds}
@@ -64,7 +59,9 @@ export function TradeTags({ trade }: { trade: Trade }) {
 					))}
 				</ul>
 			) : (
-				<p className="text-xs text-muted-foreground">No tags on this trade.</p>
+				<p className="text-sm text-muted-foreground">
+					No tags yet. Add the factors that applied, such as news or tilt.
+				</p>
 			)}
 		</section>
 	);

@@ -78,9 +78,9 @@ export function PositionTimeline({ trade }: { trade: Trade }) {
 	return (
 		<section className="space-y-3" aria-labelledby={`fills-${trade.id}`}>
 			<div className="flex flex-wrap items-center justify-between gap-2">
-				<h2 id={`fills-${trade.id}`} className="text-sm font-medium">
+				<h3 id={`fills-${trade.id}`} className="text-sm font-medium">
 					Fills
-				</h2>
+				</h3>
 				{!isImported && open > 0 && (
 					<div className="flex gap-2">
 						<Button

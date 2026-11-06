@@ -1,7 +1,7 @@
 import { MetricCard } from "@/components/metric-card";
 import { useCurrency } from "@/hooks/use-currency";
 import { formatMoney } from "@/lib/currency";
-import { UNAVAILABLE } from "@/lib/metric";
+import { MetricVariant, UNAVAILABLE } from "@/lib/metric";
 import {
 	type Drawdown,
 	MIN_SHARPE_DAYS,
@@ -54,6 +54,7 @@ export function RiskMetrics({
 	return (
 		<div className="metric-row grid-cols-2 md:grid-cols-4">
 			<MetricCard
+				variant={MetricVariant.Cell}
 				label="Sharpe (realized)"
 				value={sharpe.value?.toFixed(2) ?? UNAVAILABLE}
 				sub={accountWide(sharpeSub(sharpe))}
@@ -71,6 +72,7 @@ export function RiskMetrics({
 				}
 			/>
 			<MetricCard
+				variant={MetricVariant.Cell}
 				label="Max drawdown"
 				value={money(-maxDrawdown.dollars || 0)}
 				sub={accountWide(drawdownSub(maxDrawdown))}
@@ -90,6 +92,7 @@ export function RiskMetrics({
 				}
 			/>
 			<MetricCard
+				variant={MetricVariant.Cell}
 				label="Payoff ratio"
 				value={payoff.ratio?.toFixed(2) ?? UNAVAILABLE}
 				sub={
@@ -112,6 +115,7 @@ export function RiskMetrics({
 				}
 			/>
 			<MetricCard
+				variant={MetricVariant.Cell}
 				label="Avg hold time"
 				value={
 					avgHoldTimeHours === null ? UNAVAILABLE : formatHold(avgHoldTimeHours)

@@ -105,39 +105,34 @@ export function ReviewEditor({
 			]),
 	});
 	return (
-		<div className="grid gap-5 lg:grid-cols-2">
-			<div className="space-y-4">
+		<div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+			<aside className="space-y-4 lg:order-last">
 				<ReviewSummary review={review} completed={completed} />
 				<ReviewRuleViolations
 					portfolioId={portfolioId}
 					kind={kind}
 					window={review.window}
 				/>
-			</div>
-			<section className="surface space-y-4 p-5">
-				<h2 className="font-semibold">
-					{completed ? "Completed review" : "Review notes"}
-				</h2>
-				<Link
-					to="/reviews"
-					search={{ kind, day: start, start, account: portfolioId }}
-					className="text-xs underline"
-				>
-					Link to this account and period
-				</Link>
-				<p className="text-sm text-muted-foreground">
-					Every prompt is optional. Completing this period does not mark its
-					trades reviewed.
-				</p>
+			</aside>
+			<section className="min-w-0 space-y-5" aria-label="Review notes">
+				<div>
+					<h2 className="text-base font-semibold">
+						{completed ? "Completed review" : "Review notes"}
+					</h2>
+					<p className="field-label mt-1">
+						Every prompt is optional. Completing this period does not mark its
+						trades reviewed.
+					</p>
+				</div>
 				{review.previousCommitment && (
-					<aside className="rounded border p-3 text-sm">
+					<aside className="rounded-md bg-muted/50 p-3 text-sm">
 						<p className="font-medium">Previous weekly commitment</p>
 						<p className="whitespace-pre-wrap">{review.previousCommitment}</p>
 					</aside>
 				)}
 				{REVIEW_FIELDS.map((field) => (
 					<div key={field} className="space-y-2">
-						<label className="text-sm" htmlFor={`review-${field}`}>
+						<label className="text-sm font-medium" htmlFor={`review-${field}`}>
 							{PROMPTS[field]}
 						</label>
 						<Textarea
@@ -188,17 +183,27 @@ export function ReviewEditor({
 						Copy review text
 					</Button>
 				)}
-				<Button
-					disabled={
-						mutation.isPending ||
-						(!completed &&
-							(autosave.status !== "saved" ||
-								review.currency !== review.liveCurrency))
-					}
-					onClick={() => mutation.mutate()}
-				>
-					{completed ? "Reopen review" : "Complete period review"}
-				</Button>
+				<div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+					<Link
+						to="/reviews"
+						search={{ kind, day: start, start, account: portfolioId }}
+						className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+					>
+						Link to this account and period
+					</Link>
+					<Button
+						variant={completed ? "outline" : "default"}
+						disabled={
+							mutation.isPending ||
+							(!completed &&
+								(autosave.status !== "saved" ||
+									review.currency !== review.liveCurrency))
+						}
+						onClick={() => mutation.mutate()}
+					>
+						{completed ? "Reopen review" : "Complete period review"}
+					</Button>
+				</div>
 				{mutation.isError && (
 					<p role="alert" className="text-sm text-destructive">
 						{mutation.error.message}
@@ -289,7 +294,7 @@ function ReviewSources({
 		: review.sources.flows;
 	return (
 		<section className="surface space-y-3 p-4">
-			<h2 className="font-semibold">Source records</h2>
+			<h2 className="text-sm font-semibold">Source records</h2>
 			{trades.length === 0 && (
 				<p className="text-sm text-muted-foreground">
 					No trades in this period. You can still write notes and complete a

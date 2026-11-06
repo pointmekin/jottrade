@@ -1,13 +1,13 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Crosshair } from "lucide-react";
+import { Crosshair } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 import { SectionHeading } from "@/components/app-page-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCurrency } from "@/hooks/use-currency";
 import type { EquityPoint } from "@/lib/analytics";
 import { EQUITY_SERIES_LABEL, EquitySeries } from "@/lib/equity-series";
 import { JournalIntent } from "@/lib/journal-search";
+import { cn } from "@/lib/utils";
 
 const EquityCurveChart = lazy(() =>
 	import("@/components/dashboard/DashboardCharts").then((module) => ({
@@ -31,23 +31,23 @@ function SeriesToggle({
 	onChange: (series: EquitySeries) => void;
 }) {
 	return (
-		<fieldset className="flex gap-1">
+		<fieldset className="inline-flex rounded-md border border-border bg-muted p-0.5">
 			<legend className="sr-only">Curve</legend>
 			{Object.values(EquitySeries).map((series) => (
-				<Button
+				<button
 					key={series}
-					size="sm"
-					variant="outline"
-					className={
+					type="button"
+					className={cn(
+						"h-7 rounded-sm px-2.5 text-[0.8125rem] font-medium transition-colors duration-150 max-sm:h-9",
 						value === series
-							? "border-ring bg-accent text-accent-foreground"
-							: "text-muted-foreground"
-					}
+							? "bg-background text-foreground shadow-xs"
+							: "text-muted-foreground hover:text-foreground",
+					)}
 					aria-pressed={value === series}
 					onClick={() => onChange(series)}
 				>
 					{EQUITY_SERIES_LABEL[series]}
-				</Button>
+				</button>
 			))}
 		</fieldset>
 	);
@@ -95,30 +95,24 @@ export function EquityCurveSection({
 	periodLabel,
 	isAccountWide,
 }: EquityCurveSectionProps) {
-	const currency = useCurrency();
 	const [series, setSeries] = useState<EquitySeries>(EquitySeries.Balance);
-	const detail =
+	const detail = [
+		isAccountWide && "Account-wide",
 		series === EquitySeries.Performance
-			? `Trading P&L only, no deposits or withdrawals · ${periodLabel} · ${currency}`
-			: `${totalTrades} trades · ${periodLabel} · ${currency}`;
+			? "Trading P&L only, no deposits or withdrawals"
+			: `${totalTrades} trades`,
+	]
+		.filter(Boolean)
+		.join(" · ");
 
 	return (
-		<section className="surface mt-6 p-3 sm:p-4 md:p-5">
+		<section className="mt-8" aria-label="Equity curve">
 			<SectionHeading
 				title="Equity curve"
-				detail={isAccountWide ? `Account-wide · ${detail}` : detail}
-				actions={
-					<div className="flex items-center gap-2">
-						<SeriesToggle value={series} onChange={setSeries} />
-						<Button asChild variant="outline" size="sm">
-							<Link to="/journal">
-								Open journal <ArrowRight className="size-4" />
-							</Link>
-						</Button>
-					</div>
-				}
+				detail={detail}
+				actions={<SeriesToggle value={series} onChange={setSeries} />}
 			/>
-			<div className="mt-3 h-[18rem] sm:mt-4 sm:h-[20rem] md:h-[22rem]">
+			<div className="mt-4 h-[16rem] sm:h-[20rem] md:h-[22rem]">
 				<CurveBody
 					data={data}
 					isLoading={isLoading}

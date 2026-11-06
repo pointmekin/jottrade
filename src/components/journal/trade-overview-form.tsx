@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useId } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { FoldedFields } from "@/components/journal/trade-risk-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +17,12 @@ import {
 import { NO_STRATEGY } from "@/lib/journal-search";
 import { strategyLabel } from "@/lib/playbook";
 import { invalidateTradeQueries, QueryKey } from "@/lib/query-keys";
-import { type Trade, TradeConfidence } from "@/lib/trade";
+import {
+	TRADE_CONFIDENCE_LABEL,
+	type Trade,
+	TradeConfidence,
+} from "@/lib/trade";
+import { cn } from "@/lib/utils";
 import { getStrategies } from "@/server/strategyActions";
 import { updateTrade } from "@/server/tradeActions";
 
@@ -49,14 +55,19 @@ type OverviewValues = z.infer<typeof overviewSchema>;
 
 function FieldGroup({
 	label,
+	className,
 	children,
 }: {
 	label: string;
+	className?: string;
 	children: ReactNode;
 }) {
 	const labelId = useId();
 	return (
-		<fieldset aria-labelledby={labelId} className="min-w-0 space-y-1.5">
+		<fieldset
+			aria-labelledby={labelId}
+			className={cn("min-w-0 space-y-1.5", className)}
+		>
 			<Label id={labelId} className="field-label">
 				{label}
 			</Label>
@@ -78,7 +89,7 @@ function OptionSelect({
 }) {
 	return (
 		<Select value={value} onValueChange={onChange}>
-			<SelectTrigger className="border-input bg-background">
+			<SelectTrigger className="w-full border-input bg-background">
 				<SelectValue placeholder={placeholder} />
 			</SelectTrigger>
 			<SelectContent>
@@ -120,10 +131,11 @@ export function TradeOverviewForm({ trade }: { trade: Trade }) {
 		queryKey: [QueryKey.Strategies],
 		queryFn: () => getStrategies(),
 	});
-	const { register, handleSubmit, setValue, watch } = useForm<OverviewValues>({
-		resolver: zodResolver(overviewSchema),
-		values: valuesOf(trade),
-	});
+	const { register, handleSubmit, setValue, watch, formState } =
+		useForm<OverviewValues>({
+			resolver: zodResolver(overviewSchema),
+			values: valuesOf(trade),
+		});
 	const save = useMutation({
 		mutationFn: ({ setupId, ...values }: OverviewValues) =>
 			updateTrade({
@@ -143,20 +155,76 @@ export function TradeOverviewForm({ trade }: { trade: Trade }) {
 	return (
 		<form
 			onSubmit={handleSubmit((values) => save.mutate(values))}
-			className="space-y-4"
+			className="space-y-5"
 		>
-			<div className="grid grid-cols-2 gap-3">
-				<FieldGroup label="Entry Price">
+			<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+				<FieldGroup label="Strategy">
+					<OptionSelect
+						value={watch("setupId") ?? NO_STRATEGY}
+						onChange={(value) =>
+							setValue("setupId", value, { shouldDirty: true })
+						}
+						placeholder="Select strategy"
+						options={[
+							{ value: NO_STRATEGY, label: "None" },
+							...strategies
+								.filter((s) => !s.archivedAt || s.id === trade.setupId)
+								.map((s) => ({ value: String(s.id), label: strategyLabel(s) })),
+						]}
+					/>
+				</FieldGroup>
+				<FieldGroup label="Confidence">
+					<OptionSelect
+						value={watch("confidence") ?? ""}
+						onChange={(value) =>
+							setValue("confidence", value as TradeConfidence, {
+								shouldDirty: true,
+							})
+						}
+						placeholder="Select confidence"
+						options={Object.values(TradeConfidence).map((value) => ({
+							value,
+							label: TRADE_CONFIDENCE_LABEL[value],
+						}))}
+					/>
+				</FieldGroup>
+				<FieldGroup label="Mistake">
+					<OptionSelect
+						value={watch("mistake") ?? ""}
+						onChange={(value) =>
+							setValue("mistake", value, { shouldDirty: true })
+						}
+						placeholder="Any mistake?"
+						options={[
+							{ value: NO_MISTAKE, label: "None" },
+							...MISTAKE_OPTIONS.map((value) => ({ value, label: value })),
+						]}
+					/>
+				</FieldGroup>
+			</div>
+			<div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+				<FieldGroup label="Entry price">
 					<Input
 						{...register("entryPrice")}
 						readOnly={Boolean(trade.initialRiskSnapshot)}
 						className={INPUT_CLASS}
 					/>
-					{trade.initialRiskSnapshot && (
-						<p className="text-xs text-muted-foreground">
-							Use Correct original plan to change recorded entry facts.
-						</p>
-					)}
+				</FieldGroup>
+				<FieldGroup label="Exit price">
+					<Input {...register("exitPrice")} className={INPUT_CLASS} />
+				</FieldGroup>
+				<FieldGroup label="Exit date (UTC)" className="max-sm:col-span-2">
+					<Input
+						type="datetime-local"
+						{...register("exitDate")}
+						className={INPUT_CLASS}
+					/>
+				</FieldGroup>
+				<FieldGroup label="Quantity">
+					<Input {...register("quantity")} className={INPUT_CLASS} />
+				</FieldGroup>
+				<FieldGroup label="Fees">
+					<Input {...register("fees")} className={INPUT_CLASS} />
 				</FieldGroup>
 				<FieldGroup label="Planned target price">
 					<Input
@@ -167,81 +235,48 @@ export function TradeOverviewForm({ trade }: { trade: Trade }) {
 						className={INPUT_CLASS}
 					/>
 				</FieldGroup>
-				<FieldGroup label="Exit Price">
-					<Input {...register("exitPrice")} className={INPUT_CLASS} />
-				</FieldGroup>
-				<FieldGroup label="Management stop price">
-					<Input {...register("managementStopPrice")} className={INPUT_CLASS} />
-				</FieldGroup>
-				<FieldGroup label="Exit date (UTC)">
-					<Input
-						type="datetime-local"
-						{...register("exitDate")}
-						className={INPUT_CLASS}
-					/>
-				</FieldGroup>
-				<FieldGroup label="Exit FX rate">
-					<Input
-						{...register("exitQuoteToAccountRate")}
-						className={INPUT_CLASS}
-					/>
-				</FieldGroup>
-				<FieldGroup label="Quantity">
-					<Input {...register("quantity")} className={INPUT_CLASS} />
-				</FieldGroup>
-				<FieldGroup label="Fees">
-					<Input {...register("fees")} className={INPUT_CLASS} />
-				</FieldGroup>
 			</div>
-			<FieldGroup label="Confidence">
-				<OptionSelect
-					value={watch("confidence") ?? ""}
-					onChange={(value) => setValue("confidence", value as TradeConfidence)}
-					placeholder="Select confidence"
-					options={Object.values(TradeConfidence).map((value) => ({
-						value,
-						label: value,
-					}))}
-				/>
-			</FieldGroup>
-			<FieldGroup label="Mistake">
-				<OptionSelect
-					value={watch("mistake") ?? ""}
-					onChange={(value) => setValue("mistake", value)}
-					placeholder="Any mistake?"
-					options={[
-						{ value: NO_MISTAKE, label: "None" },
-						...MISTAKE_OPTIONS.map((value) => ({ value, label: value })),
-					]}
-				/>
-			</FieldGroup>
-			<FieldGroup label="Strategy">
-				<OptionSelect
-					value={watch("setupId") ?? NO_STRATEGY}
-					onChange={(value) => setValue("setupId", value)}
-					placeholder="Select strategy"
-					options={[
-						{ value: NO_STRATEGY, label: "None" },
-						...strategies
-							.filter((s) => !s.archivedAt || s.id === trade.setupId)
-							.map((s) => ({ value: String(s.id), label: strategyLabel(s) })),
-					]}
-				/>
-			</FieldGroup>
+			{trade.initialRiskSnapshot && (
+				<p className="text-xs text-muted-foreground">
+					Entry price is part of the original plan. Use Correct original plan to
+					change it.
+				</p>
+			)}
+			<FoldedFields title="More fields" isOpen={hasAdvancedValues(trade)}>
+				<div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+					<FieldGroup label="Management stop price">
+						<Input
+							{...register("managementStopPrice")}
+							className={INPUT_CLASS}
+						/>
+					</FieldGroup>
+					<FieldGroup label="Exit FX rate">
+						<Input
+							{...register("exitQuoteToAccountRate")}
+							className={INPUT_CLASS}
+						/>
+					</FieldGroup>
+				</div>
+			</FoldedFields>
 			{save.error && (
 				<p role="alert" className="text-sm text-destructive">
 					{save.error.message}
 				</p>
 			)}
-			<Button
-				type="submit"
-				disabled={save.isPending}
-				className="w-full font-medium"
-			>
-				{save.isPending ? "Saving…" : "Save Changes"}
-			</Button>
+			<div className="flex items-center justify-end gap-3">
+				{save.isSuccess && !formState.isDirty && (
+					<span className="text-xs text-muted-foreground">Saved</span>
+				)}
+				<Button type="submit" disabled={save.isPending}>
+					{save.isPending ? "Saving…" : "Save changes"}
+				</Button>
+			</div>
 		</form>
 	);
+}
+
+function hasAdvancedValues(trade: Trade) {
+	return Boolean(trade.managementStopPrice || trade.exitQuoteToAccountRate);
 }
 
 function overviewExitDate(value: string, stored: Date | null | undefined) {
