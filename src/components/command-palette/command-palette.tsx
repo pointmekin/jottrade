@@ -1,5 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { CommandGlimmer } from "@/components/command-palette/command-glimmer";
 import { CommandPreview } from "@/components/command-palette/command-preview";
 import { CommandSearch } from "@/components/command-palette/command-search";
 import { useTheme } from "@/components/theme-provider";
@@ -130,8 +131,9 @@ export function CommandPalette({
 			}}
 		>
 			<DialogContent
-				className="max-h-[85dvh] overflow-y-auto p-0 sm:max-w-lg"
+				className="top-[12dvh] max-h-[85dvh] translate-y-0 overflow-y-auto p-0 sm:max-w-lg"
 				showCloseButton={!saving}
+				backdrop={<CommandGlimmer />}
 			>
 				<DialogTitle className="sr-only">JotTrade commands</DialogTitle>
 				<DialogDescription className="sr-only">

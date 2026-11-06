@@ -48,13 +48,16 @@ function DialogContent({
 	className,
 	children,
 	showCloseButton = true,
+	backdrop,
 	...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
 	showCloseButton?: boolean;
+	/** Drawn on the overlay: above the dimmed page, below the dialog. */
+	backdrop?: React.ReactNode;
 }) {
 	return (
 		<DialogPortal data-slot="dialog-portal">
-			<DialogOverlay />
+			<DialogOverlay>{backdrop}</DialogOverlay>
 			<DialogPrimitive.Content
 				data-slot="dialog-content"
 				className={cn(
