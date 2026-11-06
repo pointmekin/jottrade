@@ -16,6 +16,12 @@ export type MetricTone = (typeof MetricTone)[keyof typeof MetricTone];
 
 export const UNAVAILABLE = "—";
 
+export const METRIC_TONE_CLASS: Record<MetricTone, string> = {
+	[MetricTone.Neutral]: "",
+	[MetricTone.Positive]: "text-success",
+	[MetricTone.Negative]: "text-destructive",
+};
+
 export function toneOf(value: number | null): MetricTone {
 	if (value === null) return MetricTone.Neutral;
 	return value >= 0 ? MetricTone.Positive : MetricTone.Negative;

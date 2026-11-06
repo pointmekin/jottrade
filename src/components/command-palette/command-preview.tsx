@@ -235,14 +235,11 @@ export function CommandPreview({
 				mutation.mutate();
 			}}
 		>
-			<div>
-				<h2 className="font-semibold">{titleOf(intent)}</h2>
-				<p className="text-sm text-muted-foreground">
-					Review the details, then confirm to save.
-				</p>
-			</div>
+			<h2 className="pr-8 text-base font-semibold">{titleOf(intent)}</h2>
 			{warning && (
-				<output className="text-sm text-muted-foreground">{warning}</output>
+				<output className="block rounded-md bg-warning/10 px-3 py-2 text-sm text-foreground">
+					{warning}
+				</output>
 			)}
 			<fieldset disabled={mutation.isPending} className="space-y-4">
 				<AccountSelect
@@ -283,8 +280,8 @@ export function CommandPreview({
 						{error}
 					</p>
 				)}
-				<div className="flex justify-between gap-3">
-					<Button type="button" variant="outline" onClick={onBack}>
+				<div className="flex justify-between gap-3 border-t border-border pt-4">
+					<Button type="button" variant="ghost" onClick={onBack}>
 						Back
 					</Button>
 					<Button

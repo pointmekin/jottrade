@@ -12,11 +12,9 @@ import { MetricCardSkeleton } from "@/components/metric-card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAccounts } from "@/hooks/use-accounts";
-import { useCurrency } from "@/hooks/use-currency";
-import { formatMoney } from "@/lib/currency";
 import { MetricVariant } from "@/lib/metric";
 import { QueryKey } from "@/lib/query-keys";
-import type { Trade } from "@/lib/trade";
+import { TRADE_SIDE_LABEL, TRADE_STATUS_LABEL, type Trade } from "@/lib/trade";
 import { getTradeById } from "@/server/getTrades";
 
 export const Route = createFileRoute("/_authenticated/journal_/$tradeId")({
@@ -30,17 +28,17 @@ function formatEntryDate(value: Date) {
 	});
 }
 
-function tradeMeta(trade: Trade, currency: string) {
-	const date = formatEntryDate(trade.entryDate);
-	if (!trade.netPnl) return date;
-	const pnl = formatMoney(Number(trade.netPnl), currency, { signed: true });
-	return `${date} · ${pnl} net P&L`;
+function tradeMeta(trade: Trade) {
+	return [
+		TRADE_SIDE_LABEL[trade.side],
+		trade.status ? TRADE_STATUS_LABEL[trade.status] : "Unspecified status",
+		formatEntryDate(trade.entryDate),
+	].join(" · ");
 }
 
 function JournalEntryPage() {
 	const navigate = useNavigate({ from: "/journal/$tradeId" });
 	const { tradeId } = useParams({ from: "/_authenticated/journal_/$tradeId" });
-	const currency = useCurrency();
 	const { activeAccount } = useAccounts();
 	const id = Number(tradeId);
 	const isValidId = Number.isInteger(id) && id > 0;
@@ -56,15 +54,10 @@ function JournalEntryPage() {
 
 	return (
 		<div className="app-page">
-			<main className="page-frame section-enter max-w-5xl space-y-5">
+			<main className="page-frame section-enter max-w-3xl">
 				<AppPageHeader
 					title={data?.symbol ?? "Journal entry"}
-					description={
-						data
-							? `${data.side} · ${data.status ?? "Unspecified status"} · Review and refine this trade.`
-							: "Review and refine a recorded trade."
-					}
-					meta={data ? tradeMeta(data, currency) : undefined}
+					meta={data ? tradeMeta(data) : undefined}
 					actions={<BackButton onClick={goBack} />}
 				/>
 				{isLoading && <JournalEntrySkeleton />}
@@ -88,7 +81,7 @@ function JournalEntryPage() {
 
 function BackButton({ onClick }: { onClick: () => void }) {
 	return (
-		<Button variant="outline" onClick={onClick}>
+		<Button variant="ghost" onClick={onClick}>
 			<ArrowLeft className="h-4 w-4" />
 			Back to Journal
 		</Button>
@@ -131,20 +124,23 @@ function EntryUnavailable({
 
 function JournalEntrySkeleton() {
 	return (
-		<>
-			<div className="grid grid-cols-2 gap-3">
-				<MetricCardSkeleton variant={MetricVariant.Compact} />
-				<MetricCardSkeleton variant={MetricVariant.Compact} />
-			</div>
-			<div className="surface space-y-4 p-5" aria-hidden="true">
-				<div className="grid grid-cols-2 gap-3">
-					{["entry", "target", "exit", "quantity", "fees"].map((field) => (
-						<Skeleton key={field} className="h-9 w-full" />
-					))}
+		<div aria-hidden="true">
+			<div className="flex flex-wrap items-end gap-x-12 gap-y-5">
+				<div>
+					<Skeleton className="h-4 w-16" />
+					<Skeleton className="mt-3 h-10 w-44" />
 				</div>
-				<Skeleton className="h-28 w-full" />
-				<Skeleton className="h-32 w-full" />
+				<div className="grid grid-cols-2 gap-x-8">
+					<MetricCardSkeleton variant={MetricVariant.Cell} />
+					<MetricCardSkeleton variant={MetricVariant.Cell} />
+				</div>
 			</div>
-		</>
+			<div className="page-section space-y-5">
+				<Skeleton className="h-5 w-20" />
+				<Skeleton className="h-4 w-32" />
+				<Skeleton className="h-32 w-full" />
+				<Skeleton className="h-9 w-32" />
+			</div>
+		</div>
 	);
 }

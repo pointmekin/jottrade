@@ -1,12 +1,19 @@
 import { MetricCard } from "@/components/metric-card";
 import { useCurrency } from "@/hooks/use-currency";
 import { formatMoney } from "@/lib/currency";
-import { MetricVariant, toneOf, UNAVAILABLE } from "@/lib/metric";
+import {
+	METRIC_TONE_CLASS,
+	MetricVariant,
+	toneOf,
+	UNAVAILABLE,
+} from "@/lib/metric";
 import type { AccountReturn } from "@/lib/risk-metrics";
 import { type Trade, TradeStatus } from "@/lib/trade";
+import { cn } from "@/lib/utils";
 
 interface TradeReturnsProps {
-	trade: Pick<Trade, "status" | "returnPercent">;
+	trade: Pick<Trade, "status" | "returnPercent"> &
+		Partial<Pick<Trade, "netPnl">>;
 	accountReturn: AccountReturn;
 }
 
@@ -37,35 +44,52 @@ export function TradeReturns({ trade, accountReturn }: TradeReturnsProps) {
 	const priceReturn =
 		trade.returnPercent === null ? null : Number(trade.returnPercent);
 
+	const netPnl = trade.netPnl == null ? null : Number(trade.netPnl);
+
 	return (
-		<section className="grid grid-cols-2 gap-3" aria-label="Trade returns">
-			<MetricCard
-				variant={MetricVariant.Compact}
-				label="Price return"
-				value={formatPercent(priceReturn)}
-				tone={toneOf(priceReturn)}
-				sub={priceReturnSub(isClosed, priceReturn)}
-				definition={
-					<p>
-						The move from entry to exit as a percent of the entry price. Fees,
-						leverage, swaps and currency conversion are not in it.
+		<section
+			className="flex flex-wrap items-end gap-x-12 gap-y-5"
+			aria-label="Trade returns"
+		>
+			{netPnl !== null && (
+				<div>
+					<p className="field-label">{"Net P&L"}</p>
+					<p
+						className={cn("hero-value mt-2", METRIC_TONE_CLASS[toneOf(netPnl)])}
+					>
+						{formatMoney(netPnl, currency, { signed: true })}
 					</p>
-				}
-			/>
-			<MetricCard
-				variant={MetricVariant.Compact}
-				label="Account return"
-				value={formatPercent(accountReturn.percent)}
-				tone={toneOf(accountReturn.percent)}
-				sub={accountReturnSub(isClosed, accountReturn, currency)}
-				definition={
-					<p>
-						{
-							"Net P&L over the account balance just before entry. That balance is every deposit, withdrawal, adjustment and closed trade before the entry time."
-						}
-					</p>
-				}
-			/>
+				</div>
+			)}
+			<div className="grid grid-cols-2 gap-x-8 [&>*+*]:border-l [&>*+*]:border-border [&>*+*]:pl-8">
+				<MetricCard
+					variant={MetricVariant.Cell}
+					label="Price return"
+					value={formatPercent(priceReturn)}
+					tone={toneOf(priceReturn)}
+					sub={priceReturnSub(isClosed, priceReturn)}
+					definition={
+						<p>
+							The move from entry to exit as a percent of the entry price. Fees,
+							leverage, swaps and currency conversion are not in it.
+						</p>
+					}
+				/>
+				<MetricCard
+					variant={MetricVariant.Cell}
+					label="Account return"
+					value={formatPercent(accountReturn.percent)}
+					tone={toneOf(accountReturn.percent)}
+					sub={accountReturnSub(isClosed, accountReturn, currency)}
+					definition={
+						<p>
+							{
+								"Net P&L over the account balance just before entry. That balance is every deposit, withdrawal, adjustment and closed trade before the entry time."
+							}
+						</p>
+					}
+				/>
+			</div>
 		</section>
 	);
 }

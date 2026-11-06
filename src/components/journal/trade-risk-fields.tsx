@@ -1,4 +1,5 @@
-import { useId } from "react";
+import { ChevronRight } from "lucide-react";
+import { type ReactNode, useId } from "react";
 import { useFormContext } from "react-hook-form";
 import {
 	FormControl,
@@ -25,39 +26,53 @@ const FIELDS = [
 	["entryQuoteToAccountRate", "Entry FX rate (account money per quote unit)"],
 	["balanceAccount", "Balance used for risk %"],
 ] as const;
+interface RiskFieldsProps {
+	values: TradeCaptureValues;
+	currency: string;
+	portfolioId?: number;
+	onChange: (patch: Partial<RiskInputs & { ruleNote: string }>) => void;
+	/** Shows the stop next to `leading` and folds the rare inputs away. */
+	isCompact?: boolean;
+	leading?: ReactNode;
+}
+
 export function RiskFields({
 	values,
 	currency,
 	portfolioId,
 	onChange,
-}: {
-	values: TradeCaptureValues;
-	currency: string;
-	portfolioId?: number;
-	onChange: (patch: Partial<RiskInputs & { ruleNote: string }>) => void;
-}) {
+	isCompact = false,
+	leading,
+}: RiskFieldsProps) {
 	const unknown = !resolveInstrumentSpec(values.symbol).quoteCurrency;
-	return (
-		<section className="space-y-3" aria-label="Original risk plan">
-			{FIELDS.map(([name, label]) => (
-				<RiskInput
-					key={name}
-					name={name}
-					label={label}
-					value={values[name] ?? ""}
-					onChange={(value) => onChange({ [name]: value })}
-				/>
-			))}
-			{(unknown || Boolean(values.confirmedUnitQuoteCurrency)) && (
-				<RiskInput
-					name="confirmedUnitQuoteCurrency"
-					label="Confirm unit-based quantity: quote currency"
-					value={values.confirmedUnitQuoteCurrency ?? ""}
-					onChange={(value) =>
-						onChange({ confirmedUnitQuoteCurrency: value.toUpperCase() })
-					}
-				/>
-			)}
+	const inputs = FIELDS.map(([name, label]) => (
+		<RiskInput
+			key={name}
+			name={name}
+			label={label}
+			value={values[name] ?? ""}
+			onChange={(value) => onChange({ [name]: value })}
+		/>
+	));
+	const quoteInput = (unknown ||
+		Boolean(values.confirmedUnitQuoteCurrency)) && (
+		<RiskInput
+			name="confirmedUnitQuoteCurrency"
+			label="Confirm unit-based quantity: quote currency"
+			value={values.confirmedUnitQuoteCurrency ?? ""}
+			onChange={(value) =>
+				onChange({ confirmedUnitQuoteCurrency: value.toUpperCase() })
+			}
+		/>
+	);
+	const note = (
+		<p className="text-xs text-muted-foreground">
+			Stop-distance risk excludes costs. Entry FX is historical and separate
+			from exit FX. Balance is optional; review it at the original entry time.
+		</p>
+	);
+	const previews = (
+		<>
 			<RiskPreview values={values} currency={currency} />
 			{portfolioId !== undefined && (
 				<RuleCheckPreview
@@ -66,11 +81,57 @@ export function RiskFields({
 					onNoteChange={(ruleNote) => onChange({ ruleNote })}
 				/>
 			)}
-			<p className="text-xs text-muted-foreground">
-				Stop-distance risk excludes costs. Entry FX is historical and separate
-				from exit FX. Balance is optional; review it at the original entry time.
-			</p>
+		</>
+	);
+	if (!isCompact)
+		return (
+			<section className="space-y-3" aria-label="Original risk plan">
+				{inputs}
+				{quoteInput}
+				{previews}
+				{note}
+			</section>
+		);
+	const [stop, ...rare] = inputs;
+	const hasRareValues = Boolean(
+		values.entryQuoteToAccountRate || values.balanceAccount,
+	);
+	return (
+		<section className="space-y-3" aria-label="Original risk plan">
+			<div className="grid grid-cols-2 gap-3">
+				{leading}
+				{stop}
+			</div>
+			{quoteInput}
+			{previews}
+			<FoldedFields title="FX rate and balance" isOpen={hasRareValues}>
+				{rare}
+				{note}
+			</FoldedFields>
 		</section>
+	);
+}
+
+export function FoldedFields({
+	title,
+	hint,
+	isOpen,
+	children,
+}: {
+	title: string;
+	hint?: string;
+	isOpen: boolean;
+	children: ReactNode;
+}) {
+	return (
+		<details className="group" open={isOpen}>
+			<summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-sm text-sm text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+				<ChevronRight className="size-4 transition-transform duration-200 group-open:rotate-90" />
+				<span className="font-medium">{title}</span>
+				{hint && <span className="text-xs">{hint}</span>}
+			</summary>
+			<div className="mt-3 space-y-3">{children}</div>
+		</details>
 	);
 }
 

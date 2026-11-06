@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { NotebookPen } from "lucide-react";
+import { ChevronLeft, ChevronRight, NotebookPen } from "lucide-react";
 import { z } from "zod";
 import { AppPageHeader } from "@/components/app-page-header";
 import { FirstTradeEmptyState } from "@/components/onboarding/first-trade-empty-state";
@@ -10,15 +10,22 @@ import {
 	useReviewPreferences,
 } from "@/components/reviews/review-preferences";
 import { ReviewTradeQueue } from "@/components/reviews/review-trade-queue";
+import { ReviewsSkeleton } from "@/components/reviews/reviews-skeleton";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import { useReviewRouteAccount } from "@/hooks/use-review-route-account";
 import { authClient } from "@/lib/auth-client";
-import { toDayKey } from "@/lib/date";
+import { nextDayKey, previousDayKey, toDayKey } from "@/lib/date";
 import { QueryKey } from "@/lib/query-keys";
 import { ReviewKind } from "@/lib/review";
-import { reviewDaySchema, reviewPeriod } from "@/lib/review-period";
+import {
+	formatReviewPeriod,
+	reviewDaySchema,
+	reviewPeriod,
+} from "@/lib/review-period";
 import { getReviewPeriod } from "@/server/reviewActions";
 
 export const Route = createFileRoute("/_authenticated/reviews")({
@@ -30,6 +37,12 @@ export const Route = createFileRoute("/_authenticated/reviews")({
 	}),
 	component: ReviewsPage,
 });
+
+const KIND_LABEL: Record<ReviewKind, string> = {
+	[ReviewKind.Daily]: "Daily",
+	[ReviewKind.Weekly]: "Weekly",
+};
+
 function useReviewsPage() {
 	const { activeAccount } = useAccounts();
 	const { data: session } = authClient.useSession();
@@ -39,10 +52,12 @@ function useReviewsPage() {
 	const matchedAccount = useReviewRouteAccount(account);
 	const timezone = preferences.data?.timezone;
 	const selectedDay = day ?? toDayKey(new Date(), timezone ?? "UTC");
-	const start =
-		savedStart ??
-		reviewPeriod(selectedDay, kind, preferences.data?.weekStartsOn ?? 1)
-			.periodStart;
+	const period = reviewPeriod(
+		savedStart ?? selectedDay,
+		kind,
+		preferences.data?.weekStartsOn ?? 1,
+	);
+	const start = savedStart ?? period.periodStart;
 	const portfolioId = activeAccount?.id;
 	const userId = session?.user.id;
 	const query = useQuery({
@@ -54,12 +69,18 @@ function useReviewsPage() {
 		enabled:
 			!!userId && portfolioId !== undefined && !!timezone && matchedAccount,
 	});
+	const reviewWindow = query.data?.window;
+	const periodLabel = formatReviewPeriod(
+		reviewWindow?.periodStart ?? start,
+		reviewWindow?.periodEndExclusive ?? period.periodEndExclusive,
+	);
 	return {
 		activeAccount,
 		userId,
 		portfolioId,
 		kind,
 		selectedDay,
+		periodLabel,
 		preferences,
 		timezone,
 		query,
@@ -67,110 +88,173 @@ function useReviewsPage() {
 		navigate,
 	};
 }
+
+type ReviewsPageState = ReturnType<typeof useReviewsPage>;
+
 function ReviewsPage() {
 	return <ReviewsContent {...useReviewsPage()} />;
 }
-function ReviewsContent({
-	activeAccount,
+
+function shiftDay(day: string, kind: ReviewKind, direction: 1 | -1) {
+	const steps = kind === ReviewKind.Weekly ? 7 : 1;
+	const step = direction === 1 ? nextDayKey : previousDayKey;
+	let next = day;
+	for (let index = 0; index < steps; index++) next = step(next);
+	return next;
+}
+
+function PeriodToolbar({
+	kind,
+	selectedDay,
+	portfolioId,
+	navigate,
+}: Pick<
+	ReviewsPageState,
+	"kind" | "selectedDay" | "portfolioId" | "navigate"
+>) {
+	const go = (nextKind: ReviewKind, nextDay: string) =>
+		navigate({
+			search: { kind: nextKind, day: nextDay, account: portfolioId },
+		});
+	const unit = kind === ReviewKind.Weekly ? "week" : "day";
+	return (
+		<>
+			<Tabs
+				value={kind}
+				onValueChange={(value) => go(value as ReviewKind, selectedDay)}
+			>
+				<TabsList aria-label="Review">
+					{Object.values(ReviewKind).map((value) => (
+						<TabsTrigger key={value} value={value} className="px-3">
+							{KIND_LABEL[value]}
+						</TabsTrigger>
+					))}
+				</TabsList>
+			</Tabs>
+			<div className="flex items-center gap-1">
+				<Button
+					variant="ghost"
+					size="icon"
+					aria-label={`Previous ${unit}`}
+					onClick={() => go(kind, shiftDay(selectedDay, kind, -1))}
+				>
+					<ChevronLeft className="size-4" />
+				</Button>
+				<Input
+					type="date"
+					aria-label="Date"
+					className="w-40 font-data"
+					value={selectedDay}
+					onChange={(event) => {
+						if (reviewDaySchema.safeParse(event.target.value).success)
+							go(kind, event.target.value);
+					}}
+				/>
+				<Button
+					variant="ghost"
+					size="icon"
+					aria-label={`Next ${unit}`}
+					onClick={() => go(kind, shiftDay(selectedDay, kind, 1))}
+				>
+					<ChevronRight className="size-4" />
+				</Button>
+			</div>
+		</>
+	);
+}
+
+function RetryAlert({
+	message,
+	onRetry,
+}: {
+	message: string;
+	onRetry: () => void;
+}) {
+	return (
+		<div
+			role="alert"
+			className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-destructive/40 px-4 py-3 text-sm"
+		>
+			<p>{message}</p>
+			<Button variant="outline" size="sm" onClick={onRetry}>
+				Retry
+			</Button>
+		</div>
+	);
+}
+
+function ReviewsBody({
 	userId,
 	portfolioId,
 	kind,
-	selectedDay,
 	preferences,
 	timezone,
 	query,
 	matchedAccount,
-	navigate,
-}: ReturnType<typeof useReviewsPage>) {
+}: ReviewsPageState) {
 	const { hasTrades } = useOnboarding();
+	if (preferences.isError)
+		return (
+			<RetryAlert
+				message="Review preferences could not be loaded."
+				onRetry={() => preferences.refetch()}
+			/>
+		);
+	if (preferences.isPending || hasTrades === undefined)
+		return <ReviewsSkeleton />;
+	if (!timezone)
+		return (
+			<div className="space-y-8">
+				<ReviewPreferences />
+				<ReviewTradeQueue key={`${userId}:${portfolioId}`} />
+			</div>
+		);
+	if (hasTrades === false)
+		return (
+			<FirstTradeEmptyState
+				icon={NotebookPen}
+				title="Reviews start with a trade"
+				description="Log a trade, then come back to write a short daily review of what you did."
+			/>
+		);
+	return (
+		<>
+			{query.isError && (
+				<RetryAlert
+					message={query.error.message}
+					onRetry={() => query.refetch()}
+				/>
+			)}
+			{query.isPending && <ReviewsSkeleton />}
+			{query.data && userId && portfolioId && matchedAccount && (
+				<ReviewEditor
+					key={`${userId}:${portfolioId}:${kind}:${query.data.window.periodStart}`}
+					review={query.data}
+					userId={userId}
+					portfolioId={portfolioId}
+					kind={kind}
+				/>
+			)}
+			{!query.isPending && (
+				<ReviewTradeQueue key={`${userId}:${portfolioId}`} />
+			)}
+		</>
+	);
+}
+
+function ReviewsContent(state: ReviewsPageState) {
+	const meta = [state.periodLabel, state.activeAccount?.name]
+		.filter(Boolean)
+		.join(" · ");
 	return (
 		<div className="app-page">
-			<main className="page-frame space-y-5">
+			<main className="page-frame section-enter">
 				<AppPageHeader
 					title="Reviews"
-					description="Turn recorded results into one change to revisit."
-					meta={
-						query.data
-							? `${query.data.window.periodStart} to ${query.data.window.periodEndExclusive} exclusive · ${query.data.window.timezoneSnapshot} · ${activeAccount?.name}`
-							: activeAccount?.name
-					}
+					meta={meta}
+					toolbar={<PeriodToolbar {...state} />}
 				/>
-				<div className="flex flex-wrap gap-3">
-					<label className="text-sm">
-						Review{" "}
-						<select
-							className="ml-2 rounded border bg-background p-2"
-							value={kind}
-							onChange={(event) =>
-								navigate({
-									search: {
-										kind: event.target.value as ReviewKind,
-										day: selectedDay,
-										account: portfolioId,
-									},
-								})
-							}
-						>
-							<option value={ReviewKind.Daily}>Daily</option>
-							<option value={ReviewKind.Weekly}>Weekly</option>
-						</select>
-					</label>
-					<label className="text-sm">
-						Date{" "}
-						<input
-							className="ml-2 rounded border bg-background p-2"
-							type="date"
-							value={selectedDay}
-							onChange={(event) => {
-								if (reviewDaySchema.safeParse(event.target.value).success)
-									void navigate({
-										search: {
-											kind,
-											day: event.target.value,
-											account: portfolioId,
-										},
-									});
-							}}
-						/>
-					</label>
-				</div>
-				{preferences.isError && (
-					<p role="alert">
-						Preferences could not be loaded.{" "}
-						<Button onClick={() => preferences.refetch()}>Retry</Button>
-					</p>
-				)}
-				{!timezone && <ReviewPreferences />}
-				{hasTrades === false && (
-					<FirstTradeEmptyState
-						icon={NotebookPen}
-						title="Reviews start with a trade"
-						description="Log a trade, then come back to write a short daily review of what you did."
-					/>
-				)}
-				{hasTrades !== false && (
-					<>
-						{timezone && query.isPending && <p>Loading review...</p>}
-						{query.isError && (
-							<p role="alert">
-								{query.error.message}{" "}
-								<Button variant="outline" onClick={() => query.refetch()}>
-									Retry
-								</Button>
-							</p>
-						)}
-						{query.data && userId && portfolioId && matchedAccount && (
-							<ReviewEditor
-								key={`${userId}:${portfolioId}:${kind}:${query.data.window.periodStart}`}
-								review={query.data}
-								userId={userId}
-								portfolioId={portfolioId}
-								kind={kind}
-							/>
-						)}
-						<ReviewTradeQueue key={`${userId}:${portfolioId}`} />
-					</>
-				)}
+				<ReviewsBody {...state} />
 			</main>
 		</div>
 	);

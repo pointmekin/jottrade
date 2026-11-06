@@ -93,7 +93,7 @@ export function SessionFindings({
 	if (scope.count === 0) return null;
 
 	return (
-		<div className="surface p-3 sm:p-4">
+		<div>
 			<p className="text-sm font-semibold">Session findings</p>
 			<p className="mt-1 text-xs text-muted-foreground">
 				{

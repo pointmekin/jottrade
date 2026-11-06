@@ -98,7 +98,7 @@ function AnnotationEditor({
 	});
 	return (
 		<section className="space-y-3">
-			<label className="field-label" htmlFor={`trade-notes-${tradeId}`}>
+			<label className="text-sm font-medium" htmlFor={`trade-notes-${tradeId}`}>
 				Notes and review
 			</label>
 			<Textarea

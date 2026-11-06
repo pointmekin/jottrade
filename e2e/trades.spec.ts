@@ -57,11 +57,15 @@ test("create with a strategy, edit and delete a trade, with each change kept aft
 		.getByRole("textbox");
 	await exitPrice.fill("115");
 	await page.getByRole("button", { name: "Save Changes" }).click();
-	await expect(page.getByText("+$30.00 net P&L")).toBeVisible();
+	await expect(
+		page.getByRole("region", { name: "Trade returns" }),
+	).toContainText("Net P&L+$30.00");
 
 	await page.reload();
 	await expect(exitPrice).toHaveValue("115");
-	await expect(page.getByText("+$30.00 net P&L")).toBeVisible();
+	await expect(
+		page.getByRole("region", { name: "Trade returns" }),
+	).toContainText("Net P&L+$30.00");
 
 	await page.getByRole("button", { name: "Delete trade" }).click();
 	const confirm = page.getByRole("alertdialog", { name: "Delete trade?" });

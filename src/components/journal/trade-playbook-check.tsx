@@ -54,7 +54,7 @@ export function TradePlaybookCheck({ tradeId }: { tradeId: number }) {
 		);
 	return (
 		<section className="space-y-3" aria-label="Playbook check">
-			<h3 className="field-label">Playbook check</h3>
+			<h3 className="text-sm font-medium">Playbook check</h3>
 			<CheckPanel
 				data={query.data}
 				portfolioId={portfolioId}

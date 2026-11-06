@@ -12,6 +12,7 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCurrency } from "@/hooks/use-currency";
 import { formatMoney } from "@/lib/currency";
 import type { GroupSummary } from "@/lib/group-summary";
@@ -27,6 +28,8 @@ import {
 	TOOLTIP_CONTENT_STYLE,
 	TOOLTIP_LABEL_STYLE,
 } from "./chart-theme";
+
+const CHART_HEIGHT = 240;
 
 type GroupStats = GroupSummary & { key: string; name: string };
 
@@ -91,7 +94,7 @@ function GroupBarChart({
 	const currency = useCurrency();
 
 	return (
-		<ResponsiveContainer width="100%" height={200}>
+		<ResponsiveContainer width="100%" height={CHART_HEIGHT}>
 			<BarChart
 				data={data}
 				margin={{ top: 4, right: 4, bottom: 4, left: -12 }}
@@ -166,33 +169,41 @@ function AvgPnlBar({
 	coverage?: Coverage;
 }) {
 	return (
-		<div className="surface p-3 sm:p-4">
-			<p className="text-sm font-semibold">{title}</p>
-			{coverage && (
-				<p className="mt-1 text-xs text-muted-foreground">
-					{`${coverage.annotated} of ${coverage.closed} closed trades ${coverage.annotation}`}
-				</p>
-			)}
-			<div className="mt-4">
-				{coverage?.annotated === 0 ? (
-					<div className="flex h-[200px] flex-col items-center justify-center gap-1 text-center">
-						<p className="text-sm font-medium">Not enough trades</p>
-						<p className="text-xs text-muted-foreground">
-							{`None of the closed trades in scope ${coverage.annotation} yet.`}
-						</p>
-					</div>
-				) : (
-					<GroupBarChart data={data} drillDown={drillDown} />
+		<figure className="space-y-3">
+			<figcaption className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+				<span className="text-sm font-medium">{title}</span>
+				{coverage && (
+					<span className="text-xs text-muted-foreground">
+						{`${coverage.annotated} of ${coverage.closed} closed trades ${coverage.annotation}`}
+					</span>
 				)}
-			</div>
-			{coverage && (
-				<p className="mt-3 text-xs text-muted-foreground">{INSIGHT_FOOTER}</p>
+			</figcaption>
+			{coverage?.annotated === 0 ? (
+				<div className="flex h-[240px] flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border text-center">
+					<p className="text-sm font-medium">Not enough trades</p>
+					<p className="text-xs text-muted-foreground">
+						{`None of the closed trades in scope ${coverage.annotation} yet.`}
+					</p>
+				</div>
+			) : (
+				<GroupBarChart data={data} drillDown={drillDown} />
 			)}
-		</div>
+			{coverage && (
+				<p className="text-xs text-muted-foreground">{INSIGHT_FOOTER}</p>
+			)}
+		</figure>
 	);
 }
 
-export function PerformanceCharts({
+interface ChartTab {
+	value: ChartGroup;
+	label: string;
+	title: string;
+	data: GroupStats[];
+	coverage?: Coverage;
+}
+
+function chartTabs({
 	closedTrades,
 	insightCoverage,
 	byStrategy,
@@ -202,61 +213,94 @@ export function PerformanceCharts({
 	byRuleCheck,
 	byDayOfWeek,
 	byHour,
-}: PerformanceChartsProps) {
+}: PerformanceChartsProps): ChartTab[] {
+	const coverageOf = (annotated: number, annotation: string) => ({
+		annotated,
+		closed: closedTrades,
+		annotation,
+	});
+	const tagTab: ChartTab[] =
+		insightCoverage.tagged === null
+			? []
+			: [
+					{
+						value: ChartGroup.Tag,
+						label: "Tag",
+						title: "Avg P&L by tag (top 10)",
+						data: byTag,
+						coverage: coverageOf(insightCoverage.tagged, "have a tag"),
+					},
+				];
+	return [
+		{
+			value: ChartGroup.Strategy,
+			label: "Strategy",
+			title: "Avg P&L by strategy",
+			data: byStrategy,
+		},
+		{
+			value: ChartGroup.Symbol,
+			label: "Symbol",
+			title: "Avg P&L by symbol (top 10)",
+			data: bySymbol,
+		},
+		...tagTab,
+		{
+			value: ChartGroup.Adherence,
+			label: "Plan",
+			title: "Avg P&L by plan adherence",
+			data: byAdherence,
+			coverage: coverageOf(insightCoverage.planChecked, "have a plan check"),
+		},
+		{
+			value: ChartGroup.RuleCheck,
+			label: "Rule check",
+			title: "Avg P&L by rule check",
+			data: byRuleCheck,
+			coverage: coverageOf(insightCoverage.ruleChecked, "have a rule check"),
+		},
+		{
+			value: ChartGroup.Weekday,
+			label: "Weekday",
+			title: "Avg P&L by day of week",
+			data: byDayOfWeek,
+		},
+		{
+			value: ChartGroup.EntryHour,
+			label: "Entry hour",
+			title: "Avg P&L by entry hour",
+			data: byHour,
+		},
+	];
+}
+
+export function PerformanceCharts(props: PerformanceChartsProps) {
+	const tabs = chartTabs(props);
 	return (
-		<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-			<AvgPnlBar
-				data={byStrategy}
-				title="Avg P&L by strategy"
-				drillDown={ChartGroup.Strategy}
-			/>
-			<AvgPnlBar
-				data={bySymbol}
-				title="Avg P&L by symbol (top 10)"
-				drillDown={ChartGroup.Symbol}
-			/>
-			{insightCoverage.tagged !== null && (
-				<AvgPnlBar
-					data={byTag}
-					title="Avg P&L by tag (top 10)"
-					drillDown={ChartGroup.Tag}
-					coverage={{
-						annotated: insightCoverage.tagged,
-						closed: closedTrades,
-						annotation: "have a tag",
-					}}
-				/>
-			)}
-			<AvgPnlBar
-				data={byAdherence}
-				title="Avg P&L by plan adherence"
-				drillDown={ChartGroup.Adherence}
-				coverage={{
-					annotated: insightCoverage.planChecked,
-					closed: closedTrades,
-					annotation: "have a plan check",
-				}}
-			/>
-			<AvgPnlBar
-				data={byRuleCheck}
-				title="Avg P&L by rule check"
-				drillDown={ChartGroup.RuleCheck}
-				coverage={{
-					annotated: insightCoverage.ruleChecked,
-					closed: closedTrades,
-					annotation: "have a rule check",
-				}}
-			/>
-			<AvgPnlBar
-				data={byDayOfWeek}
-				title="Avg P&L by day of week"
-				drillDown={ChartGroup.Weekday}
-			/>
-			<AvgPnlBar
-				data={byHour}
-				title="Avg P&L by entry hour"
-				drillDown={ChartGroup.EntryHour}
-			/>
-		</div>
+		<Tabs defaultValue={ChartGroup.Strategy} className="gap-5">
+			<div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+				<TabsList aria-label="Group average P&L by">
+					{tabs.map((tab) => (
+						<TabsTrigger
+							key={tab.value}
+							value={tab.value}
+							className="px-3 max-sm:h-9"
+						>
+							{tab.label}
+						</TabsTrigger>
+					))}
+				</TabsList>
+			</div>
+			{tabs.map((tab) => (
+				<TabsContent key={tab.value} value={tab.value}>
+					<AvgPnlBar
+						data={tab.data}
+						title={tab.title}
+						drillDown={tab.value}
+						coverage={tab.coverage}
+					/>
+				</TabsContent>
+			))}
+		</Tabs>
 	);
 }

@@ -47,7 +47,7 @@ export function SizingFinding({ sizing }: { sizing: Finding }) {
 	const smallest = Math.min(afterLoss.withRisk, other.withRisk);
 
 	return (
-		<div className="surface p-3 sm:p-4">
+		<div>
 			<p className="text-sm font-semibold">Sizing after a loss</p>
 			<p className="mt-1 text-xs text-muted-foreground">
 				{

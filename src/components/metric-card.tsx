@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { MetricLabel } from "@/components/metric-label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MetricTone, MetricVariant } from "@/lib/metric";
+import { METRIC_TONE_CLASS, MetricTone, MetricVariant } from "@/lib/metric";
 import { cn } from "@/lib/utils";
 
 const CONTAINER_CLASS: Record<MetricVariant, string> = {
@@ -14,12 +14,6 @@ const VALUE_CLASS: Record<MetricVariant, string> = {
 	[MetricVariant.Cell]: "metric-value",
 	[MetricVariant.Card]: "metric-value",
 	[MetricVariant.Compact]: "font-data text-sm font-semibold",
-};
-
-const TONE_CLASS: Record<MetricTone, string> = {
-	[MetricTone.Neutral]: "",
-	[MetricTone.Positive]: "text-success",
-	[MetricTone.Negative]: "text-destructive",
 };
 
 interface MetricCardProps {
@@ -46,7 +40,7 @@ export function MetricCard({
 			) : (
 				<p className="field-label">{label}</p>
 			)}
-			<p className={cn("mt-1", VALUE_CLASS[variant], TONE_CLASS[tone])}>
+			<p className={cn("mt-1", VALUE_CLASS[variant], METRIC_TONE_CLASS[tone])}>
 				{value}
 			</p>
 			<p className="mt-1 text-xs text-muted-foreground">{sub}</p>

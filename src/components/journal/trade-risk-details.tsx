@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { MetricLabel } from "@/components/metric-label";
 import { Button } from "@/components/ui/button";
 import { useAccounts } from "@/hooks/use-accounts";
 import { formatMoney } from "@/lib/currency";
@@ -30,7 +31,7 @@ export function TradeRiskDetails({ trade }: { trade: Trade }) {
 	});
 	return (
 		<section className="space-y-3" aria-label="Initial risk and R">
-			<h2 className="text-sm font-medium">Original risk plan</h2>
+			<h3 className="text-sm font-medium">Original risk plan</h3>
 			<dl className="grid grid-cols-2 gap-3 text-sm">
 				<div>
 					<dt className="text-muted-foreground">Initial risk</dt>
@@ -45,15 +46,19 @@ export function TradeRiskDetails({ trade }: { trade: Trade }) {
 					<dd>{metrics.planned}</dd>
 				</div>
 				<div>
-					<dt className="text-muted-foreground">Realized net R</dt>
+					<dt>
+						<MetricLabel label="Realized net R" className="text-sm">
+							<p>Planned RR uses the original target and stop.</p>
+							<p>
+								{
+									"Realized R divides closed net P&L after fees by original stop-distance risk before costs. Management changes preserve this plan."
+								}
+							</p>
+						</MetricLabel>
+					</dt>
 					<dd>{metrics.realized}</dd>
 				</div>
 			</dl>
-			<p className="text-xs text-muted-foreground">
-				Planned RR uses the original target and stop. Realized R divides closed
-				net P&L after fees by original stop-distance risk before costs.
-				Management changes preserve this plan.
-			</p>
 			{snapshot && <ScaleInNote trade={trade} snapshot={snapshot} />}
 			{snapshot && <SavedRiskInputs trade={trade} snapshot={snapshot} />}
 			{metrics.mismatch && (

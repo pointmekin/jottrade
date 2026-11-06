@@ -5,8 +5,8 @@ import {
 	useNavigate,
 	useSearch,
 } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
-import { AppPageHeader, SectionHeading } from "@/components/app-page-header";
+import { ChevronDown, Plus } from "lucide-react";
+import { AppPageHeader } from "@/components/app-page-header";
 import {
 	AccountSummary,
 	AccountSummarySkeleton,
@@ -21,11 +21,9 @@ import { FilterBar } from "@/components/journal/FilterBar";
 import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist";
 import { SetupCalculator } from "@/components/tools/SetupCalculator";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrency } from "@/hooks/use-currency";
 import { useDashboardAnalytics } from "@/hooks/use-dashboard-analytics";
 import { useOnboarding } from "@/hooks/use-onboarding";
-import { formatMoneyWithCode } from "@/lib/currency";
 import {
 	CLEARED_TRADE_FILTERS,
 	dashboardSearchSchema,
@@ -110,7 +108,6 @@ function Dashboard() {
 				) : (
 					<AccountSummarySkeleton />
 				)}
-				<RulesTodayCard />
 				<EquityCurveSection
 					data={summary.data?.equityCurve ?? []}
 					isLoading={summary.isLoading}
@@ -118,23 +115,32 @@ function Dashboard() {
 					periodLabel={periodLabel}
 					isAccountWide={scope?.isFiltered}
 				/>
+				<RulesTodayCard />
 				<RiskSection
 					data={advanced.data}
 					isLoading={advanced.isLoading}
-					periodLabel={periodLabel}
 					isAccountWide={scope?.isFiltered}
 				/>
 				<RulesComplianceSection
 					scope={analysisScope}
 					periodLabel={periodLabel}
 				/>
-				<section className="mt-6 space-y-4 sm:mt-8">
-					<SectionHeading
-						title="Tools"
-						detail={`Plan a setup before you take it · ${formatMoneyWithCode(stats?.totalBalance ?? 0, currency)}`}
-					/>
-					{stats ? <SetupCalculator /> : <Skeleton className="h-72 w-full" />}
-				</section>
+				<details className="page-section group">
+					<summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-md [&::-webkit-details-marker]:hidden">
+						<span>
+							<span className="block text-base font-semibold">
+								Position size calculator
+							</span>
+							<span className="field-label block">
+								Plan a setup before you take it
+							</span>
+						</span>
+						<ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+					</summary>
+					<div className="mt-4">
+						<SetupCalculator />
+					</div>
+				</details>
 			</main>
 		</div>
 	);

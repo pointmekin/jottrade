@@ -28,6 +28,7 @@ test("a strategy or symbol bar opens the same closed trades in the journal", asy
 	).toBeVisible();
 
 	await open(page, "/dashboard?period=all");
+	await page.getByRole("tab", { name: "Symbol" }).click();
 	const symbolBar = page.getByRole("link", { name: /^Open \d+ AAPL trades$/ });
 	const symbolCount = await barCount(symbolBar);
 	await symbolBar.focus();

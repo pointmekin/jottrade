@@ -52,7 +52,11 @@ export function DeleteTradeDialog({
 	return (
 		<AlertDialog open={open} onOpenChange={handleOpenChange}>
 			<AlertDialogTrigger asChild>
-				<Button variant="destructive" type="button">
+				<Button
+					variant="ghost"
+					type="button"
+					className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+				>
 					<Trash2 className="h-4 w-4" />
 					Delete trade
 				</Button>

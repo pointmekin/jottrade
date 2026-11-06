@@ -164,12 +164,12 @@ export function TradeImages({
 	);
 
 	return (
-		<div className="space-y-3 pb-6">
-			<p className="field-label">Images</p>
+		<section className="space-y-3" aria-label="Screenshots">
+			<h3 className="text-sm font-medium">Screenshots</h3>
 			<div
 				{...getRootProps()}
 				className={cn(
-					"cursor-pointer border border-dashed p-6 text-center transition-colors",
+					"cursor-pointer rounded-md border border-dashed px-6 py-5 text-center transition-colors",
 					isDragActive
 						? "border-ring bg-accent/60"
 						: "border-border hover:bg-accent/35",
@@ -221,6 +221,6 @@ export function TradeImages({
 					))}
 				</div>
 			)}
-		</div>
+		</section>
 	);
 }

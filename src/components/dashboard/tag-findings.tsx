@@ -31,7 +31,7 @@ export function TagFindings({
 	if (tags.length === 0) return null;
 
 	return (
-		<div className="surface p-3 sm:p-4">
+		<div>
 			<p className="text-sm font-semibold">Tag findings</p>
 			<p className="mt-1 text-xs text-muted-foreground">
 				{"Avg net P&L per closed trade with the tag, minus the avg of all "}

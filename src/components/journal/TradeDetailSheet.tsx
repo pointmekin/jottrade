@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { QueryKey } from "@/lib/query-keys";
-import { type Trade, TradeSide } from "@/lib/trade";
-import { cn } from "@/lib/utils";
+import type { Trade } from "@/lib/trade";
 import { DeleteTradeDialog } from "./DeleteTradeDialog";
 import { GroupedPosition } from "./grouped-position";
 import { PositionTimeline } from "./position-timeline";
@@ -17,8 +17,19 @@ interface TradeDetailContentProps {
 	onDeleted: () => void;
 }
 
-function Divider() {
-	return <div className="h-px bg-border" />;
+function DetailSection({
+	title,
+	children,
+}: {
+	title: string;
+	children: ReactNode;
+}) {
+	return (
+		<section className="page-section" aria-label={title}>
+			<h2 className="text-base font-semibold">{title}</h2>
+			<div className="mt-5 space-y-8">{children}</div>
+		</section>
+	);
 }
 
 export function TradeDetailContent({
@@ -32,38 +43,26 @@ export function TradeDetailContent({
 	};
 
 	return (
-		<div className="surface overflow-hidden bg-popover text-popover-foreground">
-			<div
-				className={cn(
-					"h-px w-full flex-shrink-0",
-					trade.side === TradeSide.Long ? "bg-success" : "bg-destructive",
-				)}
-			/>
-			<div className="space-y-6 px-4 py-4 sm:px-5 sm:py-5">
+		<div>
+			<DetailSection title="Review">
+				<TradeReviewAnnotation tradeId={trade.id} />
+				<TradeTags trade={trade} />
+				<TradePlaybookCheck tradeId={trade.id} />
+				<TradeImages trade={trade} onChange={refreshTrade} />
+			</DetailSection>
+			<DetailSection title="Trade details">
 				<TradeOverviewForm trade={trade} />
-				<Divider />
+			</DetailSection>
+			<DetailSection title="Execution and risk">
 				<GroupedPosition trade={trade} onUngrouped={onDeleted} />
 				<PositionTimeline trade={trade} />
-				<Divider />
 				<TradeRiskDetails key={trade.id} trade={trade} />
-				<Divider />
-				<TradeTags trade={trade} />
-				<Divider />
-				<TradeReviewAnnotation tradeId={trade.id} />
-				<Divider />
-				<TradePlaybookCheck tradeId={trade.id} />
-				<Divider />
-				<TradeImages trade={trade} onChange={refreshTrade} />
-				<Divider />
-				<div className="flex items-center justify-between gap-4 pb-2">
-					<div>
-						<p className="text-sm font-medium">Delete this trade</p>
-						<p className="text-xs text-muted-foreground">
-							Permanently remove it from your journal.
-						</p>
-					</div>
-					<DeleteTradeDialog trade={trade} onDeleted={onDeleted} />
-				</div>
+			</DetailSection>
+			<div className="page-section flex flex-wrap items-center justify-between gap-3">
+				<p className="text-sm text-muted-foreground">
+					Deleting removes this trade from your journal permanently.
+				</p>
+				<DeleteTradeDialog trade={trade} onDeleted={onDeleted} />
 			</div>
 		</div>
 	);

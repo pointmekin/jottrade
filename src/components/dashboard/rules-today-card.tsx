@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { SectionHeading } from "@/components/app-page-header";
-import { MetricCard, MetricCardSkeleton } from "@/components/metric-card";
+import { MetricCard } from "@/components/metric-card";
 import { Button } from "@/components/ui/button";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useCurrency } from "@/hooks/use-currency";
 import { formatMoney } from "@/lib/currency";
+import { MetricVariant } from "@/lib/metric";
 import { QueryKey } from "@/lib/query-keys";
 import type { RuleToday } from "@/lib/risk-rule-compliance";
 import { RuleOutcome, type RuleResult } from "@/lib/risk-rule-evaluation";
@@ -35,6 +36,7 @@ function LossCard({
 	if (result.outcome === RuleOutcome.Unknown || limit === null)
 		return (
 			<MetricCard
+				variant={MetricVariant.Cell}
 				label="Loss left today"
 				value="Unknown"
 				sub={`${result.reason ?? "No limit"}. Realized only.`}
@@ -43,6 +45,7 @@ function LossCard({
 	const left = Math.max(0, limit - (actual ?? 0));
 	return (
 		<MetricCard
+			variant={MetricVariant.Cell}
 			label="Loss left today"
 			value={`${formatMoney(left, currency)} of ${formatMoney(limit, currency)}`}
 			sub={
@@ -69,10 +72,11 @@ function TodayCards({
 }) {
 	const { dailyLoss, trades, cooldown, openRisk } = today;
 	return (
-		<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+		<div className="metric-row grid-cols-2 lg:grid-cols-4">
 			{dailyLoss && <LossCard result={dailyLoss} currency={currency} />}
 			{trades && (
 				<MetricCard
+					variant={MetricVariant.Cell}
 					label="Trades left"
 					value={`${Math.max(0, trades.limit - trades.entered)} of ${trades.limit}`}
 					sub={`${plural(trades.entered, "trade")} entered today`}
@@ -80,6 +84,7 @@ function TodayCards({
 			)}
 			{cooldown && (
 				<MetricCard
+					variant={MetricVariant.Cell}
 					label="Cooldown"
 					value={cooldownValue(cooldown, today.timezone)}
 					sub={
@@ -89,6 +94,7 @@ function TodayCards({
 				/>
 			)}
 			<MetricCard
+				variant={MetricVariant.Cell}
 				label="Open initial risk"
 				value={formatMoney(openRisk.amount, currency)}
 				sub={[
@@ -116,7 +122,7 @@ export function RulesTodayCard() {
 
 	if (query.isError)
 		return (
-			<section className="mt-6 space-y-3 sm:mt-8">
+			<section className="page-section space-y-3">
 				<SectionHeading title="Rules today" />
 				<div className="flex flex-wrap items-center gap-2 text-sm">
 					<p role="alert">Could not load the rules.</p>
@@ -133,23 +139,19 @@ export function RulesTodayCard() {
 		);
 	if (!query.data)
 		return (
-			<section className="mt-6 space-y-3 sm:mt-8">
+			<section className="page-section space-y-3">
 				<SectionHeading
 					title="Rules today"
-					detail={query.isPending ? undefined : "No rules for this account."}
+					detail={
+						query.isPending ? "Loading rules…" : "No rules for this account."
+					}
 					actions={!query.isPending && <RulesLink text="Set rules" />}
 				/>
-				{query.isPending && (
-					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-						<MetricCardSkeleton />
-						<MetricCardSkeleton />
-					</div>
-				)}
 			</section>
 		);
 	const today = query.data;
 	return (
-		<section aria-label="Rules today" className="mt-6 space-y-3 sm:mt-8">
+		<section aria-label="Rules today" className="page-section space-y-3">
 			<SectionHeading
 				title="Rules today"
 				detail={`${activeAccount?.name ?? "Account"} · ${formatRuleDay(today.dayKey)}, ${today.timezone} · Rules v${today.version}`}

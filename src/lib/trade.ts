@@ -18,6 +18,17 @@ export const TradeSide = {
 
 export type TradeSide = (typeof TradeSide)[keyof typeof TradeSide];
 
+export const TRADE_STATUS_LABEL: Record<TradeStatus, string> = {
+	[TradeStatus.Open]: "Open",
+	[TradeStatus.Closed]: "Closed",
+	[TradeStatus.Pending]: "Pending",
+};
+
+export const TRADE_SIDE_LABEL: Record<TradeSide, string> = {
+	[TradeSide.Long]: "Long",
+	[TradeSide.Short]: "Short",
+};
+
 export const TradeConfidence = {
 	High: "HIGH",
 	Medium: "MEDIUM",
@@ -26,6 +37,12 @@ export const TradeConfidence = {
 
 export type TradeConfidence =
 	(typeof TradeConfidence)[keyof typeof TradeConfidence];
+
+export const TRADE_CONFIDENCE_LABEL: Record<TradeConfidence, string> = {
+	[TradeConfidence.High]: "High",
+	[TradeConfidence.Medium]: "Medium",
+	[TradeConfidence.Low]: "Low",
+};
 
 export type Trade = {
 	id: number;

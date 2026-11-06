@@ -1,4 +1,7 @@
-import { RiskFields } from "@/components/journal/trade-risk-fields";
+import {
+	FoldedFields,
+	RiskFields,
+} from "@/components/journal/trade-risk-fields";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { resolveCommandSymbol } from "@/lib/commands/aliases";
@@ -101,24 +104,23 @@ export function TradeFields({
 					onChange={(quantity) => onChange({ quantity })}
 				/>
 			</div>
-			<TextField
-				id={`${id}-target`}
-				label="Planned target price (optional)"
-				value={draft.targetPrice ?? ""}
-				onChange={(targetPrice) => onChange({ targetPrice })}
-				isRequired={false}
-			/>
 			<RiskFields
 				values={draft}
 				currency={currency}
 				portfolioId={portfolioId}
 				onChange={onChange}
+				isCompact
+				leading={
+					<TextField
+						id={`${id}-target`}
+						label="Planned target price (optional)"
+						value={draft.targetPrice ?? ""}
+						onChange={(targetPrice) => onChange({ targetPrice })}
+						isRequired={false}
+					/>
+				}
 			/>
 			<CommandCloseFields id={id} draft={draft} onChange={onChange} />
-			<p className="text-xs text-muted-foreground">
-				A target does not close the trade. Leave exit fields blank to save an
-				open trade.
-			</p>
 		</>
 	);
 }
@@ -132,30 +134,37 @@ function CommandCloseFields({
 	draft: TradeDraft;
 	onChange: (patch: Partial<TradeDraft>) => void;
 }) {
+	const hasExit = Boolean(draft.exitPrice || draft.exitDate || draft.fees);
 	return (
-		<section aria-label="Optional closed trade" className="space-y-3">
-			{(
-				[
-					["exitPrice", "Exit price", "text"],
-					["exitDate", "Exit date", "datetime-local"],
-					["fees", "Fees (account currency)", "text"],
+		<FoldedFields
+			title="Close the trade"
+			hint="Leave closed to save an open trade"
+			isOpen={hasExit}
+		>
+			<section aria-label="Optional closed trade" className="space-y-3">
+				{(
 					[
-						"exitQuoteToAccountRate",
-						"Exit FX rate (account money per quote unit)",
-						"text",
-					],
-				] as const
-			).map(([name, label, type]) => (
-				<TextField
-					key={name}
-					id={`${id}-${name}`}
-					label={label}
-					type={type}
-					isRequired={false}
-					value={draft[name] ?? ""}
-					onChange={(value) => onChange({ [name]: value })}
-				/>
-			))}
-		</section>
+						["exitPrice", "Exit price", "text"],
+						["exitDate", "Exit date", "datetime-local"],
+						["fees", "Fees (account currency)", "text"],
+						[
+							"exitQuoteToAccountRate",
+							"Exit FX rate (account money per quote unit)",
+							"text",
+						],
+					] as const
+				).map(([name, label, type]) => (
+					<TextField
+						key={name}
+						id={`${id}-${name}`}
+						label={label}
+						type={type}
+						isRequired={false}
+						value={draft[name] ?? ""}
+						onChange={(value) => onChange({ [name]: value })}
+					/>
+				))}
+			</section>
+		</FoldedFields>
 	);
 }

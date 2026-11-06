@@ -156,7 +156,7 @@ export function RulesComplianceSection({
 
 	if (query.isError)
 		return (
-			<section className="mt-6 space-y-3 sm:mt-8">
+			<section className="page-section space-y-3">
 				<SectionHeading title="Rule compliance" />
 				<div className="flex flex-wrap items-center gap-2 text-sm">
 					<p role="alert">Could not load rule compliance.</p>
@@ -171,14 +171,19 @@ export function RulesComplianceSection({
 				</div>
 			</section>
 		);
-	if (query.isPending) return <Skeleton className="mt-6 h-32 w-full sm:mt-8" />;
+	if (query.isPending)
+		return (
+			<div className="page-section">
+				<Skeleton className="h-32 w-full" />
+			</div>
+		);
 	const compliance = query.data;
 	if (!compliance) return null;
 	return (
 		<section
 			id={RULE_COMPLIANCE_ID}
 			aria-label="Rule compliance"
-			className="mt-6 space-y-3 sm:mt-8"
+			className="page-section space-y-3"
 		>
 			<SectionHeading title="Rule compliance" detail={periodLabel} />
 			{compliance.scopeIgnored && (
