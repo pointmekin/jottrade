@@ -131,7 +131,7 @@ export function CommandPalette({
 			}}
 		>
 			<DialogContent
-				className="max-h-[85dvh] overflow-y-auto p-0 sm:max-w-lg"
+				className="top-[12dvh] max-h-[85dvh] translate-y-0 overflow-y-auto p-0 sm:max-w-lg"
 				showCloseButton={!saving}
 				backdrop={<CommandGlimmer />}
 			>
