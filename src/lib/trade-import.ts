@@ -75,6 +75,14 @@ function resolveColumns(fields: string[]): ColumnMap {
 	}
 	return resolved;
 }
+function tradeProfitCell(
+	value: string,
+	entryPrice: string,
+	exitPrice: string | undefined,
+): string {
+	// Exness leaves profit blank on zero-price-change closes.
+	return !value && exitPrice === entryPrice ? "0" : value;
+}
 function readTrade(
 	row: CsvRow,
 	columns: ColumnMap,
@@ -91,10 +99,10 @@ function readTrade(
 			});
 		return value;
 	};
-	const number = (key: ColumnKey, positive = false) => {
+	const number = (key: ColumnKey, positive = false, value = cell(key)) => {
 		const parsed = positive
-			? positiveImportDecimal(cell(key))
-			: importDecimal(cell(key));
+			? positiveImportDecimal(value)
+			: importDecimal(value);
 		if (parsed === null)
 			issues.push({
 				column: columns[key] ?? key,
@@ -132,7 +140,14 @@ function readTrade(
 			column: columns.closingTime ?? "closing_time_utc",
 			message: "Closing time cannot precede opening time.",
 		});
-	const profit = closed || cell("profit") ? number("profit") : undefined;
+	const profit =
+		closed || cell("profit")
+			? number(
+					"profit",
+					false,
+					tradeProfitCell(cell("profit"), entryPrice, exitPrice),
+				)
+			: undefined;
 	const cost = (key: "commission" | "swap") => {
 		if (!columns[key])
 			issues.push({

@@ -1,5 +1,6 @@
+import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
-import { expect, open, SeedUser, signIn, test } from "./support";
+import { expect, open, SEED_PASSWORD, SeedUser, signIn, test } from "./support";
 
 const CSV = new URL("fixtures/exness-trades.csv", import.meta.url).pathname;
 const PARTIAL_CLOSE_CSV = new URL(
@@ -133,4 +134,32 @@ test("a partial close groups into one position only after the user confirms", as
 	await page.keyboard.press("Escape");
 	await page.reload();
 	await expect(audusd).toHaveCount(0);
+});
+
+test("native Exness decimals and blank breakeven profit import and reimport", async ({
+	page,
+}) => {
+	const signUp = await page.request.post("/api/auth/sign-up/email", {
+		data: {
+			name: "Native Exness import",
+			email: `exness-${randomUUID()}@jottrade.test`,
+			password: SEED_PASSWORD,
+		},
+	});
+	expect(signUp.ok()).toBe(true);
+	await open(page, "/journal");
+	const file = new URL("fixtures/exness-native-values.csv", import.meta.url)
+		.pathname;
+	const first = await previewImport(page, file);
+	await expect(first.getByText("4 source records · 4 insert")).toBeVisible();
+	await expect(
+		first.getByText(/Source realized net: \$85\.60 USD/),
+	).toBeVisible();
+	await first.getByRole("button", { name: "Apply import" }).click();
+	await expect(first).toBeHidden();
+	const second = await previewImport(page, file);
+	await expect(
+		second.getByText("4 source records · 4 duplicate"),
+	).toBeVisible();
+	await expect(second.getByText(/Account change: \$0\.00 USD/)).toBeVisible();
 });

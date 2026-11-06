@@ -21,7 +21,7 @@ export function importDecimal(value: string | undefined): string | null {
 	const text = value?.trim();
 	if (!text || text.length > 48 || !DECIMAL.test(text)) return null;
 	const number = new Money(text.replaceAll(",", ""));
-	if (number.decimalPlaces() > 12 || number.abs().gte("1e24")) return null;
+	if (number.abs().gte("1e24")) return null;
 	return number.toFixed();
 }
 
