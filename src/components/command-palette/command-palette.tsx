@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
-import { GlimmProvider, useGlimm } from "glimm/react";
 import { useEffect, useRef, useState } from "react";
+import { CommandGlimmer } from "@/components/command-palette/command-glimmer";
 import { CommandPreview } from "@/components/command-palette/command-preview";
 import { CommandSearch } from "@/components/command-palette/command-search";
 import { useTheme } from "@/components/theme-provider";
@@ -24,27 +24,17 @@ import { extractCommandIntent } from "@/server/commandIntentActions";
 
 /** Below this, a local match is a guess, so offer the Gemini fallback. */
 const LOCAL_CONFIDENCE_THRESHOLD = 0.9;
-/** glimm suggests about 0.85 so the band does not read as harsh white on dark. */
-const DARK_SWEEP_BRIGHTNESS = 0.85;
 
-type CommandPaletteProps = {
+export function CommandPalette({
+	open,
+	onOpenChange,
+}: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-};
-
-export function CommandPalette(props: CommandPaletteProps) {
-	return (
-		<GlimmProvider palette="azure" sweepMs={700} midpoint={0.35}>
-			<CommandPaletteDialog {...props} />
-		</GlimmProvider>
-	);
-}
-
-function CommandPaletteDialog({ open, onOpenChange }: CommandPaletteProps) {
+}) {
 	const { data: session } = authClient.useSession();
 	const navigate = useNavigate();
 	const { setTheme } = useTheme();
-	const { sweep } = useGlimm();
 	const [query, setQuery] = useState("");
 	const [selected, setSelected] = useState<CommandCandidate>();
 	const [saving, setSaving] = useState(false);
@@ -99,11 +89,8 @@ function CommandPaletteDialog({ open, onOpenChange }: CommandPaletteProps) {
 	const choose = (candidate: CommandCandidate) => {
 		const intent = candidate.intent;
 		if (intent.type === IntentType.Navigation) {
+			void navigate({ to: intent.path });
 			onOpenChange(false);
-			const isDark = document.documentElement.classList.contains("dark");
-			sweep(() => navigate({ to: intent.path }), {
-				brightness: isDark ? DARK_SWEEP_BRIGHTNESS : 1,
-			});
 		} else if (intent.type === IntentType.Theme) {
 			setTheme(intent.theme);
 			onOpenChange(false);
@@ -146,6 +133,7 @@ function CommandPaletteDialog({ open, onOpenChange }: CommandPaletteProps) {
 			<DialogContent
 				className="max-h-[85dvh] overflow-y-auto p-0 sm:max-w-lg"
 				showCloseButton={!saving}
+				backdrop={<CommandGlimmer />}
 			>
 				<DialogTitle className="sr-only">JotTrade commands</DialogTitle>
 				<DialogDescription className="sr-only">
