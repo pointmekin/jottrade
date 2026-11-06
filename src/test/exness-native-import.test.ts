@@ -4,6 +4,7 @@ import { ImportAction, ImportKind } from "@/lib/import-batch";
 import { matchImportRows } from "@/lib/import-matching";
 import { buildImportPlan } from "@/lib/import-plan";
 import { summarizeImport } from "@/lib/import-reconciliation";
+import { recordNet } from "@/lib/import-record";
 import { parseImportSource, readImportCsv } from "@/lib/import-source";
 import { importDecimal } from "@/lib/import-values";
 
@@ -35,27 +36,43 @@ describe("native Exness export values", () => {
 			unknownAmounts: 0,
 		});
 	});
-	it("adopts unchanged legacy prices without corrections or account effects", async () => {
-		const rows = await stage();
-		const existing = rows.map((row, id) => {
-			if (!row.record) throw Error("Expected native trade");
-			return {
-				id,
-				revision: 0,
-				snapshot: { ...row.record, importHash: row.legacyHash },
-				importHash: row.legacyHash,
-				notes: "Keep my journal",
-				reason: "legacy",
-			};
-		});
-		const matched = matchImportRows(rows, existing, []);
-		expect(matched.map((row) => row.action)).toEqual(
-			Array(4).fill(ImportAction.Adopt),
-		);
-		expect(
-			summarizeImport(matched, buildImportPlan(matched, [])).accountDelta,
-		).toBe("0");
-	});
+	it.each([false, true])(
+		"adopts unchanged legacy prices with grouped legs=%s",
+		async (isGroupedLeg) => {
+			const rows = await stage();
+			const existing = rows.map((row, id) => {
+				if (!row.record) throw Error("Expected native trade");
+				return {
+					id: id + 1,
+					isGroupedLeg,
+					revision: 0,
+					snapshot: { ...row.record, importHash: row.legacyHash },
+					importHash: row.legacyHash,
+					notes: "Keep my journal",
+					reason: "legacy",
+				};
+			});
+			const matched = matchImportRows(rows, existing, []);
+			expect(matched.map((row) => row.action)).toEqual(
+				Array(4).fill(ImportAction.Adopt),
+			);
+			const plan = buildImportPlan(matched, []);
+			expect(summarizeImport(matched, plan).accountDelta).toBe("0");
+			expect(plan.map((item) => recordNet(item.after))).toEqual(
+				existing.map((item) => recordNet(item.snapshot)),
+			);
+			if (isGroupedLeg)
+				expect(() =>
+					buildImportPlan(matched, [
+						{
+							rowNumber: matched[0].rowNumber,
+							action: ImportAction.Correct,
+							targetId: existing[0].id,
+						},
+					]),
+				).toThrow("Trade is grouped into a position. Ungroup it first.");
+		},
+	);
 	it.each([
 		"NaN",
 		"Infinity",

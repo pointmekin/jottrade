@@ -131,6 +131,7 @@ Recorded corrections:
 
 | Date | Failure class | Remedy |
 | --- | --- | --- |
+| 2026-11-07 | Import verification passed on empty accounts while legacy grouped trades blocked an unchanged reimport. | Unit and database checks cover legacy adoption after grouping, including unchanged positions, fills and account totals; changed grouped executions remain protected. |
 | 2026-10-08 | PRs #48 and #49 both added migration index `0008` to `drizzle/meta/_journal.json`. Only a manual integration found it. | Automated check: `src/test/migration-journal.test.ts` (`scripts/quality/migrations.ts`) fails when journal indexes are not unique and contiguous from 0, when a journal tag and a `drizzle/*.sql` file do not match, or when the snapshot `prevId` chain breaks. The renumber steps are in [Migration and rollout](#migration-and-rollout). |
 
 ## Maintenance

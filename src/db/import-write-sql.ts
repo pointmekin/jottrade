@@ -13,7 +13,7 @@ function commitGate(
 	return sql`gate AS MATERIALIZED (SELECT EXISTS(SELECT 1 FROM portfolios WHERE id=${portfolioId} AND user_id=${userId} AND COALESCE(currency,${DEFAULT_CURRENCY})=${currency})
  AND EXISTS(SELECT 1 FROM import_batches WHERE id=${batchId} AND user_id=${userId} AND portfolio_id=${portfolioId} AND state='staged' AND revision=${revision} AND expires_at > NOW())
  AND NOT EXISTS(SELECT 1 FROM input p WHERE p->>'action' IN ('correct','adopt') AND NOT EXISTS(
- SELECT 1 FROM trades t WHERE p->'after'->>'kind'='trades' AND t.id=(p->>'recordId')::int AND t.user_id=${userId} AND t.portfolio_id=${portfolioId} AND t.edit_revision=(p->>'expectedRevision')::int AND t.grouped_into_id IS NULL AND t.import_hash IS NOT DISTINCT FROM p->>'expectedImportHash'
+ SELECT 1 FROM trades t WHERE p->'after'->>'kind'='trades' AND t.id=(p->>'recordId')::int AND t.user_id=${userId} AND t.portfolio_id=${portfolioId} AND t.edit_revision=(p->>'expectedRevision')::int AND (t.grouped_into_id IS NULL OR p->>'action'='adopt') AND t.import_hash IS NOT DISTINCT FROM p->>'expectedImportHash'
  UNION ALL SELECT 1 FROM cash_flows f WHERE p->'after'->>'kind'='adjustments' AND f.id=(p->>'recordId')::int AND f.user_id=${userId} AND f.portfolio_id=${portfolioId} AND f.edit_revision=(p->>'expectedRevision')::int AND f.import_hash IS NOT DISTINCT FROM p->>'expectedImportHash'))
  AND NOT EXISTS(SELECT 1 FROM input p JOIN import_identities a ON a.user_id=${userId} AND a.portfolio_id=${portfolioId} AND a.kind=p->'after'->>'kind' AND a.fingerprint=p->>'fingerprint' AND a.occurrence=(p->>'occurrence')::int
  WHERE p->>'action'='insert' OR (p->>'action'='reimport' AND a.state <> 'undone' AND (a.trade_id IS NOT NULL OR a.cash_flow_id IS NOT NULL))) AS ok)`;
