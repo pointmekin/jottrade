@@ -85,7 +85,9 @@ describe("palette keyboard flow", () => {
 		);
 		fireEvent.keyDown(input, { key: "ArrowDown" });
 		fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
-		expect(mocks.navigate).toHaveBeenCalledWith({ to: "/journal" });
+		await waitFor(() =>
+			expect(mocks.navigate).toHaveBeenCalledWith({ to: "/journal" }),
+		);
 	});
 	it("changes theme and requires a separate preview for writes", async () => {
 		setup();
