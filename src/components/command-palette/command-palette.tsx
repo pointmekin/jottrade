@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { CommandGlimmer } from "@/components/command-palette/command-glimmer";
 import { CommandPreview } from "@/components/command-palette/command-preview";
 import { CommandSearch } from "@/components/command-palette/command-search";
+import { warmCommandGlimmer } from "@/components/command-palette/glimmer-shader";
 import { useTheme } from "@/components/theme-provider";
 import {
 	Dialog,
@@ -24,6 +25,8 @@ import { extractCommandIntent } from "@/server/commandIntentActions";
 
 /** Below this, a local match is a guess, so offer the Gemini fallback. */
 const LOCAL_CONFIDENCE_THRESHOLD = 0.9;
+/** Lets the first page load finish before the one-time shader warm-up. */
+const GLIMMER_WARM_DELAY_MS = 1500;
 
 export function CommandPalette({
 	open,
@@ -79,8 +82,14 @@ export function CommandPalette({
 	useEffect(() => {
 		if (!open || selected) stopSpeech();
 	}, [open, selected, stopSpeech]);
+	const isSignedIn = Boolean(session);
+	useEffect(() => {
+		if (!isSignedIn) return;
+		const timer = setTimeout(warmCommandGlimmer, GLIMMER_WARM_DELAY_MS);
+		return () => clearTimeout(timer);
+	}, [isSignedIn]);
 	useCommandShortcut({
-		enabled: Boolean(session),
+		enabled: isSignedIn,
 		onToggle: () => {
 			if (!saving) onOpenChange(!open);
 		},
