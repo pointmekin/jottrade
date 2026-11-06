@@ -30,6 +30,29 @@ const row = (overrides: Record<string, string> = {}) => ({
 	...overrides,
 });
 describe("parseTradeRows", () => {
+	it.each(["4083.2529999999997", "1.1525500000000002", "91.77799999999999"])(
+		"preserves Exness closing price %s without rounding",
+		(closing_price) => {
+			expect(parseTradeRows([row({ closing_price })], FIELDS)).toMatchObject({
+				skipped: 0,
+				trades: [{ exitPrice: closing_price, netPnl: "49" }],
+			});
+		},
+	);
+	it("reads blank Exness breakeven profit as zero and still nets signed costs", () => {
+		expect(
+			parseTradeRows(
+				[
+					row({
+						opening_price: "82.304",
+						closing_price: "82.3040",
+						profit: "",
+					}),
+				],
+				FIELDS,
+			),
+		).toMatchObject({ skipped: 0, trades: [{ profit: "0", netPnl: "-1" }] });
+	});
 	it("nets signed commission and swap into broker P&L", () => {
 		expect(parseTradeRows([row()], FIELDS)).toMatchObject({
 			skipped: 0,
