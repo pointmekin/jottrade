@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { ImportAction, ImportKind } from "@/lib/import-batch";
+import { parseImportSource, readImportCsv } from "@/lib/import-source";
 import { ExecutionKind } from "@/lib/position";
 import { TradeSide, TradeStatus } from "@/lib/trade";
 import { checkTarget } from "../../scripts/db/target";
@@ -36,6 +38,7 @@ describe.skipIf(!verifyUrl)(
 		let schema: typeof import("@/db/schema");
 		let orm: typeof import("drizzle-orm");
 		const created: number[] = [];
+		const batches: string[] = [];
 
 		beforeAll(async () => {
 			const target = checkTarget({ ...process.env, DATABASE_URL: verifyUrl });
@@ -59,6 +62,14 @@ describe.skipIf(!verifyUrl)(
 		// The browser suite runs next on the same database and reads these accounts.
 		afterAll(async () => {
 			session.userId = "";
+			if (batches.length) {
+				await db
+					.delete(schema.importIdentities)
+					.where(orm.inArray(schema.importIdentities.batchId, batches));
+				await db
+					.delete(schema.importBatches)
+					.where(orm.inArray(schema.importBatches.id, batches));
+			}
 			if (!created.length) return;
 			await db
 				.update(schema.trades)
@@ -145,6 +156,130 @@ describe.skipIf(!verifyUrl)(
 				ids: account.trades.map((trade) => trade.id),
 			};
 		}
+
+		it("adopts grouped legacy legs alongside a new trade without changing the position", async () => {
+			session.userId = ALICE;
+			const imports = await import("@/server/importActions");
+			const csv = [
+				"ticket,symbol,type,lots,opening_time_utc,closing_time_utc,opening_price,closing_price,profit,commission,swap",
+				"9101,EURUSD,buy,0.10,2026-07-15T08:00:00,2026-07-15T10:00:00,1.1000,1.1050,50,-0.70,2",
+				"9102,EURUSD,buy,0.20,2026-07-15T08:00:00,2026-07-16T12:00:00,1.1000,1.0980,-40,-1.40,0",
+				"9103,NZDUSD,buy,0.10,2026-07-15T08:00:00,2026-07-15T10:00:00,0.6,0.601,10,0,0",
+			].join("\n");
+			const source = readImportCsv(csv);
+			const parsed = await parseImportSource(
+				ALICE,
+				ALICE_ACCOUNT,
+				ImportKind.Trades,
+				"USD",
+				source.rows,
+				source.fields,
+			);
+			const legs = await brokerLegs(15);
+			for (const [index, leg] of legs.entries())
+				await db
+					.update(schema.trades)
+					.set({
+						importHash: parsed[index].legacyHash,
+						brokerTicket: null,
+					})
+					.where(orm.eq(schema.trades.id, leg.id));
+			const { tradeId: positionId } = await positions.groupImportedTrades({
+				data: {
+					portfolioId: ALICE_ACCOUNT,
+					tradeIds: legs.map((leg) => leg.id),
+				},
+			});
+			created.push(positionId);
+			const before = await positions.getPositionExecutions({
+				data: { tradeId: positionId },
+			});
+			const totals = await cashTotals(15);
+			const data = {
+				portfolioId: ALICE_ACCOUNT,
+				kind: ImportKind.Trades,
+				sourceCurrency: "USD",
+				fileName: "legacy.csv",
+				csv,
+			};
+			const batch = await imports.stageImport({ data });
+			batches.push(batch.id);
+			expect(batch.rows.map((row) => row.action)).toEqual([
+				ImportAction.Adopt,
+				ImportAction.Adopt,
+				ImportAction.Insert,
+			]);
+			const applied = await imports.commitImport({
+				data: { batchId: batch.id, revision: batch.revision, decisions: [] },
+			});
+			created.push(
+				...applied.outcomes
+					.filter((row) => row.action === ImportAction.Insert)
+					.map((row) => row.recordId as number),
+			);
+			expect(Number(applied.summary.accountDelta)).toBe(10);
+			expect(applied.summary).toMatchObject({
+				actualMutations: 3,
+				reconciled: true,
+			});
+			expect(
+				await positions.getPositionExecutions({
+					data: { tradeId: positionId },
+				}),
+			).toMatchObject({
+				fills: before.fills,
+				replay: before.replay,
+				editRevision: before.editRevision,
+			});
+			expect((await cashTotals(15)).account).toBeCloseTo(totals.account + 10);
+			expect(
+				(await tradeRows(legs.map((leg) => leg.id))).map((leg) => ({
+					groupedIntoId: leg.groupedIntoId,
+					fees: leg.fees,
+					netPnl: leg.netPnl,
+				})),
+			).toEqual(
+				legs.map((leg) => ({
+					groupedIntoId: positionId,
+					fees: leg.fees,
+					netPnl: leg.netPnl,
+				})),
+			);
+			const repeated = await imports.stageImport({ data });
+			batches.push(repeated.id);
+			expect(repeated.rows.map((row) => row.action)).toEqual(
+				Array(3).fill(ImportAction.Duplicate),
+			);
+			const undo = await imports.getImportUndoPreview({
+				data: { batchId: batch.id },
+			});
+			expect(
+				undo.filter(
+					(row) =>
+						row.reason ===
+						"Trade is grouped into a position. Ungroup it first.",
+				),
+			).toHaveLength(2);
+			const changed = await imports.stageImport({
+				data: { ...data, csv: csv.replace(",50,-0.70", ",60,-0.70") },
+			});
+			batches.push(changed.id);
+			await expect(
+				imports.commitImport({
+					data: {
+						batchId: changed.id,
+						revision: changed.revision,
+						decisions: [
+							{
+								rowNumber: 2,
+								action: ImportAction.Correct,
+								targetId: legs[0].id,
+							},
+						],
+					},
+				}),
+			).rejects.toThrow("Trade is grouped into a position. Ungroup it first.");
+		});
 
 		it("groups a suggested partial close into one position with the same account and day totals", async () => {
 			session.userId = ALICE;

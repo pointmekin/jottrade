@@ -105,6 +105,32 @@ afterEach(() => {
 	state.activeAccount = state.accounts[0];
 });
 describe("import decisions", () => {
+	it("enables Apply import for unchanged legacy legs in a grouped position", () => {
+		setup([
+			row({
+				action: ImportAction.Adopt,
+				targetId: 7,
+				candidates: [
+					{
+						id: 7,
+						revision: 0,
+						snapshot: record,
+						reason: "legacy",
+						isGroupedLeg: true,
+					},
+				],
+			}),
+		]);
+		expect(
+			screen
+				.getByRole("button", { name: "Apply import" })
+				.hasAttribute("disabled"),
+		).toBe(false);
+		expect(
+			screen.queryByText("Trade is grouped into a position. Ungroup it first."),
+		).toBeNull();
+	});
+
 	it("shows a correction's realized-R effect using the saved original denominator", () => {
 		const risk = calculateInitialRisk({
 			symbol: "EURUSD",
