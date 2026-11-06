@@ -56,6 +56,20 @@ test("a reimport of the same CSV adds no duplicate trades", async ({
 	await page.reload();
 	await expect(eurusd).toHaveCount(1);
 	await expect(gbpusd).toHaveCount(1);
+
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await expect(eurusd.getByText("1.1 USD", { exact: true })).toBeVisible();
+	await expect(eurusd.getByText("1.105 USD", { exact: true })).toBeVisible();
+	await expect(
+		page.getByRole("columnheader", { name: "Entry", exact: true }),
+	).toBeVisible();
+	await page.setViewportSize({ width: 375, height: 812 });
+	await expect(eurusd.getByText("1.1 USD", { exact: true })).toBeVisible();
+	await expect(eurusd.getByText("1.105 USD", { exact: true })).toBeVisible();
+	await gbpusd.click();
+	const fills = page.getByRole("listitem").filter({ hasText: "Price" });
+	await expect(fills.getByText("1.3 USD", { exact: true })).toBeVisible();
+	await expect(fills.getByText("1.295 USD", { exact: true })).toBeVisible();
 });
 
 test("a CSV from another broker gets specific guidance", async ({ page }) => {
