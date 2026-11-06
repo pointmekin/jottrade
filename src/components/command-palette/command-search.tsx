@@ -40,7 +40,7 @@ export function CommandSearch({
 	onInterpret: () => void;
 }) {
 	return (
-		<Command shouldFilter={false}>
+		<Command shouldFilter={false} className="h-[min(28rem,70dvh)]">
 			<div className="relative">
 				<CommandInput
 					aria-label="Search commands"
@@ -54,7 +54,7 @@ export function CommandSearch({
 				)}
 			</div>
 			{speech.listening && <ListeningStatus interim={speech.interim} />}
-			<CommandList className="max-h-[min(360px,60dvh)] p-2">
+			<CommandList className="max-h-none min-h-0 flex-1 p-2">
 				<CommandEmpty>
 					No matching commands. Try “short gold” or “deposit 1000”.
 				</CommandEmpty>
